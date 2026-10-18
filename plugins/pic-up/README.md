@@ -17,6 +17,9 @@ distinguono l'evidenza originale dalla vista eventualmente limitata al byte budg
 TShark, Capinfos, Tesseract ed ExifTool sono opzionali: le sezioni che ne dipendono
 possono non essere disponibili. L'analisi di input oltre il budget è parziale; un
 report senza candidate non dimostra che il file completo sia privo di payload.
+La scansione raw ha inoltre un cap interno di 128 MiB: il superamento è
+segnalato come parziale anche quando il budget concesso dal job è maggiore; i
+log allegati dichiarano separatamente il troncamento del prefisso analizzato.
 Ogni diagnostica del parser rende il risultato `partial`, poiché il parser storico
 non distingue ancora omissioni di copertura da messaggi informativi. Gli artefatti
 carvati ed esportati riportano la fonte registrata dal parser insieme all'asset

@@ -157,6 +157,11 @@ class Plugin(BasePlugin):
             if item.get("kind") == "flag" and item.get("value")
         ]
         warnings = list(report.get("diagnostics", []))
+        scan_limit = min(_DEFAULT_RAW_SCAN_BYTES, max(1, int(context.get("byte_budget", _DEFAULT_RAW_SCAN_BYTES))))
+        if report.get("log", {}).get("truncated"):
+            warnings.append("Analisi del log limitata al prefisso consentito; i conteggi non coprono il file completo.")
+        if not args.pcap and args.input_kind != "log" and int(analyzed_size or 0) > scan_limit:
+            warnings.append(f"Scansione raw limitata a {scan_limit} byte su {analyzed_size} byte della vista del file.")
         # The legacy analyzer reports skipped, redacted and capped paths as
         # diagnostics without a stable severity field. Until that contract is
         # typed, any diagnostic means at least one coverage limitation exists.
