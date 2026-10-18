@@ -94,6 +94,9 @@ is unavailable: pytsk3 only exports matching files within explicit budgets.
 Split and virtual-image materialization is refused if it exceeds the workspace.
 TPM protectors can be identified but cannot be used offline unless key material
 is already contained in an authorized artifact supplied by the operator.
+Explicit John/Hashcat launchers limit each run to 32 wordlists, a bounded cumulative
+timeout and 16 MiB recovery files. Their per-run directories and child-created files
+use private permissions; platforms without file-size limits report incomplete status.
 
 ## Bitlocker-1 and Bitlocker-2
 

@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
 
@@ -116,7 +115,8 @@ def prepare(path: Path, output_dir: Path, max_bytes: int, runner) -> tuple[Path,
         info["virtual_size"] = virtual_size
         if not virtual_size or virtual_size > max_bytes:
             return path, info, [f"Conversione {kind.upper()} non eseguita: virtual size oltre il workspace"]
-        result = runner.run([binary, "convert", "-f", kind, "-O", "raw", str(path), str(target)], 600)
+        result = runner.run([binary, "convert", "-f", kind, "-O", "raw", str(path), str(target)],
+                            600, max_file_size=max_bytes)
         if result["exit_code"] != 0 or not target.exists():
             return path, info, [f"Conversione {kind.upper()} fallita: {result['stderr'][-300:]}"]
     else:

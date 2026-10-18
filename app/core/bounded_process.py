@@ -5,18 +5,39 @@ import os
 import selectors
 import signal
 import subprocess
+import sys
 import time
+from pathlib import Path
 from typing import Any
 
 
 def run_bounded(argv: list[str], *, timeout: float = 30, stdin: bytes | None = None,
                 max_stdout: int = 1024 * 1024, max_stderr: int = 1024 * 1024,
-                cwd: str | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
-    """Drain subprocess pipes with byte caps; kill the process group on cap/timeout."""
+                cwd: str | None = None, env: dict[str, str] | None = None,
+                max_file_size: int | None = None) -> dict[str, Any]:
+    """Drain subprocess pipes with byte caps and kill the group on cap/timeout.
+
+    ``max_file_size`` optionally inserts a tiny exec helper that applies
+    ``RLIMIT_FSIZE`` and a private umask without a threaded ``preexec_fn``.
+    """
     started = time.monotonic()
+    command = argv
+    if max_file_size is not None:
+        try:
+            __import__("resource")
+        except ImportError:
+            resource_supported = False
+        else:
+            resource_supported = os.name == "posix"
+        if not resource_supported:
+            return {"returncode": 126, "stdout": b"", "stderr": b"file output limit unsupported",
+                    "timed_out": False, "truncated": False, "duration": time.monotonic() - started,
+                    "file_limit_unsupported": True}
+        helper = Path(__file__).with_name("bounded_file_exec.py")
+        command = [sys.executable, str(helper), str(max(0, int(max_file_size))), *argv]
     try:
         process = subprocess.Popen(
-            argv, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+            command, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, start_new_session=True,
         )
     except OSError as exc:
