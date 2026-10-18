@@ -15,6 +15,8 @@ MAGICS = {
     b"<<< Oracle VM VirtualBox Disk Image >>>": "vdi",
 }
 EXTENSION_FORMATS = {".qcow": "qcow", ".qcow2": "qcow2", ".qed": "qed", ".vmdk": "vmdk", ".vdi": "vdi", ".vhd": "vhd", ".vhdx": "vhdx", ".iso": "iso", ".raw": "raw", ".img": "raw", ".dd": "raw"}
+MAX_SOURCE_COPY = 256 * 1024 * 1024
+MAX_MATERIALIZED_BYTES = 512 * 1024 * 1024
 
 
 def identify(path: Path) -> dict[str, Any]:
@@ -101,22 +103,44 @@ def analyze(path: Path, config: ScanConfig) -> dict[str, Any]:
     return result
 
 
-def materialize_copy(path: Path, work_dir: Path) -> tuple[Path | None, list[dict[str, Any]], list[str]]:
+def materialize_copy(path: Path, work_dir: Path, *, max_bytes: int = MAX_MATERIALIZED_BYTES) -> tuple[Path | None, list[dict[str, Any]], list[str]]:
     """Build a raw view only from a private duplicate; the evidence path is never a qemu-img output target."""
     commands: list[dict[str, Any]] = []
     warnings: list[str] = []
     if not shutil.which("qemu-img"):
         return None, commands, ["qemu-img unavailable; unified virtual view skipped"]
+    source_size = path.stat().st_size
+    if source_size > MAX_SOURCE_COPY:
+        return None, commands, [f"Input virtuale oltre il limite di copia privata ({MAX_SOURCE_COPY} byte); vista unificata skipped"]
+    info, record = _json_command(["qemu-img", "info", "--output=json", "--force-share", str(path)])
+    commands.append(record)
+    virtual_size = info.get("virtual-size") if isinstance(info, dict) else None
+    limit = min(MAX_MATERIALIZED_BYTES, max(0, int(max_bytes)))
+    if not isinstance(virtual_size, int) or virtual_size < 0:
+        return None, commands, ["Dimensione virtuale non verificata; conversione unificata saltata"]
+    if virtual_size > limit:
+        return None, commands, [f"Vista virtuale {virtual_size} byte oltre il limite di materializzazione {limit}; scansione parziale"]
     work_dir.mkdir(parents=True, exist_ok=True)
     private = work_dir / (path.name + ".working-copy")
-    with path.open("rb") as source, private.open("xb") as target:
-        shutil.copyfileobj(source, target, 4 * 1024 * 1024)
+    created_private = False
+    try:
+        with path.open("rb") as source, private.open("xb") as target:
+            created_private = True
+            shutil.copyfileobj(source, target, 4 * 1024 * 1024)
+    except OSError as exc:
+        if created_private:
+            private.unlink(missing_ok=True)
+        return None, commands, [f"Copia privata virtuale fallita: {exc}"]
     raw = work_dir / "unified-readonly-view.raw"
-    record = run(["qemu-img", "convert", "-O", "raw", str(private), str(raw)], timeout=1800)
+    record = run(["qemu-img", "convert", "-O", "raw", str(private), str(raw)], timeout=300)
     commands.append(record)
     private.unlink(missing_ok=True)
     if not record["ok"]:
         warnings.append("Could not materialize unified raw view from private copy")
+        raw.unlink(missing_ok=True)
+        return None, commands, warnings
+    if raw.stat().st_size > limit:
+        warnings.append(f"Vista raw oltre il limite {limit}; derivato rimosso")
         raw.unlink(missing_ok=True)
         return None, commands, warnings
     raw.chmod(0o400)
