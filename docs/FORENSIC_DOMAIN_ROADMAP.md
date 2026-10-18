@@ -76,6 +76,9 @@ universale di acquisizione certificata, mobile, cloud o live response.
   dichiarato (`input`, `artifact`, `disk`, `decoded_payload`); per payload
   trasformati la posizione decodificata e quella del candidato codificato sono
   mostrate separatamente.
+- Per scope espliciti `input`, `disk`, `disk_image` e `absolute`, i finding con asset
+  sorgente aprono una finestra read-only di 128 byte, paginata in righe esadecimali;
+  offset di artefatti o payload trasformati non vengono applicati all'input originale.
 - Se il normalizer elimina una visualizzazione invalida, il relativo warning e lo
   stato `partial` aggiornano anche la sezione Warnings del risultato plugin.
 - L'indice di ricerca delle tabelle serializzava ogni record intero all'apertura.

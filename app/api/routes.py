@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from fastapi import Request
+from fastapi import HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from starlette.concurrency import run_in_threadpool
 from app.models.contracts import JobRequest, CaseInput, AssetInput, FlagSearch
@@ -235,6 +235,33 @@ def register_routes(app, settings):
     def asset(asset_id: str):
         item = app.state.store.get("asset", asset_id)
         return {**app.state.assets.public(item), "compatible_plugins": app.state.registry.compatible(item)}
+
+    @app.get("/api/assets/{asset_id}/bytes")
+    def asset_bytes(
+        asset_id: str,
+        offset: int = Query(ge=0),
+        length: int = Query(default=128, ge=1, le=4096),
+    ):
+        """Return a small, read-only byte window for evidence navigation."""
+        item = app.state.store.get("asset", asset_id)
+        path = Path(item.get("path", ""))
+        if path.is_symlink() or not path.is_file():
+            raise HTTPException(status_code=404, detail="Asset file non disponibile")
+        size = path.stat().st_size
+        if offset >= size:
+            raise HTTPException(status_code=416, detail="Offset fuori dall'asset")
+        with path.open("rb") as source:
+            source.seek(offset)
+            data = source.read(min(length, size - offset))
+        return {
+            "asset_id": asset_id,
+            "name": item.get("name"),
+            "offset": offset,
+            "length": len(data),
+            "asset_size": size,
+            "hex": data.hex(" "),
+            "ascii": "".join(chr(byte) if 32 <= byte < 127 else "." for byte in data),
+        }
 
     @app.post("/api/assets/{asset_id}/repair", status_code=201)
     async def repair(asset_id: str, request: Request):

@@ -338,6 +338,31 @@ function compareFindings(a, b) {
     (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1);
 }
 
+function appendByteWindowAction(parent, assetId, offset, scope) {
+  const validScopes = new Set(["input", "disk", "disk_image", "absolute"]);
+  if (!assetId || !Number.isSafeInteger(offset) || offset < 0 || !validScopes.has(scope)) return;
+  const button = action("Mostra byte sorgente", async () => {
+    const data = await api(`/assets/${encodeURIComponent(assetId)}/bytes?offset=${offset}&length=128`);
+    const content = document.createElement("div");
+    const scopeLabel = { input: "input", disk: "immagine disco", disk_image: "immagine disco", absolute: "offset assoluto input" }[scope];
+    const bytes = data.hex ? data.hex.split(" ") : [];
+    const rows = [];
+    for (let index = 0; index < bytes.length; index += 16) {
+      const part = bytes.slice(index, index + 16);
+      const ascii = data.ascii.slice(index, index + part.length);
+      const rowOffset = (data.offset + index).toString(16).padStart(8, "0");
+      rows.push(`${rowOffset}  ${part.join(" ").padEnd(47, " ")}  ${ascii}`);
+    }
+    content.append(
+      text("p", `${data.name} · ${scopeLabel} · offset 0x${data.offset.toString(16)} · ${data.length} byte`),
+      text("pre", rows.join("\n"), "evidence-byte-window mono"),
+    );
+    dialog("Contesto byte dell’evidenza", content);
+  });
+  button.className = "plain finding-byte-action";
+  parent.append(button);
+}
+
 function pluginStatus(results) {
   const rank = { failed: 7, partial: 6, running: 5, queued: 4, cancelled: 3, completed: 2, skipped: 1 };
   return results.map((result) => result.status).filter(Boolean).sort(
@@ -439,11 +464,15 @@ function compactFinding(item, pluginId) {
     text("p", item.description || item.value || item.summary || ""),
     text("small", `${pluginId}${confidence != null ? ` · affidabilità ${confidence}%` : ""}${source ? ` · origine ${source}` : ""}${location}`),
   );
+  appendByteWindowAction(row, item.source_asset_id || item.asset_id || item.parent_asset_id, offset, item.offset_scope);
   return row;
 }
 
 function renderPluginOverview(host, pluginId, results) {
-  const findings = results.flatMap((result) => result.findings || []).sort(compareFindings);
+  const findings = results.flatMap((result) => (result.findings || []).map((item) => ({
+    ...item,
+    asset_id: item.asset_id || result.asset_id,
+  }))).sort(compareFindings);
   const flags = results.flatMap((result) => result.flags || []).sort((a, b) =>
     (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1));
   const artifacts = results.flatMap((result) => result.artifacts || []);
@@ -740,7 +769,11 @@ function renderSummary(job, results, graph) {
   );
   const issues = issueItems(job, results);
   const findings = results.flatMap((result) =>
-    (result.findings || []).map((finding) => ({ ...finding, plugin_id: result.plugin_id })),
+    (result.findings || []).map((finding) => ({
+      ...finding,
+      asset_id: finding.asset_id || result.asset_id,
+      plugin_id: result.plugin_id,
+    })),
   ).sort(compareFindings);
   const pluginIds = [...new Set(results.map((result) => result.plugin_id))].filter((id) => id !== "magic-wrapper");
   const assets = new Set(graph.nodes.filter((node) => node.type === "asset").map((node) => node.asset_id || node.id));
@@ -799,7 +832,7 @@ function flagCard(flag) {
   content.append(
     text("span", flag.category || flag.classification || "candidate", "flag-classification mono"),
     text("strong", flag.value, "flag-value"),
-    text("small", `${flag.plugin_id || "Flag detector"} · ${flag.method || flag.decoder || "raw"} · offset ${flag.offset ?? "trasformato"}`),
+    text("small", `${flag.plugin_id || "Flag detector"} · ${flag.method || flag.decoder || "raw"} · offset ${Number.isSafeInteger(flag.offset) ? `0x${flag.offset.toString(16)}` : "trasformato"}${flag.offset_scope || flag.source_offset_scope ? ` (${flag.offset_scope || flag.source_offset_scope})` : ""}`),
     text("small", `Origine: ${assetName(flag.asset_id) || flag.source || "dato derivato"}${confidence != null ? ` · affidabilità ${confidence}%` : ""}`),
   );
   const actions = text("div", undefined, "flag-actions");
@@ -815,6 +848,7 @@ function flagCard(flag) {
       if (node) nodeDetails(node);
     }),
   );
+  appendByteWindowAction(actions, flag.asset_id || flag.source_asset_id, flag.offset, flag.offset_scope || flag.source_offset_scope);
   item.append(text("span", "◇", "flag-symbol"), content, actions);
   return item;
 }

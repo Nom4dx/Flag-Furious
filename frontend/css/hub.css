@@ -1066,6 +1066,8 @@ main {
   font: 10px Plex, monospace;
   opacity: 0.6;
 }
+.finding-byte-action { justify-self: start; font-size: 11px; }
+.evidence-byte-window { margin: 8px 0; padding: 12px; max-width: min(80vw, 1100px); overflow-x: auto; white-space: pre; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.24); font: 12px/1.6 Plex, monospace; }
 .dashboard-section-index {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
