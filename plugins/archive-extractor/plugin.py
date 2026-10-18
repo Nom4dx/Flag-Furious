@@ -60,14 +60,18 @@ class Plugin(BasePlugin):
         derived = []
         rows = []
         warnings = []
+        warning_set = set()
         omitted_warnings = 0
         unlock_requests = []
         omitted_unlock_requests = 0
 
         def warn(message):
             nonlocal omitted_warnings
+            if message in warning_set:
+                return
             if len(warnings) < MAX_WARNINGS:
                 warnings.append(message)
+                warning_set.add(message)
             else:
                 omitted_warnings += 1
         if asset.get("partial_input"):
@@ -146,10 +150,6 @@ class Plugin(BasePlugin):
                     row["status"] = "encrypted"
                     warn("Membro cifrato; l'estrazione richiede una credenziale: " + _bounded_text(member.filename, 256))
                     continue
-                if len(derived) >= 64:
-                    row["status"] = "skipped_limit"
-                    warn("Limite 64 membri estratti")
-                    break
                 name = PurePosixPath(member.filename.replace("\\", "/"))
                 if name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16):
                     row["status"] = "rejected_unsafe_path"
@@ -167,6 +167,10 @@ class Plugin(BasePlugin):
                         f"Rapporto di compressione {ratio:.1f}:1 oltre il limite {MAX_COMPRESSION_RATIO}: "
                         + _bounded_text(member.filename, 256)
                     )
+                    continue
+                if len(derived) >= 64:
+                    row["status"] = "skipped_limit"
+                    warn("Limite 64 membri estratti; inventario continuato fino al limite dichiarato.")
                     continue
                 leaf = _bounded_text(name.name, 180) or "member"
                 target = output / f"{index}-{leaf}"

@@ -11,7 +11,8 @@ il risultato è `partial`. I membri cifrati sono inventariati e producono una ri
 di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
 
 L'inventario si ferma a 10.000 membri e distingue estratti, cifrati, directory,
-rifiutati e non estratti per limite o errore. Ogni riga include l'ID della fonte,
+rifiutati e non estratti per limite o errore; il tetto di 64 derivati non interrompe
+l'inventario dei membri successivi. Ogni riga include l'ID della fonte,
 l'offset del local header, dimensioni dichiarate e CRC dell'indice; gli estratti
 aggiungono SHA-256 dopo la verifica CRC. I warning sono limitati a 100 voci più
 un riepilogo delle omissioni. Il parser preflight limita l'indice centrale a 4 MiB;
