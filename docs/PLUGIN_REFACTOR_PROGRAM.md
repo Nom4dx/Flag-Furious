@@ -75,8 +75,8 @@ nascodono aggiornando attese senza spiegazione.
 | --- | --- | --- |
 | archive-extractor | refactor | Matcher ZIP corretto per input matcher limitato; cifratura resa parziale. Restano budget/validazione da rifare |
 | text-inspector | refactor | Preview limitata a 16 KiB e conteggi marcati parziali; restano offset e decodifica dichiarata |
-| pic-up | refactor | Matcher limitato a stream, immagini e archivi; rimosso fallback per ogni file |
-| hidgrabber | audit | Inventario iniziale presente; audit dettagliato da svolgere |
+| pic-up | refactor | Matcher limitato a stream, immagini e archivi; candidate convertite in finding/flag; accetta tutti i prefissi |
+| hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate al risultato; restano provenance frame-level e limiti dichiarati |
 | githappens | refactor | Aggiunto matcher per directory, archivi, immagini disco e bundle; stato archiviato e limiti adapter da verificare |
 | ext4atto | audit | Adattatore complesso; copertura e limiti TSK da verificare |
 | binary-static-analysis | audit | 5 file test; audit formati/tool da svolgere |

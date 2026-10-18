@@ -59,6 +59,10 @@ universale di acquisizione certificata, mobile, cloud o live response.
 - `Text Inspector` poteva restituire `asset.content` completo anche quando l'analisi
   leggeva solo la vista ammessa. Ora l'anteprima è 16 KiB e conteggi/risultato
   dichiarano quando la vista è parziale.
+- Gli adapter `pic-up` e `HIDGrabber` passavano soltanto il primo prefisso configurato
+  e non promuovevano le corrispondenze decodificate nel contratto globale delle flag.
+  Ora accettano prefissi ripetuti e restituiscono le corrispondenze come candidate con
+  metodo e fonte disponibili nel report.
 
 Questi cambiamenti riducono lavoro ripetuto, ma non trasformano i parser parziali in
 copertura completa. Il database locale, i report e le wordlist personali non fanno

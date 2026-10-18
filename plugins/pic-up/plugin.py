@@ -61,12 +61,22 @@ class Plugin(BasePlugin):
                 "--no-ocr",
             ]
         )
-        if context.get("prefixes"):
-            args.flag_prefix = context["prefixes"][0]
+        args.flag_prefix = context.get("prefixes") or None
         tool.validate_inputs(args, tool.build_parser())
         tool.configure_automatic_actions(args)
         reporter.phase("Triage file, stream e carving")
         report = asdict(tool.analyze(args))
+        flags = [
+            {
+                "value": item.get("value"),
+                "source": item.get("source"),
+                "method": "pic-up decoder: " + item.get("encoding", "plain"),
+                "confidence": 0.9 if item.get("encoding", "plain") == "plain" else 0.75,
+                "classification": "candidate",
+            }
+            for item in report.get("matches", [])
+            if item.get("kind") == "flag" and item.get("value")
+        ]
         artifacts = [
             {"path": str(p), "name": p.name, "method": "pic-up extraction"}
             for p in output.rglob("*")
@@ -77,5 +87,7 @@ class Plugin(BasePlugin):
             "confidence": 0.85,
             "sections": [{"id": "analysis", "data": report}],
             "artifacts": artifacts,
+            "flags": flags,
+            "findings": flags,
             "warnings": report.get("warnings", []),
         }

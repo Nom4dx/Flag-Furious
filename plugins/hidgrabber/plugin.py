@@ -18,10 +18,20 @@ class Plugin(BasePlugin):
         args = tool.build_parser().parse_args(
             [asset["path"], "--json", "--output-dir", str(output), "--timeout", "30", "--color", "never"]
         )
-        if context.get("prefixes"):
-            args.flag_prefix = context["prefixes"][0]
+        args.flag_prefix = context.get("prefixes") or None
         reporter.phase("Decodifica report USB HID")
         result = tool.analyze(args)
+        flags = [
+            {
+                "value": item["value"],
+                "source": item.get("source"),
+                "method": "HID decode: " + item.get("chain", "plain text"),
+                "confidence": 0.9 if item.get("chain") in (None, "plain") else 0.75,
+                "classification": "candidate",
+            }
+            for item in result.get("matches", [])
+            if item.get("kind") == "flag" and item.get("value")
+        ]
         artifacts = [
             {"path": str(p), "name": p.name, "method": "HIDGrabber"}
             for p in output.rglob("*")
@@ -32,5 +42,8 @@ class Plugin(BasePlugin):
             "confidence": 0.9,
             "sections": [{"id": "analysis", "data": result}],
             "artifacts": artifacts,
-            "warnings": result.get("warnings", []),
+            "flags": flags,
+            "findings": flags,
+            "warnings": result.get("diagnostics", []),
+            "metrics": result.get("inventory", {}),
         }

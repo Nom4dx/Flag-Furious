@@ -1224,10 +1224,11 @@ def decoded_variants(data: bytes, max_depth: int = 3) -> Iterable[tuple[str, byt
                 queue.append((chain, decoded, depth + 1))
 
 
-def compile_flag_regex(prefix: str | None) -> re.Pattern[bytes]:
-    if prefix:
-        normalized = prefix[:-1] if prefix.endswith("{") else prefix
-        base = re.escape(normalized.encode())
+def compile_flag_regex(prefix: str | Sequence[str] | None) -> re.Pattern[bytes]:
+    prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
+    bases = [re.escape((item[:-1] if item.endswith("{") else item).encode()) for item in prefixes if item]
+    if bases:
+        base = b"(?:" + b"|".join(bases) + b")"
     else:
         base = rb"(?:flag|ctf|HTB|THM|picoCTF|DUCTF|uiuctf)"
     return re.compile(base + rb"(?:\{[^}\r\n]{1,512}\}|\[[^\]\r\n]{1,512}\]|[:=_-][A-Za-z0-9_./+\-=]{4,512})", re.IGNORECASE)
@@ -1236,7 +1237,7 @@ def compile_flag_regex(prefix: str | None) -> re.Pattern[bytes]:
 def scan_matches(
     blobs: Iterable[tuple[str, bytes]],
     *,
-    flag_prefix: str | None,
+    flag_prefix: str | Sequence[str] | None,
     patterns: Sequence[str],
     rc4_key: bytes | None,
     rc4_drop: int,
@@ -2323,7 +2324,7 @@ Automatic behavior:
     parser.add_argument("--all", action="store_true", help="run every self-contained action; excludes actions requiring user-supplied secrets, keys, prefixes, patterns, or filters")
     parser.add_argument("--output-dir", type=Path, metavar="DIR", help="root directory for automatic artifacts (default: <input-stem>_picup, non-destructive suffix on reruns)")
     parser.add_argument("--capture", type=Path, metavar="PCAP", help="companion capture when the main input is a TLS key .log")
-    parser.add_argument("-f", "--flag-prefix", help="expected flag prefix, for example HTB or picoCTF")
+    parser.add_argument("-f", "--flag-prefix", action="append", help="expected flag prefix; repeat for multiple prefixes")
     parser.add_argument("-p", "--pattern", action="append", default=[], metavar="REGEX", help="case-insensitive regex to search; repeatable")
     parser.add_argument("-Y", "--filter", dest="display_filter", help="Wireshark display filter applied to the analysis")
     parser.add_argument("--write-filtered", type=Path, metavar="PCAPNG", help="write packets matching --filter to a derived capture")

@@ -602,9 +602,11 @@ def decode_layers(text: str, encoding_option: str, max_depth: int = 3) -> list[d
     return results
 
 
-def compile_flag_pattern(prefix: str | None) -> re.Pattern[str]:
-    if prefix:
-        base = re.escape(prefix.rstrip("{"))
+def compile_flag_pattern(prefix: str | Sequence[str] | None) -> re.Pattern[str]:
+    prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
+    bases = [re.escape(item.rstrip("{")) for item in prefixes if item]
+    if bases:
+        base = "(?:" + "|".join(bases) + ")"
         expression = base + r"(?:\{[^}\r\n]{1,512}\}|[:=_-][A-Za-z0-9_./+\-=]{4,512})"
     else:
         expression = (
@@ -614,7 +616,11 @@ def compile_flag_pattern(prefix: str | None) -> re.Pattern[str]:
     return re.compile(expression, re.IGNORECASE)
 
 
-def find_matches(texts: Iterable[tuple[str, str]], flag_prefix: str | None, patterns: Sequence[str]) -> list[dict[str, str]]:
+def find_matches(
+    texts: Iterable[tuple[str, str]],
+    flag_prefix: str | Sequence[str] | None,
+    patterns: Sequence[str],
+) -> list[dict[str, str]]:
     flag_pattern = compile_flag_pattern(flag_prefix)
     compiled = []
     for value in patterns:
@@ -969,7 +975,7 @@ File behavior:
     parser.add_argument("--layout", choices=("auto", *LAYOUTS), default="auto", help="keyboard layout (default: auto tries US, UK, IT)")
     parser.add_argument("--device-type", choices=("auto", "keyboard", "mouse", "all"), default="auto", help="HID decoder selection")
     parser.add_argument("--encoding", choices=("auto", *TEXT_ENCODINGS), default="auto", help="encoding for nested typed data (default: auto)")
-    parser.add_argument("-f", "--flag-prefix", help="expected flag prefix, for example flag or picoCTF")
+    parser.add_argument("-f", "--flag-prefix", action="append", help="expected flag prefix; repeat for multiple prefixes")
     parser.add_argument("-p", "--pattern", action="append", default=[], metavar="REGEX", help="extra case-insensitive regex; repeatable")
     parser.add_argument("-Y", "--filter", dest="display_filter", help="additional Wireshark display filter")
     parser.add_argument("--include-non-interrupt", action="store_true", help="also decode USB transfer types other than interrupt")
