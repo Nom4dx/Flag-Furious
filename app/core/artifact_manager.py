@@ -62,10 +62,27 @@ class ArtifactManager:
             "size": derived["size"],
             "mime": derived["mime"],
             "hashes": derived["hashes"],
+            "sha256": derived.get("hashes", {}).get("sha256"),
             "created_at": now(),
             "offset": item.get("offset"),
             "method": item.get("method", "plugin output"),
             "deduplicated": deduplicated,
+            "source_asset_id": item.get("source_asset_id", parent["id"]),
         }
+        for key, limit in (
+            ("source", 1024),
+            ("source_location", 1024),
+            ("source_member", 512),
+            ("encoding", 64),
+            ("origin", 256),
+            ("status", 32),
+        ):
+            value = item.get(key)
+            if isinstance(value, str):
+                artifact[key] = value[:limit]
+        for key in ("source_offset", "confidence"):
+            value = item.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                artifact[key] = value
         self.store.put("artifact", artifact)
         return artifact, derived

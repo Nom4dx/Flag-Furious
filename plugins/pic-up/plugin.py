@@ -13,8 +13,9 @@ sys.modules[spec.name] = tool
 spec.loader.exec_module(tool)
 
 
-def _bounded_artifacts(root, budget, source_asset_id, excluded_paths=()):
+def _bounded_artifacts(root, budget, source_asset_id, excluded_paths=(), provenance=None):
     root = root.resolve()
+    provenance = provenance or {}
     excluded_paths = {Path(path).resolve() for path in excluded_paths}
     candidates, scanned, limited = [], 0, False
     for base, dirs, files in os.walk(root, followlinks=False):
@@ -42,9 +43,19 @@ def _bounded_artifacts(root, budget, source_asset_id, excluded_paths=()):
             omitted += 1
             continue
         used += size
+        source = provenance.get(str(path.resolve()), {})
+        kind = source.get("_kind")
         artifacts.append({
-            "path": str(path), "name": path.name, "method": "pic-up extraction",
-            "source_asset_id": source_asset_id, "size": size,
+            "path": str(path),
+            "name": path.name,
+            "method": source.get("origin") or ("TShark object export" if kind == "exports" else "pic-up carving"),
+            "source_asset_id": source_asset_id,
+            "source": source.get("source") or ("PCAP/PCAPNG" if kind == "exports" else "Input byte stream"),
+            "encoding": source.get("encoding"),
+            "mime": source.get("mime"),
+            "sha256": source.get("sha256"),
+            "status": "active" if source.get("complete", True) else "partial",
+            "size": size,
         })
     return artifacts, omitted + int(limited), used
 
@@ -59,28 +70,24 @@ class Plugin(BasePlugin):
                 "score": 0.0,
                 "reasons": ["Immagine disco affidata ai plugin filesystem"],
             }
-        extension = str(asset.get("extension", "")).lower()
-        mime = str(asset.get("mime", "")).lower()
         header = bytes.fromhex(asset.get("header_hex", ""))
-        pcap = "pcap" in detected or asset.get("type") == "pcap" or header[:4] in {
+        pcap = "pcap" in detected or header[:4] in {
             b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x0a\x0d\x0d\x0a",
             b"\x4d\x3c\xb2\xa1", b"\xa1\xb2\x3c\x4d",
         }
-        image = mime.startswith("image/") or header.startswith((
+        image = header.startswith((
             b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a",
-            b"BM", b"RIFF",
-        ))
+            b"BM",
+        )) or (header.startswith(b"RIFF") and header[8:12] == b"WEBP")
         archive = "archive" in detected or header.startswith((
             b"PK\x03\x04", b"PK\x05\x06", b"7z\xbc\xaf\x27\x1c", b"\x1f\x8b",
-        ))
-        focused = pcap or image or archive or extension in {
-            ".pcap", ".pcapng", ".cap", ".jpg", ".jpeg", ".png", ".gif",
-            ".bmp", ".webp", ".zip", ".7z", ".tar", ".gz", ".xz", ".zst",
-        }
+            b"\xfd7zXZ\x00", b"\x28\xb5\x2f\xfd",
+        )) or header[257:262] == b"ustar"
+        focused = pcap or image or archive
         return {
             "compatible": focused,
-            "score": 0.82 if focused else 0.5,
-            "reasons": ["Formato supportato dal triage pic-up"] if focused else [],
+            "score": 0.9 if pcap else 0.84 if image or archive else 0.0,
+            "reasons": ["Firma strutturale PCAP/PCAPNG" if pcap else "Firma immagine o archivio supportato"] if focused else [],
         }
 
     def analyze(self, asset, context, reporter):
@@ -134,14 +141,24 @@ class Plugin(BasePlugin):
             if item.get("kind") == "flag" and item.get("value")
         ]
         warnings = list(report.get("diagnostics", []))
-        incomplete_markers = ("unavailable", "limited to", "capped", "truncated", "could not", "not found", "partial", "timeout", "incomplete")
-        partial = bool(asset.get("partial_input")) or any(
-            any(marker in str(message).casefold() for marker in incomplete_markers)
-            for message in warnings
-        )
+        # The legacy analyzer reports skipped, redacted and capped paths as
+        # diagnostics without a stable severity field. Until that contract is
+        # typed, any diagnostic means at least one coverage limitation exists.
+        partial = bool(asset.get("partial_input") or warnings)
+        provenance = {}
+        for kind in ("exports", "extracted_files", "images"):
+            for record in report.get(kind, []):
+                path = record.get("path")
+                if not path:
+                    continue
+                try:
+                    provenance[str(Path(path).resolve())] = {**record, "_kind": kind}
+                except OSError:
+                    continue
         artifacts, omitted, exported_bytes = _bounded_artifacts(
             output, context["output_bytes"], asset.get("id"),
             excluded_paths=[item["path"] for item in report.get("exports", []) if not item.get("complete", True)],
+            provenance=provenance,
         )
         if omitted:
             warnings.append(f"{omitted} artefatti non esportati: limite 64 file o budget output.")

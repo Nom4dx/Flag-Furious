@@ -639,9 +639,11 @@ function artifactRow(a) {
   const label = text("div", a.name);
   const sourceId = a.source_asset_id || a.parent_asset_id || a.asset_id;
   const source = sourceId ? assetName(sourceId) : a.source || a.original_path;
+  const sourceDetail = sourceId ? a.source || a.source_location : null;
   const offset = a.source_offset ?? a.offset ?? a.byte_offset;
   const facts = [`${a.size ?? 0} byte`, a.status, a.plugin_id, a.method];
   if (source) facts.push(`origine ${source}`);
+  if (sourceDetail && sourceDetail !== source) facts.push(`contesto ${String(sourceDetail).slice(0, 240)}`);
   if (offset !== undefined && offset !== null) facts.push(`offset ${offset}`);
   if (a.sha256) facts.push(`SHA-256 ${String(a.sha256).slice(0, 16)}…`);
   label.append(text("small", facts.filter(Boolean).join(" · ")));
