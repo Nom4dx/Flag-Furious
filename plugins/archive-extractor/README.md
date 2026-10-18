@@ -5,9 +5,10 @@ e symlink, limite di 64 file esportati, massimo 16 MiB per membro e budget total
 output. La lettura completa del membro permette alla libreria ZIP di verificare il
 CRC prima di registrare l'artefatto.
 
-Le firme nel prefisso sono soltanto candidate: l'indice ZIP viene validato durante
-l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere visibile e
-il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
+Un local header all'offset zero è evidenza forte; SFX e ZIP vuoti richiedono un
+candidato EOCD bounded nella coda. L'indice ZIP e i CRC vengono comunque validati
+durante l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere
+visibile e il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
 di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
 WinZip AES genera una richiesta solo se metodo 99 ed extra field AES sono
 coerenti; header AES malformati o discordanti restano inventariati come

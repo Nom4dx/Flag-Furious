@@ -66,17 +66,27 @@ def _name_metadata(value, limit=512):
 
 class Plugin(BasePlugin):
     def can_handle(self, asset, context):
-        # Matchers receive only a 64 KiB bounded view. ``is_zipfile`` checks the
-        # end of the file for EOCD, so it rejects many valid larger ZIPs when
-        # called here. Treat the bounded signature as a candidate and let the
-        # full analysis validate the central directory and member CRCs.
-        header = bytes.fromhex(asset.get("header_hex", ""))
-        signatures = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
-        valid = any(header.find(signature) >= 0 for signature in signatures)
+        # An arbitrary ZIP marker inside a binary is weak evidence. A normal
+        # archive starts with a local header; SFX and empty archives need an
+        # EOCD candidate from the bounded tail view instead.
+        try:header=bytes.fromhex(asset.get("header_hex",""))
+        except (TypeError,ValueError):header=b""
+        if header.startswith(b"PK\x03\x04"):
+            valid=True;score=.88;reason="Local header ZIP all'inizio dell'asset"
+        else:
+            valid=False;score=0;reason=""
+            path=Path(asset.get("path",""))
+            if path.is_file() and not path.is_symlink():
+                try:
+                    with path.open("rb") as source:end_record=zipfile._EndRecData(source)
+                    valid=end_record is not None
+                except (OSError,EOFError,zipfile.BadZipFile,IndexError,TypeError,ValueError,struct.error):
+                    valid=False
+                if valid:score=.74;reason="Candidato EOCD nella coda; possibile SFX o ZIP vuoto"
         return {
             "compatible": valid,
-            "score": 0.82 if valid else 0,
-            "reasons": ["Firma ZIP candidata; validazione strutturale in analisi"] if valid else [],
+            "score": score,
+            "reasons": [reason] if valid else [],
         }
 
     def analyze(self, asset, context, reporter):
