@@ -70,6 +70,10 @@ universale di acquisizione certificata, mobile, cloud o live response.
   non avevano un ordinamento per colonna. Ora findings/flag principali sono ordinati
   per gravità/confidenza, la gravità è marcata con etichetta e colore, e le tabelle
   espongono ordinamento accessibile con priorità iniziale per gravità/confidenza.
+- L'indice di ricerca delle tabelle serializzava ogni record intero all'apertura.
+  Ora si costruisce solo al primo filtro e usa valori scalari dei campi mostrati,
+  limitati a 2 KiB per campo, così i payload raw non gonfiano inutilmente memoria
+  e tempo di rendering.
 
 Questi cambiamenti riducono lavoro ripetuto, ma non trasformano i parser parziali in
 copertura completa. Il database locale, i report e le wordlist personali non fanno

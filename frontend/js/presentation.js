@@ -163,8 +163,8 @@ export function renderTable(data, fields = [], depth = 0) {
   const toolbar = make("div", undefined, "data-table-tools");
   const search = make("input");
   search.type = "search";
-  search.placeholder = "Cerca in questa sezione";
-  search.setAttribute("aria-label", "Cerca nelle righe della sezione");
+  search.placeholder = "Cerca nei campi visibili";
+  search.setAttribute("aria-label", "Cerca nei campi visibili della sezione");
   const counter = make("output");
   counter.setAttribute("aria-live", "polite");
   toolbar.append(search);
@@ -247,12 +247,18 @@ export function renderTable(data, fields = [], depth = 0) {
   const rows = data.map((value, index) => ({
     value,
     index,
-    search: JSON.stringify(value).toLocaleLowerCase("it-IT"),
+    search: null,
   }));
   function draw() {
+    const query = search.value.toLocaleLowerCase("it-IT");
     const filtered = rows.filter(
       (r) =>
-        r.search.includes(search.value.toLocaleLowerCase("it-IT")) &&
+        (!query || (r.search ??= columns
+          .map((field) => readPath(r.value, field.field))
+          .filter((value) => !isObject(value) && value !== undefined && value !== null)
+          .map((value) => String(value).slice(0, 2048))
+          .join(" ")
+          .toLocaleLowerCase("it-IT")).includes(query)) &&
         Object.entries(filters).every(
           ([key, select]) =>
             !select.value || String(r.value[key] ?? "") === select.value,
