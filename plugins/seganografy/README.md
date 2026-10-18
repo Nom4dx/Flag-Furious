@@ -20,7 +20,7 @@ Le sezioni sono File Identity, Detection Summary, Text, Unicode, Whitespace, Ima
 
 ## Sicurezza e limiti
 
-L'originale è aperto in sola lettura. Niente rete, shell, macro, script, JavaScript PDF, HTML attivo o eseguibili. ZIP Slip, symlink, duplicati e archive bomb sono bloccati. `Limits` impone depth, output, singolo artefatto, numero file/frame/tentativi, rapporto di espansione e timeout. I validator completi esistono per PNG/JPEG/ZIP/PDF/RIFF; i formati senza un confine deterministico ricevono confidence ridotta.
+L'originale è aperto in sola lettura. Niente rete, shell, macro, script, JavaScript PDF, HTML attivo o eseguibili. ZIP Slip, symlink, duplicati e archive bomb sono bloccati. `Limits` impone depth, output, singolo artefatto, numero file/frame/tentativi, rapporto di espansione e timeout. I validator completi esistono per PNG/JPEG/ZIP/PDF/RIFF; i formati senza un confine deterministico ricevono confidence ridotta. Il tipo degli artefatti derivati è determinato leggendo al massimo 1 MiB; file più grandi sono etichettati con detection parziale e il job lo segnala.
 
 ## Estensione
 

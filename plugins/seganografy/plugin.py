@@ -33,6 +33,7 @@ from .src.signatures import SIGNATURES, scan, validate_candidates
 IMAGE_FORMATS={"png","jpeg","gif","bmp","tiff","webp","avif","heic","svg","psd","raw_image"}
 AUDIO_FORMATS={"wav","au","aiff","flac","mp3","ogg","opus","m4a"}
 VIDEO_FORMATS={"mp4","mkv","avi","mov","webm","mpeg"}
+TYPE_DETECTION_BYTES=1024*1024
 
 
 class Plugin(BasePlugin):
@@ -142,7 +143,12 @@ class Plugin(BasePlugin):
         state.artifacts=list(unique_artifacts.values())
         for artifact in state.artifacts:
             try:
-                raw=Path(artifact["path"]).read_bytes();kind=detect_type(raw);artifact["detected_type"]=kind
+                artifact_path=Path(artifact["path"]);artifact_size=artifact_path.stat().st_size
+                with artifact_path.open("rb") as source:raw=source.read(TYPE_DETECTION_BYTES)
+                kind=detect_type(raw);artifact["detected_type"]=kind;artifact["type_detection_bytes"]=len(raw)
+                if artifact_size>len(raw):
+                    artifact["type_detection_partial"]=True
+                    state.warnings.append(f"Tipo dell'artefatto {artifact.get('name')} valutato sui primi {len(raw)} byte")
                 if kind=="application/octet-stream":
                     artifact["status"]="extracted_uninterpreted";state.findings.append(finding(f"uninterpreted-{len(state.findings)+1}","extracted_payload_uninterpreted","Payload estratto correttamente ma non decodificato",severity="medium",confidence=float(artifact.get("confidence",.75)),status="extracted_uninterpreted",source_file=name,source_sha256=source_sha,artifact_sha256=artifact["sha256"],technique=artifact.get("technique","extraction")))
                 seeds.append({"data":raw,"source":artifact["name"],"technique":artifact.get("technique","artifact"),"confidence":artifact.get("confidence",.8),"artifact_sha256":artifact["sha256"]})

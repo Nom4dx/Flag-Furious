@@ -82,7 +82,7 @@ nascodono aggiornando attese senza spiegazione.
 | binary-static-analysis | refactor | `status=partial` ora riflette warning delle fasi e copertura incompleta; restano gate di fixture/contratto e matrice verificata formati/tool |
 | document-metadata-forensics | refactor | Matcher allineato alla validazione su file montato; input oltre byte budget ora dichiarato `partial`; restano matrice formati e gate fixture/contratto |
 | polyglot-and-embedded-content | refactor | Flag scan degli artefatti derivati bounded e parzialità esplicita; restano confini/duplicati e gate fixture/contratto |
-| seganografy | audit | 3 file test; audit falsi positivi/tool opzionali da svolgere |
+| seganografy | refactor | Detection del tipo artefatto limitata a 1 MiB e partial dichiarato; restano falsi positivi/tool opzionali e gate fixture/contratto |
 | log-forensics | refactor | Asset inline limitato e parzialità visibile; restano schema/regole/timestamp e gate fixture/contratto |
 | encrypted-volume-forensics | refactor | Ogni warning di copertura produce `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker e gate fixture/contratto |
 | bruteforce | audit | 5 file test; audit adapters/budget/segreti da svolgere |
@@ -99,7 +99,7 @@ previste restano un gate prima di dichiarare i plugin `done`.
 | `binary-static-analysis` | Corretto: warning da parser, YARA, carving e archivi ora producono `partial` | Risolta |
 | `log-forensics` | Corretto: asset inline codificati a frammenti entro `byte_budget`; troncamento dichiarato `partial` | Risolta |
 | `polyglot-and-embedded-content` | Corretto: flag scan legge al massimo 16 MiB per artefatto e segnala il troncamento | Risolta |
-| `seganografy` | Lettura completa di ogni artefatto estratto per rilevarne il tipo, senza applicare il byte budget; possibile picco di memoria | Alta |
+| `seganografy` | Corretto: detection del tipo usa un prefisso massimo di 1 MiB e registra la coverage parziale | Risolta |
 | `encrypted-volume-forensics` | Corretto: warning di hash, filesystem e flag ora producono `partial`; fase hash disabilitata resta `skipped` | Risolta |
 | `bruteforce` | Matcher legge fino a 64 MiB a ogni valutazione; rilevamento protezione può leggere altri 8 MiB, costo elevato durante il routing | Media |
 
