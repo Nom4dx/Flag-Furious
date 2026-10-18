@@ -16,6 +16,7 @@ from .util import inside
 DATA_DIR = Path(os.environ.get("GITHAPPENS_DATA_DIR", Path.cwd() / "data"))
 FRONTEND_DIR = Path(os.environ.get("GITHAPPENS_FRONTEND_DIR", Path(__file__).resolve().parents[2] / "frontend"))
 MAX_UPLOAD = int(os.environ.get("GITHAPPENS_MAX_UPLOAD_BYTES", str(20 * 1024 * 1024 * 1024)))
+ARTIFACT_PREVIEW_LIMIT = 2 * 1024 * 1024
 store = CaseStore(DATA_DIR)
 pipeline = Pipeline(store)
 executor = ThreadPoolExecutor(max_workers=int(os.environ.get("GITHAPPENS_WORKERS", "2")), thread_name_prefix="githappens")
@@ -139,7 +140,13 @@ def artifact(case_id: str, artifact_id: str, preview: bool = False):
         raise HTTPException(404, "Artifact not found")
     path = inside(case_dir, case_dir / item["path"])
     if preview and item["mime"].startswith(("text/", "application/json", "application/xml")):
-        return HTMLResponse("<pre>" + _escape(path.read_text("utf-8", "replace")[:2_000_000]) + "</pre>")
+        with path.open("rb") as source:
+            raw = source.read(ARTIFACT_PREVIEW_LIMIT + 1)
+        truncated = len(raw) > ARTIFACT_PREVIEW_LIMIT
+        text = raw[:ARTIFACT_PREVIEW_LIMIT].decode("utf-8", "replace")
+        if truncated:
+            text += "\n[Anteprima limitata a 2 MiB]"
+        return HTMLResponse("<pre>" + _escape(text) + "</pre>")
     disposition = "inline" if preview and (item["mime"].startswith("image/") or item["mime"] == "application/pdf") else "attachment"
     return FileResponse(path, media_type=item["mime"], filename=path.name, content_disposition_type=disposition)
 
