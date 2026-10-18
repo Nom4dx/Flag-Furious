@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib,os,shutil,subprocess,time
 from pathlib import Path
 from .base import PasswordAdapter
+from ..subprocess_runner import run
 
 class _Slice:
     """Seekable read-only partition view accepted by libyal bindings."""
@@ -97,7 +98,7 @@ class BitLockerAdapter(PasswordAdapter):
         compact=''.join(c for c in password if c.isdigit())
         switch='-p' if len(compact)==48 else '-u'
         try:
-            done=subprocess.run([binary,'-r','-q','-V',str(self.path(artifact)),'-O',str(region[0]),switch,'--',str(target)],input=(password+'\n').encode(),stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,shell=False,timeout=context['limits'].timeout_seconds,check=False)
+            done=subprocess.run([binary,'-r','-q','-V',str(self.path(artifact)),'-O',str(region[0]),switch,'--',str(target)],input=(password+'\n').encode(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=context['limits'].timeout_seconds,check=False)
         except (OSError,subprocess.TimeoutExpired):return None
         if done.returncode or not target.is_file() or target.stat().st_size<512:
             target.unlink(missing_ok=True);return None
@@ -117,18 +118,24 @@ class BitLockerAdapter(PasswordAdapter):
         if not bitlocker2john or not hashcat:return {'status':'not_supported','attempts':0,'successes':[],'failures':[],'duration':0}
         root=Path(context['output_dir'])/'bruteforce'/'bitlocker-recovery';root.mkdir(parents=True,exist_ok=True)
         hash_file=root/'bitlocker.hash';candidate_file=root/'candidates.txt';found_file=root/'found.txt';started=time.monotonic()
-        probe=subprocess.run([bitlocker2john,'-i',str(self.path(artifact))],stdout=subprocess.PIPE,stderr=subprocess.PIPE,shell=False,timeout=min(120,context['limits'].timeout_seconds),check=False)
-        lines=[line[line.find(b'$bitlocker$'):].strip() for line in (probe.stdout+b'\n'+probe.stderr).splitlines() if b'$bitlocker$0$' in line]
+        probe=run('bitlocker2john',['-i',str(self.path(artifact))],min(120,context['limits'].timeout_seconds))
+        if probe.get('output_truncated') or probe.get('status')=='timeout':return {'status':'partial','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        lines=[line[line.find('$bitlocker$'):].strip().encode() for line in (probe.get('stdout','')+'\n'+probe.get('stderr','')).splitlines() if '$bitlocker$0$' in line]
         if not lines:return {'status':'corrupted_artifact','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         hash_file.write_bytes(lines[0]+b'\n');seen=set();attempts=0
+        candidate_bytes=0;candidate_budget=context['limits'].max_output
         with candidate_file.open('w',encoding='utf-8',newline='\n') as output:
             for value,_origin,_line in candidates:
                 if value in seen:continue
+                if not isinstance(value,str) or len(value)>4096:continue
+                encoded_size=len(value.encode('utf-8'))+1
+                if candidate_bytes+encoded_size>candidate_budget:break
                 seen.add(value);output.write(value+'\n');attempts+=1
+                candidate_bytes+=encoded_size
                 if attempts>=context['limits'].max_attempts:break
         if not attempts:return {'status':'not_found','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         timeout=max(1,context['limits'].timeout_seconds-int(time.monotonic()-started))
-        try:done=subprocess.run([hashcat,'-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,shell=False,timeout=timeout,check=False)
+        try:done=subprocess.run([hashcat,'-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=timeout,check=False)
         except subprocess.TimeoutExpired:return {'status':'timeout','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
         password=found_file.read_text(encoding='utf-8',errors='replace').splitlines()[0] if found_file.is_file() and found_file.stat().st_size else None
         found_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True);hash_file.unlink(missing_ok=True)

@@ -86,7 +86,7 @@ nascodono aggiornando attese senza spiegazione.
 | seganografy | refactor | Type detection artefatti limitata a 1 MiB; zTXt e decoder gzip/zlib capped con stato parziale; subprocess stdout/stderr streaming bounded; video frames/audio con byte/artifact cap e output budget condiviso; timeout/troncamento propagati a warning/partial. Restano falso positivi, coverage per formato e fixture |
 | log-forensics | refactor | Directory/file e contenitori compressi letti entro budget con espansione limitata; output eventi/decoder clamp; identity riusa hash core; inline partial visibile; revisione statica aggiornata |
 | encrypted-volume-forensics | refactor | Ogni warning e vista importata parziale producono `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker |
-| bruteforce | refactor | Matcher bounded; inventory wordlist budgetato e righe enormi ignorate; ZIP AES senza pyzipper risulta unsupported; adapter usano hash/letture a budget e ZIP streama i membri; stdout/stderr dei CLI standard capped a 1 MiB e timeout. Restano estrazione archive CLI con tetto disco, subprocess diretti BitLocker e gate fixture/runtime |
+| bruteforce | refactor | Matcher bounded; inventory wordlist budgetato e righe enormi ignorate; ZIP AES senza pyzipper risulta unsupported; adapter usano hash/letture a budget e ZIP streama i membri; stdout/stderr CLI standard capped a 1 MiB; bitlocker2john usa il runner bounded e i candidati hanno byte budget. Restano quota disco in estrazione archive CLI, stdout/stderr BitLocker dislocker/hashcat non acquisiti ma subprocess diretti, cleanup failure e gate fixture/runtime |
 
 ### Rilievi specialistici e correzioni in corso
 
@@ -102,7 +102,7 @@ previste restano un gate prima di dichiarare i plugin `done`.
 | `polyglot-and-embedded-content` | Corretto: flag scan legge al massimo 16 MiB per artefatto e segnala il troncamento | Risolta |
 | `seganografy` | Corretto: detection del tipo usa un prefisso massimo di 1 MiB e registra la coverage parziale | Risolta |
 | `encrypted-volume-forensics` | Corretto: warning di hash, filesystem e flag ora producono `partial`; fase hash disabilitata resta `skipped` | Risolta |
-| `bruteforce` | Corretto: routing limitato a prefix/tail, PDF adapter bounded e scan BitLocker riservata a candidati disk-image; rilevati e corretti read_bytes non limitati negli adapter, ZIP streamato con budget, output CLI standard limitato. Restano estrazione archive CLI senza quota disco e subprocess diretti BitLocker | Parziale |
+| `bruteforce` | Corretto: routing limitato a prefix/tail, PDF adapter bounded e scan BitLocker riservata a candidati disk-image; read/hash adapter a budget, ZIP streamato, output CLI standard limitato, bitlocker2john capped e candidati con byte budget. Restano quota disco in estrazione archive CLI, subprocess diretti BitLocker senza acquisizione output e cleanup failure | Parziale |
 
 ## Registro moduli futuri
 

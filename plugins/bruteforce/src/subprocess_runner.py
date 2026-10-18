@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import time
 
-ALLOW={'7z','7zz','unrar','qpdf','steghide','stegseek','openstego','stegcloak','stegsnow','gpg','openssl'}
+ALLOW={'7z','7zz','unrar','qpdf','steghide','stegseek','openstego','stegcloak','stegsnow','gpg','openssl','bitlocker2john'}
 OUTPUT_LIMIT=1024*1024
 
 def run(tool,args,timeout,cwd=None,secret_indexes=()):
