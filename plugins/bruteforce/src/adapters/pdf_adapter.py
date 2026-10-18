@@ -25,7 +25,7 @@ class PdfAdapter(PasswordAdapter):
    import pikepdf
    with pikepdf.open(self.path(a),password=p) as pdf:pdf.save(target)
   except ImportError:
-   r=run('qpdf',['--password='+p,'--decrypt',str(self.path(a)),str(target)],c['limits'].timeout_seconds,secret_indexes=(0,));
+   r=run('qpdf',['--password='+p,'--decrypt',str(self.path(a)),str(target)],c['limits'].timeout_seconds,secret_indexes=(0,),max_file_size=c['limits'].max_output);
    if r['exit_code']!=0:raise ValueError(r['status'])
   with target.open('rb') as source:signature=source.read(5)
   if not signature.startswith(b'%PDF-'):raise ValueError('invalid_derived_pdf')

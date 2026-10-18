@@ -24,7 +24,7 @@ Un exit code zero non basta: l'adapter deve aprire, estrarre e validare struttur
 
 ## Sicurezza e limiti
 
-Solo file regolari locali autorizzati. Niente rete, `shell=True`, macro, JavaScript, login o esecuzione di payload. Zip Slip, path assoluti, symlink e rapporti di espansione eccessivi sono bloccati. Tentativi, tempo, output e trasformazioni sono limitati; le trasformazioni sono disattivate per default. L'originale resta immutato. Il matcher di routing legge un prefisso e una coda limitati; solo immagini disco candidate attivano la scansione bounded del boot sector BitLocker.
+Solo file regolari locali autorizzati. Niente rete, `shell=True`, macro, JavaScript, login o esecuzione di payload. Zip Slip, path assoluti, symlink e rapporti di espansione eccessivi sono bloccati. Tentativi, tempo, output e trasformazioni sono limitati; i decoder CLI che scrivono file ricevono un limite di dimensione prima dell'avvio. Le trasformazioni sono disattivate per default. L'originale resta immutato. Il matcher di routing legge un prefisso e una coda limitati; solo immagini disco candidate attivano la scansione bounded del boot sector BitLocker.
 
 ## Estensione e test
 
