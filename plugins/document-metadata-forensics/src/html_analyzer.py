@@ -16,22 +16,22 @@ def analyze_structured(data: bytes, source: str) -> ModuleResult:
     rendered and URLs are not visited. Example: ``analyze_structured(html, "a.html")``.
     """
     result = ModuleResult("structured_text", status="skipped")
-    text = data[:16 * 1024**2].decode("utf-8", "replace")
-    lower = text[:65536].lower()
-    if "<html" in lower or "<!doctype html" in lower or "content-type: multipart/related" in lower:
+    view = data[:16 * 1024**2]
+    lower = view[:65536].lower()
+    if b"<html" in lower or b"<!doctype html" in lower or b"content-type: multipart/related" in lower:
         result.status = "completed"
-        for match in list(re.finditer(r"<(title|meta)\b([^>]*)>(?:([^<]*)</title>)?", text, re.I | re.S))[:2000]:
-            value = match.group(3) or match.group(2)
+        for match in list(re.finditer(rb"<(title|meta)\b([^>]*)>(?:([^<]*)</title>)?", view, re.I | re.S))[:2000]:
+            value = (match.group(3) or match.group(2)).decode("utf-8", "replace")
             result.items.append(_item("HTML", match.group(1), value, source, match.start()))
-        if re.search(r"<script\b|\bon\w+\s*=|javascript:", text, re.I):
+        if re.search(rb"<script\b|\bon\w+\s*=|javascript:", view, re.I):
             result.findings.append({"type": "active_html", "severity": "high", "title": "Contenuto HTML attivo", "description": "Script/event handler rilevato e non eseguito", "source": source, "offset": 0, "confidence": 0.9})
-    elif lower.lstrip().startswith("<?xml"):
+    elif lower.lstrip().startswith(b"<?xml"):
         result.status = "completed"
-        for match in list(re.finditer(r"<!--(.*?)-->", text, re.S))[:1000]:
-            result.items.append(_item("XML", "Comment", match.group(1).strip(), source, match.start()))
-    elif text.lstrip().startswith(("{", "[")):
+        for match in list(re.finditer(rb"<!--(.*?)-->", view, re.S))[:1000]:
+            result.items.append(_item("XML", "Comment", match.group(1).decode("utf-8", "replace").strip(), source, match.start()))
+    elif view.lstrip().startswith((b"{", b"[")):
         try:
-            value = json.loads(text)
+            value = json.loads(view.decode("utf-8", "replace"))
             result.status = "completed"
             _flatten_json(value, "$", source, result)
         except json.JSONDecodeError:
@@ -54,4 +54,6 @@ def _flatten_json(value, path: str, source: str, result: ModuleResult) -> None:
 
 def _item(namespace, field, value, source, offset):
     """Normalize a structured text scalar with safe plain-text values."""
+    if isinstance(field, bytes):
+        field = field.decode("ascii", "replace")
     return {"type": "metadata_value", "namespace": namespace, "field": field, "raw_value": value, "normalized_value": str(value).strip(), "source": source, "internal_path": namespace.lower(), "offset": offset, "size": len(str(value).encode()), "hash": None, "parser": f"{namespace.lower()}-static", "decoder": None, "timestamp": None, "confidence": 0.8, "flag_relation": None}

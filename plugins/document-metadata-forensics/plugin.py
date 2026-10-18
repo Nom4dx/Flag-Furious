@@ -108,6 +108,12 @@ class Plugin(BasePlugin):
             reporter,
         )
         modules.extend((timeline, inconsistencies, flags))
+        for module in modules:
+            for records in (module.items, module.findings, module.artifacts):
+                for record in records:
+                    offset = record.get("offset")
+                    if isinstance(offset, int) and not isinstance(offset, bool):
+                        record.setdefault("offset_scope", "input")
 
         reporter.phase("Salvataggio artefatti")
         store = ArtifactStore(Path(context["output_dir"]), context["output_bytes"])

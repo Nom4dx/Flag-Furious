@@ -12,6 +12,11 @@ diventare `partial` senza fermare gli altri. `ArtifactStore` scrive soltanto in
 `/work/document-metadata-forensics`, deduplica SHA-256 e usa nomi sicuri. Il core
 trasferisce poi gli artefatti nella directory del caso e assegna gli ID finali.
 
+Gli offset numerici restituiti per item, finding e artefatti indicano byte
+dell'input e sono marcati con `offset_scope: input`. I parser HTML, XML e SVG
+ricavano le posizioni direttamente dai byte sorgente, così i caratteri UTF-8
+multibyte non spostano la navigazione.
+
 Moduli: identification, metadata, EXIF, XMP, IPTC, PDF structure/revisions/
 objects/layers, OOXML/ODF/EPUB, OLE, RTF, images, structured text, hidden content,
 payload decoder, timeline, inconsistencies, flag hunter e reporting.

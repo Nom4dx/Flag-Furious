@@ -28,11 +28,12 @@ def analyze_image(data: bytes, source: str) -> ModuleResult:
         result.items.append({"type": "image_container", "format": "HEIC/AVIF", "brand": data[8:12].decode("ascii", "replace"), "source": source})
     elif b"<svg" in data[:65536].lower():
         result.status = "completed"
-        text = data.decode("utf-8", "replace")
         result.items.append({"type": "image_container", "format": "SVG", "source": source})
-        for match in re.finditer(r"<(?:metadata|desc|title)\b[^>]*>(.*?)</", text, re.I | re.S):
-            result.items.append({"type": "metadata_value", "namespace": "SVG", "field": "text", "raw_value": match.group(1), "normalized_value": re.sub(r"<[^>]+>", "", match.group(1)).strip(), "source": source, "internal_path": "svg", "offset": len(text[:match.start()].encode()), "size": len(match.group(0).encode()), "hash": None, "parser": "svg-xml", "decoder": None, "timestamp": None, "confidence": 0.85, "flag_relation": None})
-        if re.search(r"<(?:script|foreignObject)\b|\bon\w+\s*=", text, re.I):
+        for match in re.finditer(rb"<(?:metadata|desc|title)\b[^>]*>(.*?)</", data, re.I | re.S):
+            raw_value = match.group(1).decode("utf-8", "replace")
+            normalized = re.sub(r"<[^>]+>", "", raw_value).strip()
+            result.items.append({"type": "metadata_value", "namespace": "SVG", "field": "text", "raw_value": raw_value, "normalized_value": normalized, "source": source, "internal_path": "svg", "offset": match.start(), "size": len(match.group(0)), "hash": None, "parser": "svg-xml", "decoder": None, "timestamp": None, "confidence": 0.85, "flag_relation": None})
+        if re.search(rb"<(?:script|foreignObject)\b|\bon\w+\s*=", data, re.I):
             result.findings.append({"type": "active_svg", "severity": "high", "title": "Contenuto SVG attivo", "description": "Script/evento rilevato e non eseguito", "source": source, "offset": 0, "confidence": 0.9})
     result.metrics = {"items": len(result.items)}
     return result
