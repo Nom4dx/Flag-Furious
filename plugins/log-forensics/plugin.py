@@ -7,6 +7,7 @@ separates rule detections, statistical anomalies and reconstructed flag evidence
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
+import hashlib
 import json,time
 from app.core.plugin import BasePlugin
 from .src.anomaly_engine import detect as detect_anomalies
@@ -62,16 +63,19 @@ class Plugin(BasePlugin):
     def analyze(self,asset,context,reporter):
         """Run bounded phases and return the complete normalized Hub contract."""
         started=time.monotonic();events_log=[];warnings=[];errors=[];artifacts=[];runner=ToolRunner();options=context.get('plugin_options',{}).get('log-forensics',{})
-        max_events=min(int(options.get('max_events',50000)),200000);budget=int(context.get('byte_budget',1024**3));output_budget=int(context.get('output_bytes',256*1024**2));store=ArtifactManager(Path(context['output_dir']),output_budget)
-        execution=[];identities=[];sources=[]
+        max_events=min(int(options.get('max_events',50000)),200000);budget=max(0,int(context.get('byte_budget',1024**3)));output_budget=int(context.get('output_bytes',256*1024**2));store=ArtifactManager(Path(context['output_dir']),output_budget)
+        execution=[];identities=[];sources=[];inline_truncated=False
         reporter.phase('Input e hash');mark=time.monotonic()
         if asset.get('path'):
             path=Path(asset['path'])
             if path.is_file():identities.append(identify(path,asset))
             sources,initial_artifacts,read_warnings,bytes_read=collect(path,budget,store,max_files=int(options.get('max_files',256)));artifacts.extend(initial_artifacts);warnings.extend(read_warnings)
         else:
-            content=asset.get('content');raw=(content if isinstance(content,str) else json.dumps(content,ensure_ascii=False)).encode();sources=[(asset.get('name','inline.log'),raw,None)];bytes_read=len(raw);identities=[{"name":asset.get('name','inline.log'),"size":len(raw),"type":asset.get('type'),"original_modified":False}]
-        execution.append(phase('Input e hash',mark));reporter.log(f'{len(sources)} sorgenti entro {bytes_read} byte')
+            content=asset.get('content');raw,inline_truncated=_bounded_inline_bytes(content,budget);sources=[(asset.get('name','inline.log'),raw,None)];bytes_read=len(raw);identities=[{"asset_id":asset.get('id'),"name":asset.get('name','inline.log'),"visible_bytes":len(raw),"visible_sha256":hashlib.sha256(raw).hexdigest(),"representation":"inline_utf8" if isinstance(content,(str,bytes)) else "inline_compact_json","partial_input":inline_truncated or bool(asset.get('partial_input')),"type":asset.get('type'),"original_modified":False}]
+            if inline_truncated:warnings.append(f'Asset inline limitato a {len(raw)} byte dal byte budget')
+        if asset.get('partial_input') and not inline_truncated:
+            warnings.append('Input già limitato dal core: i risultati coprono soltanto la vista disponibile')
+        execution.append(phase('Input e hash',mark,'partial' if inline_truncated or asset.get('partial_input') or warnings else 'completed'));reporter.log(f'{len(sources)} sorgenti entro {bytes_read} byte')
 
         reporter.phase('Identificazione e parsing');mark=time.monotonic();formats=[];raw_events=[];parser_stats=Counter()
         for source_name,data,source_path in sources:
@@ -121,7 +125,7 @@ class Plugin(BasePlugin):
           section('raw_events','Raw Events',50,[{"source_file":x['source_file'],"source_line":x['source_line'],"source_offset":x['source_offset'],"raw":events[i]['raw'],"parser":x['parser']} for i,x in enumerate(raw_events)]),section('normalized_events','Normalized Events',60,events),section('timestamp_analysis','Timestamp Analysis',70,timestamp_issues),section('entities','Entities',80,entities),
           section('authentication_analysis','Authentication Analysis',90,by_domain({'brute_force','password_spraying','success_after_failures'})),section('web_analysis','Web Analysis',100,by_domain({'sql_injection','path_traversal','command_injection','xss','sensitive_path','web_enumeration'})),section('network_analysis','Network Analysis',110,by_domain({'port_scan','dns_tunneling','periodic_beaconing','possible_exfiltration'})),section('windows_analysis','Windows Analysis',120,by_domain({'powershell_encoded_command','lolbin_execution','log_clearing','service_created','security_control_disabled','suspicious_download','temporary_path_execution'})),section('linux_analysis','Linux Analysis',130,by_domain({'linux_reverse_shell','cron_persistence','log_clearing','security_control_disabled','suspicious_download','temporary_path_execution'})),section('cloud_analysis','Cloud Analysis',140,by_domain({'cloud_privilege_change'})),section('container_analysis','Container Analysis',150,by_domain({'kubernetes_exec'})),
           section('sigma_matches','Sigma Matches',160,sigma),section('anomalies','Anomalies',170,anomalies),section('attack_chains','Attack Chains',180,chains),section('sessions','Sessions',190,sessions),section('timeline','Timeline',200,timeline,'timeline'),section('graphs','Graphs',210,visualizations,'visualization_list'),section('extracted_artifacts','Extracted Artifacts',220,[{k:v for k,v in x.items() if k!='path'} for x in artifacts],'artifact_list'),section('decoder_chains','Decoder Chains',230,decoded_public),section('flag_candidates','Flag Candidates',240,candidate_flags),section('validated_flags','Validated Flags',250,validated_flags),section('decoys','Decoys',260,decoys),section('findings','Findings',270,findings),section('external_tools','External Tools',890,runner.inventory()+runner.audit),section('warnings','Warnings',900,warnings,'list'),section('errors','Errors',910,errors,'list')]
-        metrics={"duration":round(time.monotonic()-started,4),"bytes_read":bytes_read,"sources":len(sources),"events":len(events),"timestamped_events":len(timeline),"entities":len(entities),"sessions":len(sessions),"detections":len(findings),"anomalies":len(anomalies),"correlations":len(links),"attack_chains":len(chains),"flags":len(flags),"artifacts":len(artifacts),"original_modified":False};sections.append(section('metrics','Metrics',920,[metrics],'metrics'))
+        metrics={"duration":round(time.monotonic()-started,4),"bytes_read":bytes_read,"partial_input":bool(asset.get('partial_input')) or inline_truncated,"sources":len(sources),"events":len(events),"timestamped_events":len(timeline),"entities":len(entities),"sessions":len(sessions),"detections":len(findings),"anomalies":len(anomalies),"correlations":len(links),"attack_chains":len(chains),"flags":len(flags),"artifacts":len(artifacts),"original_modified":False};sections.append(section('metrics','Metrics',920,[metrics],'metrics'))
         status='failed' if not events and errors else 'partial' if warnings or invalid else 'completed';result={"plugin_id":"log-forensics","status":status,"summary":f'{len(events)} eventi, {len(findings)} detection, {len(sessions)} sessioni, {len(flags)} flag',"confidence":max((x['confidence'] for x in formats),default=.4),"phase":"log correlation","findings":findings+timestamp_issues,"sections":sections,"artifacts":artifacts,"derived_assets":[],"visualizations":visualizations,"flags":flags,"timeline":timeline,"execution_events":execution,"logs":runner.audit,"warnings":warnings,"errors":errors,"metrics":metrics}
         report=json.dumps({**result,"artifacts":[{k:v for k,v in x.items() if k!='path'} for x in artifacts]},ensure_ascii=False,indent=2).encode()
         try:result['artifacts'].append(store.save('report','log-forensics-report.json',report,{"detected_type":"json","extraction_method":"plugin_report"}))
@@ -142,3 +146,54 @@ class Plugin(BasePlugin):
     def cleanup(self,context):
         """No mount survives; the Hub deletes the isolated worker directory."""
         return None
+
+
+def _quoted_fragments(value):
+    """Yield JSON string fragments without encoding an unbounded string at once."""
+    yield b'"'
+    for offset in range(0,len(value),4096):
+        escaped=json.dumps(value[offset:offset+4096],ensure_ascii=False)[1:-1]
+        yield escaped.encode('utf-8')
+    yield b'"'
+
+
+def _json_fragments(value):
+    """Stream a compact JSON representation in small bounded fragments."""
+    if isinstance(value,str):
+        yield from _quoted_fragments(value)
+    elif isinstance(value,dict):
+        yield b'{'
+        for index,(key,item) in enumerate(value.items()):
+            if index:yield b','
+            yield from _quoted_fragments(str(key));yield b':'
+            yield from _json_fragments(item)
+        yield b'}'
+    elif isinstance(value,(list,tuple)):
+        yield b'['
+        for index,item in enumerate(value):
+            if index:yield b','
+            yield from _json_fragments(item)
+        yield b']'
+    else:
+        yield json.dumps(value,ensure_ascii=False,separators=(',',':')).encode('utf-8')
+
+
+def _bounded_inline_bytes(content,limit):
+    """Encode inline text/JSON only up to ``limit`` bytes and report truncation."""
+    if isinstance(content,bytes):return content[:limit],len(content)>limit
+    if isinstance(content,str):
+        output=bytearray()
+        for offset in range(0,len(content),4096):
+            block=content[offset:offset+4096].encode('utf-8')
+            remaining=limit-len(output)
+            if len(block)>remaining:
+                output.extend(block[:remaining]);return bytes(output),True
+            output.extend(block)
+        return bytes(output),False
+    output=bytearray()
+    for fragment in _json_fragments(content):
+        remaining=limit-len(output)
+        if len(fragment)>remaining:
+            output.extend(fragment[:remaining]);return bytes(output),True
+        output.extend(fragment)
+    return bytes(output),False

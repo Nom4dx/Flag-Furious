@@ -73,6 +73,9 @@ The internal RAW/MBR/GPT/FVE detector uses the Python standard library. Optional
 Python bindings are `pybde` for BitLocker and `pytsk3` for filesystem access.
 Optional binaries are Dislocker, `bitlocker2john`, John, Hashcat, `qemu-img` and
 Sleuth Kit. Missing tools produce warnings and preserve metadata-only results.
+Any coverage warning from hash extraction, filesystem recovery or flag scanning
+keeps the result `partial`. Hash extraction is reported as `skipped` when disabled
+explicitly by the case options.
 
 ## Output and artifacts
 

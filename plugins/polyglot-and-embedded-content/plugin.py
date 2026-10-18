@@ -179,7 +179,12 @@ class Plugin(BasePlugin):
             flag_sources.append({"data": payload["decoded"], "source": asset.get("name", path.name), "decoder": payload["decoder"], "confidence": .75 if validated else .45, "base_offset": payload.get("offset", 0), "chain": ["input", payload["decoder"]]})
         for artifact in artifacts:
             try:
-                artifact_data = Path(artifact["path"]).read_bytes()[:16 * 1024 * 1024]
+                artifact_path = Path(artifact["path"])
+                artifact_size = artifact_path.stat().st_size
+                with artifact_path.open("rb") as source:
+                    artifact_data = source.read(16 * 1024 * 1024)
+                if artifact_size > len(artifact_data):
+                    warnings.append(f"Flag scan limitato a 16 MiB per {artifact.get('name')}")
                 flag_sources.append({"data": artifact_data, "source": artifact["name"], "artifact_sha256": artifact["sha256"], "format": artifact.get("format"), "confidence": artifact.get("confidence", .95), "chain": ["input", artifact.get("extraction_method", "carved"), artifact["name"]]})
             except OSError as exc: warnings.append(f"Flag scan artefatto {artifact.get('name')}: {exc}")
         flags = hunt_flags(flag_sources, context.get("prefixes", []))

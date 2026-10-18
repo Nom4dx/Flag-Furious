@@ -81,13 +81,13 @@ nascodono aggiornando attese senza spiegazione.
 | ext4atto | refactor | Warning include `mmls` mancante e soglia reale di recupero; restano limiti TSK/output da verificare |
 | binary-static-analysis | refactor | `status=partial` ora riflette warning delle fasi e copertura incompleta; restano gate di fixture/contratto e matrice verificata formati/tool |
 | document-metadata-forensics | refactor | Matcher allineato alla validazione su file montato; input oltre byte budget ora dichiarato `partial`; restano matrice formati e gate fixture/contratto |
-| polyglot-and-embedded-content | audit | 8 file test; audit confini/duplicati da svolgere |
+| polyglot-and-embedded-content | refactor | Flag scan degli artefatti derivati bounded e parzialità esplicita; restano confini/duplicati e gate fixture/contratto |
 | seganografy | audit | 3 file test; audit falsi positivi/tool opzionali da svolgere |
-| log-forensics | audit | 4 file test; audit schema/regole/timestamp da svolgere |
-| encrypted-volume-forensics | audit | 6 file test; audit BitLocker/provenienza chiavi da svolgere |
+| log-forensics | refactor | Asset inline limitato e parzialità visibile; restano schema/regole/timestamp e gate fixture/contratto |
+| encrypted-volume-forensics | refactor | Ogni warning di copertura produce `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker e gate fixture/contratto |
 | bruteforce | audit | 5 file test; audit adapters/budget/segreti da svolgere |
 
-### Rilievi specialistici in attesa di permessi scrittura
+### Rilievi specialistici e correzioni in corso
 
 Audit statico read-only del 2026-10-18; le correzioni pendenti sono in lavorazione
 nel worktree Git `forensic-plugin-refactor`, creato dal checkout remoto per
@@ -97,10 +97,10 @@ previste restano un gate prima di dichiarare i plugin `done`.
 | Plugin | Rilievo | Priorità |
 | --- | --- | --- |
 | `binary-static-analysis` | Corretto: warning da parser, YARA, carving e archivi ora producono `partial` | Risolta |
-| `log-forensics` | Asset inline viene serializzato interamente in memoria in `analyze`; il `byte_budget` non limita questa sorgente, a differenza dei file/directory | Alta |
-| `polyglot-and-embedded-content` | Scansione di un artefatto derivato usa `read_bytes()` prima di tagliare a 16 MiB, quindi può caricare l'intero artefatto in memoria | Alta |
+| `log-forensics` | Corretto: asset inline codificati a frammenti entro `byte_budget`; troncamento dichiarato `partial` | Risolta |
+| `polyglot-and-embedded-content` | Corretto: flag scan legge al massimo 16 MiB per artefatto e segnala il troncamento | Risolta |
 | `seganografy` | Lettura completa di ogni artefatto estratto per rilevarne il tipo, senza applicare il byte budget; possibile picco di memoria | Alta |
-| `encrypted-volume-forensics` | `status` considera solo `prepare_warnings`, `truncated` e metadata mancanti, ignorando warning di estrazione hash, filesystem e flag | Alta |
+| `encrypted-volume-forensics` | Corretto: warning di hash, filesystem e flag ora producono `partial`; fase hash disabilitata resta `skipped` | Risolta |
 | `bruteforce` | Matcher legge fino a 64 MiB a ogni valutazione; rilevamento protezione può leggere altri 8 MiB, costo elevato durante il routing | Media |
 
 ## Registro moduli futuri

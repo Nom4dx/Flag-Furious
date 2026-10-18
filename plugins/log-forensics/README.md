@@ -48,6 +48,9 @@ payload. ZIP traversal, symlink, archive bomb, output, righe, eventi, file,
 decoder e byte sono limitati. Password, token, API key, cookie e authorization
 sono mascherati nelle viste; i file originali non vengono modificati. I tool sono
 allow-listed, `shell=False`, bounded e isolati dal core.
+Anche gli asset inline testuali/JSON rispettano `byte_budget`: vengono codificati
+a frammenti, la vista troncata è segnalata come `partial` e i byte non vengono
+duplicati in una serializzazione completa prima del parsing.
 
 ## Dipendenze e tool
 

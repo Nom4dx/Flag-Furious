@@ -83,6 +83,9 @@ Per un `PNG || ZIP` il risultato principale contiene due intervalli validati:
 Il membro ZIP estratto conserva `source_offset`, `internal_path`,
 `extraction_method`, SHA-256 e relazione al nodo formato. Le flag indicano
 decoder, offset, contesto e catena completa.
+La ricerca flag sugli artefatti derivati legge al massimo 16 MiB per artefatto;
+se l'artefatto è più grande, il report espone la riduzione di copertura e passa a
+`partial`.
 
 ## Test
 
