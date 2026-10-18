@@ -1,0 +1,71 @@
+{
+  "id": "bruteforce",
+  "name": "Password Recovery / Brute Force",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "Recupero controllato di password per artefatti locali autorizzati e broker di sblocco tra plugin",
+  "entrypoint": "entrypoint.py",
+  "class": "Plugin",
+  "domains": [
+    "forensics",
+    "password-recovery",
+    "orchestration"
+  ],
+  "supported_asset_types": [
+    "file",
+    "archive",
+    "disk_image"
+  ],
+  "capabilities": [
+    "password_verification",
+    "wordlist_streaming",
+    "artifact_unlock",
+    "unlock_broker",
+    "zip",
+    "zip_aes",
+    "7z",
+    "rar",
+    "pdf",
+    "office",
+    "steghide",
+    "openstego",
+    "encrypted_text",
+    "bitlocker"
+  ],
+  "activation": "connector_only",
+  "dependencies": [],
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [
+    "7z",
+    "7zz",
+    "unrar",
+    "qpdf",
+    "steghide",
+    "stegseek",
+    "openstego",
+    "gpg",
+    "openssl",
+    "stegcloak",
+    "stegsnow"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "permissions": [],
+  "timeout": 900,
+  "cpu_seconds": 850,
+  "memory_mb": 1024,
+  "byte_budget": 536870912,
+  "output_bytes": 268435456,
+  "input_access": "random_access",
+  "workspace_bytes": 536870912,
+  "custom_routes": "routes.py",
+  "endpoints": [
+    {
+      "path": "/about",
+      "method": "GET",
+      "handler": "about"
+    }
+  ]
+}

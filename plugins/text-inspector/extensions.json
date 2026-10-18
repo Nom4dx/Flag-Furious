@@ -1,0 +1,13 @@
+{
+  "asset_types": [
+    "text",
+    "json",
+    "hex",
+    "url",
+    "structured"
+  ],
+  "mime_types": [
+    "text/plain",
+    "application/json"
+  ]
+}

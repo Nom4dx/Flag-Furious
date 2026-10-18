@@ -1,0 +1,13 @@
+{
+  "description": "Matcher generali: le estensioni propongono il plugin, mentre i validator strutturali determinano il formato reale.",
+  "extensions": [".bin", ".dat", ".polyglot", ".pdf", ".zip", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".wav", ".gz", ".bz2", ".xz", ".7z", ".rar", ".exe", ".elf", ".so", ".class", ".wasm", ".tar", ".cpio", ".iso", ".doc", ".xls", ".ppt", ".sqlite", ".db", ".xml", ".html", ".sh", ".py", ".ps1", ".js", ".bat"],
+  "mime_types": ["application/octet-stream", "application/pdf", "application/zip", "image/png", "image/jpeg", "image/gif", "image/webp", "application/gzip", "application/x-7z-compressed", "application/x-rar-compressed", "application/x-executable", "application/x-tar", "application/x-iso9660-image", "application/x-ole-storage", "text/plain", "text/html", "application/xml"],
+  "magic_bytes": ["255044462d", "504b0304", "504b0506", "89504e470d0a1a0a", "ffd8ff", "474946383761", "474946383961", "52494646", "1f8b08", "425a68", "fd377a585a00", "377abcaf271c", "526172211a07", "7f454c46", "4d5a", "53514c69746520666f726d6174203300", "cafebabe", "0061736d", "d0cf11e0a1b11ae1"],
+  "content_signatures": ["%%EOF", "PK\\x01\\x02", "PK\\x05\\x06", "IEND", "WAVE", "WEBP", "ustar", "CD001", "#!/", "__DATA__"],
+  "regex": ["(?s)%PDF-.*%%EOF", "PK\\x03\\x04", "(?m)^#!(?:/usr/bin/env )?(?:python|bash|sh|perl|ruby)", "(?i)<(?:!doctype\\s+html|html\\b)"],
+  "keywords": ["polyglot", "embedded", "overlay", "self-extracting", "SFX"],
+  "encodings": ["binary", "utf-8", "utf-16le", "ascii"],
+  "asset_types": ["file", "archive", "disk_image"],
+  "container_formats": ["zip", "pdf", "png", "jpeg", "riff", "tar", "ole", "iso9660"],
+  "custom_matcher": true
+}

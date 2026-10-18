@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pic-up"
+version = "3.0.0"
+description = "Automatic, evidence-oriented TShark triage for PCAP, PCAPNG, logs, and generic files"
+readme = "PIC-UP.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "RootRunners Forensic Tools"}]
+dependencies = []
+
+[project.scripts]
+pic-up = "picup.__main__:main"
+
+[tool.setuptools]
+packages = ["picup"]
+py-modules = ["pic-up"]
+
+[tool.setuptools.package-data]
+picup = ["py.typed"]

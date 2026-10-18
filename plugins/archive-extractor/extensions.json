@@ -1,0 +1,9 @@
+{
+  "magic_bytes": [
+    "504b0304",
+    "504b0506"
+  ],
+  "content_signatures": [
+    "zip"
+  ]
+}

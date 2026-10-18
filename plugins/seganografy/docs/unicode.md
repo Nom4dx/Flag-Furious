@@ -1,0 +1,2 @@
+# Unicode
+`unicode_steg.py` conserva indice logico e offset UTF-8, nome, categoria, script e bidi. Rileva ZWSP, ZWNJ, ZWJ, WORD JOINER, FEFF, soft hyphen, variation selector, tag, combining mark, controlli bidi, spazi speciali e mixed-script. Genera copie raw, codepoint, NFC/NFD/NFKC/NFKD e cleaned solo come derivati. Il metodo segue UTS #39 (confusable/mixed script) e il modello Trojan Source: ordine visuale e logico possono divergere; non modifica mai la sorgente.

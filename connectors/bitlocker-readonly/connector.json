@@ -1,0 +1,25 @@
+{
+  "id": "bitlocker-readonly",
+  "name": "Sblocco BitLocker read-only",
+  "version": "1.1.0",
+  "description": "Verifica una password o recovery key e crea una copia decifrata separata senza montare né modificare il volume.",
+  "plugin_id": "encrypted-volume-forensics",
+  "mode": "plugin",
+  "icon": "fa-hard-drive",
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "supported_asset_types": ["file", "disk_image"],
+  "accepts_protected": true,
+  "produces_assets": true,
+  "secret_fields": ["password", "recovery_key"],
+  "configuration": [
+    {"id":"unlock","label":"Esegui sblocco","type":"boolean","default":true},
+    {"id":"unlock_engine","label":"Engine read-only","type":"select","options":["libbde","dislocker"],"default":"libbde"},
+    {"id":"password","label":"Password","type":"password","persist":false},
+    {"id":"recovery_key","label":"Recovery key BitLocker","type":"password","persist":false},
+    {"id":"extract_hash","label":"Estrai hash per recovery","type":"boolean","default":true},
+    {"id":"use_companion_keys","label":"Prova artefatti FVEK collegati","type":"boolean","default":true},
+    {"id":"max_unlocked_bytes","label":"Dimensione massima volume derivato","type":"number","default":536870912}
+  ]
+}

@@ -1,0 +1,1 @@
+<Events><Event><System><Provider Name="Microsoft-Windows-Sysmon"/><EventID>1</EventID><TimeCreated SystemTime="2026-09-14T12:00:00Z"/><Computer>win</Computer></System><EventData><Data Name="Image">powershell.exe</Data><Data Name="CommandLine">powershell.exe -EncodedCommand ZmxhZ3t4fQ==</Data></EventData></Event></Events>

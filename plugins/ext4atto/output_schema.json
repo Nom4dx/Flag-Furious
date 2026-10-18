@@ -1,0 +1,247 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "filesystem",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Disco e partizioni",
+        "order": 0
+      },
+      {
+        "id": "filesystem",
+        "title": "Filesystem",
+        "order": 1
+      },
+      {
+        "id": "recovery",
+        "title": "Recupero",
+        "order": 2
+      },
+      {
+        "id": "evidence",
+        "title": "Evidenze",
+        "order": 3
+      }
+    ],
+    "sections": [
+      {
+        "id": "disk-metrics",
+        "title": "Indicatori di analisi",
+        "source": "metrics",
+        "type": "details",
+        "group": "overview",
+        "order": 1,
+        "fields": [
+          {
+            "field": "duration",
+            "label": "Durata",
+            "format": "duration"
+          },
+          {
+            "field": "bytes_read",
+            "label": "Byte letti",
+            "format": "bytes"
+          }
+        ]
+      },
+      {
+        "id": "partitions",
+        "title": "Partizioni",
+        "source": "data.inventory",
+        "type": "table",
+        "group": "overview",
+        "order": 2,
+        "fields": [
+          {
+            "field": "number",
+            "label": "Partizione",
+            "format": "auto"
+          },
+          {
+            "field": "filesystem",
+            "label": "Filesystem",
+            "format": "auto"
+          },
+          {
+            "field": "offset_byte",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione",
+            "format": "bytes"
+          },
+          {
+            "field": "status",
+            "label": "Stato",
+            "format": "auto"
+          }
+        ],
+        "hide_empty": false
+      },
+      {
+        "id": "filesystems",
+        "title": "Strutture filesystem",
+        "source": "data.analysis.filesystem",
+        "type": "auto",
+        "group": "filesystem",
+        "order": 3
+      },
+      {
+        "id": "files",
+        "title": "File enumerati",
+        "source": "data.analysis.file",
+        "type": "table",
+        "group": "filesystem",
+        "order": 4,
+        "fields": [
+          {
+            "field": "name",
+            "label": "Nome",
+            "format": "auto"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione",
+            "format": "bytes"
+          },
+          {
+            "field": "inode",
+            "label": "Inode",
+            "format": "code"
+          },
+          {
+            "field": "partition",
+            "label": "Partizione",
+            "format": "auto"
+          },
+          {
+            "field": "type",
+            "label": "Tipo",
+            "format": "auto"
+          }
+        ]
+      },
+      {
+        "id": "deleted",
+        "title": "File cancellati",
+        "source": "data.analysis.deleted",
+        "type": "table",
+        "group": "recovery",
+        "order": 5,
+        "fields": [
+          {
+            "field": "name",
+            "label": "Nome",
+            "format": "auto"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione",
+            "format": "bytes"
+          },
+          {
+            "field": "inode",
+            "label": "Inode",
+            "format": "code"
+          },
+          {
+            "field": "recovery_status",
+            "label": "Recupero",
+            "format": "auto"
+          }
+        ]
+      },
+      {
+        "id": "carved",
+        "title": "Carving",
+        "source": "data.analysis.carved",
+        "type": "table",
+        "group": "recovery",
+        "order": 6
+      },
+      {
+        "id": "recovered",
+        "title": "Catalogo degli artefatti recuperati",
+        "source": "data.analysis.artifact",
+        "type": "table",
+        "group": "recovery",
+        "order": 7
+      },
+      {
+        "id": "flags",
+        "title": "Flag ed evidenze",
+        "source": "data.analysis.flag",
+        "type": "table",
+        "group": "evidence",
+        "order": 8,
+        "fields": [
+          {
+            "field": "candidate",
+            "label": "Candidato",
+            "format": "code"
+          },
+          {
+            "field": "source",
+            "label": "Origine",
+            "format": "auto"
+          },
+          {
+            "field": "absolute_offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "confidence",
+            "label": "Affidabilità",
+            "format": "auto"
+          }
+        ]
+      },
+      {
+        "id": "partition-records",
+        "title": "Record di partizione",
+        "source": "data.analysis.partition",
+        "type": "table",
+        "group": "overview",
+        "order": 9,
+        "collapsed": true
+      }
+    ],
+    "include_unmapped": true
+  }
+}

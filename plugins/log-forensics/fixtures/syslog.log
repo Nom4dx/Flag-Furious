@@ -1,0 +1,2 @@
+<34>1 2026-09-14T12:00:00Z host sshd 42 login - Accepted password for alice from 192.0.2.10
+Sep 14 12:00:01 host sudo[9]: alice : COMMAND=/bin/id

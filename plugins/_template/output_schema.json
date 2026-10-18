@@ -1,0 +1,63 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "forensic",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Panoramica",
+        "order": 0
+      }
+    ],
+    "sections": [
+      {
+        "id": "example-summary",
+        "title": "Risultato",
+        "source": "data.summary",
+        "type": "details",
+        "group": "overview",
+        "order": 1,
+        "fields": [
+          {
+            "field": "asset",
+            "label": "Asset analizzato",
+            "format": "code"
+          }
+        ]
+      }
+    ],
+    "include_unmapped": true
+  }
+}

@@ -1,0 +1,458 @@
+[
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/magicWrapper/README.md",
+    "copy": "app/vendor/magic_wrapper/README.md",
+    "sha256": "76134646f3006f0a17fdcb31f787b5ba8bfaa308f23df4ae570b21c8dbbbbf79",
+    "lines": 35
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/magicWrapper/pyproject.toml",
+    "copy": "app/vendor/magic_wrapper/pyproject.toml",
+    "sha256": "ad355b01bcfa3f6860d0845659c4f5534fff854fc420f6d3e0a87e35fef76f6b",
+    "lines": 20
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/magicWrapper/test_magic_wrapper.py",
+    "copy": "app/vendor/magic_wrapper/test_magic_wrapper.py",
+    "sha256": "6b658caa6e31165603155b919b7dedf34fd82157b0b23d10646ed7896354eb3c",
+    "lines": 78
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/magicWrapper/app.py",
+    "copy": "app/vendor/magic_wrapper/app.py",
+    "sha256": "7f972cdf9c91247f982a217cd2044705e482b1327dd8afeb739acb83939618b7",
+    "lines": 1743
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/README.md",
+    "copy": "plugins/ext4atto/src/README.md",
+    "sha256": "e59ba0186c08c1a7a8aa97b4981e14393908fd0252cda52c11fbe870429a7b15",
+    "lines": 110
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/pyproject.toml",
+    "copy": "plugins/ext4atto/src/pyproject.toml",
+    "sha256": "bc7c398c7ededb9f7e0a048776913c789deda0573a87b39fba0db98e27eb3d2b",
+    "lines": 29
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/scripts/regression_images.py",
+    "copy": "plugins/ext4atto/src/scripts/regression_images.py",
+    "sha256": "bc8bf77a28e34dd737cd657425bc21dbbae61de4b50a500e170ecb17d0f261cb",
+    "lines": 36
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/docs/TECHNICAL_PLAN.md",
+    "copy": "plugins/ext4atto/src/docs/TECHNICAL_PLAN.md",
+    "sha256": "eff0bee53ceb06ccaea05eb9d458556e68d86ce8195c7088fd2cda009e439795",
+    "lines": 35
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_api_cases.py",
+    "copy": "plugins/ext4atto/src/tests/test_api_cases.py",
+    "sha256": "ead291a8889279a5ee6b8af48cbfc61eabd12fd0ac6503ce8c7ab05623a65ab4",
+    "lines": 14
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_security_source.py",
+    "copy": "plugins/ext4atto/src/tests/test_security_source.py",
+    "sha256": "e8df6d171310096a2244e12e85ef402b1f071126942fa61ef368db564611a337",
+    "lines": 32
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_partitions.py",
+    "copy": "plugins/ext4atto/src/tests/test_partitions.py",
+    "sha256": "fd16bdb78652f9c1b7c3f06e4027871a1e2869e445062a13f15f1919403037ad",
+    "lines": 40
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_checkpoint.py",
+    "copy": "plugins/ext4atto/src/tests/test_checkpoint.py",
+    "sha256": "365a4ed2dcb7767bd40cd1cbb2d6d6364b466e217b8d9b47818149f2c1dabb62",
+    "lines": 20
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_cases.py",
+    "copy": "plugins/ext4atto/src/tests/test_cases.py",
+    "sha256": "4135df6754308cb734abb0a0dd73be3b147cac897861715763016b1307aaea60",
+    "lines": 10
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_ascii_art.py",
+    "copy": "plugins/ext4atto/src/tests/test_ascii_art.py",
+    "sha256": "5cabd992109c76028b3d745647096ae5fddc6dac7219accd080ecb9aa226a4d2",
+    "lines": 7
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_extraction.py",
+    "copy": "plugins/ext4atto/src/tests/test_extraction.py",
+    "sha256": "dd59a545ad8e98839efac19ab114a7fd116bd73e9ce1af367974bae929121d8b",
+    "lines": 44
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_filesystems.py",
+    "copy": "plugins/ext4atto/src/tests/test_filesystems.py",
+    "sha256": "d16cca60d31130e13684202ccd57f9809284e4faedf9c57aeacb2d8674894c34",
+    "lines": 22
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_carving.py",
+    "copy": "plugins/ext4atto/src/tests/test_carving.py",
+    "sha256": "c875ddc3388a6b880278bdc94c0859370708a1639df80705b3d808366fc62434",
+    "lines": 13
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_scanner.py",
+    "copy": "plugins/ext4atto/src/tests/test_scanner.py",
+    "sha256": "6f9aba12c667cfbcb52349016304e837c6218244eb85092005b46e536125a70c",
+    "lines": 30
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/test_tsk.py",
+    "copy": "plugins/ext4atto/src/tests/test_tsk.py",
+    "sha256": "bf27b028115b9b565b70b581f03ee6e7a4d17eb39e3bb6e4c7b9a5abfa60452b",
+    "lines": 11
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/tests/conftest.py",
+    "copy": "plugins/ext4atto/src/tests/conftest.py",
+    "sha256": "bbf884ae71a5eee9cf61b790d6e269104da2d0ad60960a544026bcfd0a30194c",
+    "lines": 27
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/budget.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/budget.py",
+    "sha256": "12fb84788c4d1866bbd1a4f40c23a981e9ae665647e3bb7370017ab4b12e8942",
+    "lines": 76
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/analyzer.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/analyzer.py",
+    "sha256": "f3c09be9190e66ce0679f84d2b54f0c5670128fb3f67138dceb5743ce9719d92",
+    "lines": 208
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/models.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/models.py",
+    "sha256": "6f1762140c801ba8870dc0e9aa497af82acf3e2fa8cbcc101d1daa140da4caf2",
+    "lines": 55
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/tsk.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/tsk.py",
+    "sha256": "fdaa0a1c854249b05d63bd37476d905ca2919e1c613e49b6bbd045bb072262bd",
+    "lines": 134
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/__init__.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/__init__.py",
+    "sha256": "bc7b88d529b4408d686c9da327cc3323bf37507a2122bd912e72da6bfdd89b07",
+    "lines": 4
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/db.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/db.py",
+    "sha256": "2443f2e31647c776b4791196d880be5a5a3e0a5a0fc0e31e62daeaa442f9d1e0",
+    "lines": 119
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/reports.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/reports.py",
+    "sha256": "4f3fa3fef3015101697bdef65163de7b2d5ff6a338a098db82f471c723ea96ff",
+    "lines": 43
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/scanner.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/scanner.py",
+    "sha256": "228d63ae433f2735160392c0b3bcf84b34196a640f5ac895bbea2784bd4cd27f",
+    "lines": 142
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/config.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/config.py",
+    "sha256": "4c34a04c1ff0cf3d620a821b644cf5247db8f6a17011b8b3930b001dcae70e23",
+    "lines": 20
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/extraction.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/extraction.py",
+    "sha256": "75a0c526c59c4380fefe9ead9faff39b47dd8742203e6c082d0b783930422d7e",
+    "lines": 122
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/artifacts.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/artifacts.py",
+    "sha256": "11596119b9f9094158547cab1aab1ed51158ac89fdcbff8695b8795930fd169f",
+    "lines": 89
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/source.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/source.py",
+    "sha256": "16465d885e042a4634f9422811808ef0938915b399cf79133d3645884b57f56b",
+    "lines": 85
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/security.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/security.py",
+    "sha256": "46f4afb39d85e080e313d6f9d0f1b9f2fa8e927e8dede9768bd49598a5953e47",
+    "lines": 18
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/main.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/main.py",
+    "sha256": "a47740fe965272d8a0bbabe9534c6141baa5a1c847bb44e1128b903ee856eaca",
+    "lines": 287
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/parsers/partitions.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/parsers/partitions.py",
+    "sha256": "b6480ef036301f2ef2638f1f2cda543bae930896582f7611dbffd6f881fe4f14",
+    "lines": 115
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/parsers/__init__.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/parsers/__init__.py",
+    "sha256": "7943642974620a99329442887068dc15ad8066e2c173d2933c2a6536a9c9c018",
+    "lines": 6
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/parsers/fat.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/parsers/fat.py",
+    "sha256": "35ff47b1c3f7efafdcd1f1584cdac0d5ccb638768e5aade532cf782c8ce72363",
+    "lines": 21
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/Ext4atto/backend/diskhunt/parsers/ext.py",
+    "copy": "plugins/ext4atto/src/backend/diskhunt/parsers/ext.py",
+    "sha256": "ef28b6f8ccc478ffe4d387aa673866398a1ebd598e923ccbcf45e5b63827daad",
+    "lines": 15
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/README.md",
+    "copy": "plugins/githappens/src/README.md",
+    "sha256": "7980ff705cf3bd8eb986f1b573e4dc511cbf4e7e205f6751f13adf0ea6217106",
+    "lines": 105
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/pyproject.toml",
+    "copy": "plugins/githappens/src/pyproject.toml",
+    "sha256": "c62210f8416342203b853f9f98b58a07c2b119be7bdbf9be90024381e115d12b",
+    "lines": 24
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/docs/ARCHITECTURE.md",
+    "copy": "plugins/githappens/src/docs/ARCHITECTURE.md",
+    "sha256": "f17cf32789096b8e7946c950493b4f6297b2effba1ddfeaf2c82b14bfa26469d",
+    "lines": 22
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/tests/test_modules.py",
+    "copy": "plugins/githappens/src/tests/test_modules.py",
+    "sha256": "8452359f5a605eac63ad284ab7a77e3a647ebbe7c1ff5ee0520f5a525e78f729",
+    "lines": 90
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/tests/test_git_diff.py",
+    "copy": "plugins/githappens/src/tests/test_git_diff.py",
+    "sha256": "fe13a234fbbebaf72c0022f8be942f06b46515dd5106e7bbfcbb3f1513ba366c",
+    "lines": 36
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/tests/test_cases.py",
+    "copy": "plugins/githappens/src/tests/test_cases.py",
+    "sha256": "5849369cc995a8f58842dcffd40688db534a861f00be5bc76d6dcee354d36aa2",
+    "lines": 21
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/tests/test_scanner.py",
+    "copy": "plugins/githappens/src/tests/test_scanner.py",
+    "sha256": "41766893b141bac68472a9308ab903988a05ba534edc42f6257d3f7352150b87",
+    "lines": 25
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/tests/conftest.py",
+    "copy": "plugins/githappens/src/tests/conftest.py",
+    "sha256": "7c39afcbb999e4b3622bf962a460811cc5ec2e49a08c72b4d3dc15038fcc1ed9",
+    "lines": 5
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/githappens/__init__.py",
+    "copy": "plugins/githappens/src/backend/githappens/__init__.py",
+    "sha256": "58ca9cbc070f5514324e3c4764c4664d689ddaeaabed7981e15e400f0903ec4d",
+    "lines": 3
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/cli.py",
+    "copy": "plugins/githappens/src/backend/picup_web/cli.py",
+    "sha256": "ff61d6d27e29f92eb0250d35d2921a73dd0cf3196eec1aa57c2a814527becfa0",
+    "lines": 35
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/models.py",
+    "copy": "plugins/githappens/src/backend/picup_web/models.py",
+    "sha256": "205312d546257be17cd7cab80f1a91ec7102a726873eb6d71bfedc021b21a8da",
+    "lines": 46
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/cases.py",
+    "copy": "plugins/githappens/src/backend/picup_web/cases.py",
+    "sha256": "745445f0a558231d1c507d948a4dedc8d99a315fa9c913a09592ebd40b544a10",
+    "lines": 128
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/extract.py",
+    "copy": "plugins/githappens/src/backend/picup_web/extract.py",
+    "sha256": "5ecab441f17181ac5309a4f9248d7281f93444521b4832b5f6fde4972013012b",
+    "lines": 88
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/scanner.py",
+    "copy": "plugins/githappens/src/backend/picup_web/scanner.py",
+    "sha256": "c5780f43534e140c877bb32ae6b89f5f39918f5d3b56c505eba9d7c9d933f7bd",
+    "lines": 173
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/util.py",
+    "copy": "plugins/githappens/src/backend/picup_web/util.py",
+    "sha256": "5341d8b5d7695631ec234f2eb1d1568446716d32f18280ccb342b12ccdc288f1",
+    "lines": 104
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/pipeline.py",
+    "copy": "plugins/githappens/src/backend/picup_web/pipeline.py",
+    "sha256": "16a8263516e960a3d2e21c46110f3c9c1bb3ba3349da577f13348dbcbdd18ae1",
+    "lines": 149
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/main.py",
+    "copy": "plugins/githappens/src/backend/picup_web/main.py",
+    "sha256": "b698b4e88b0e64036f902d9147174f755868ac8b6a8dcfb4463f09315579a1a7",
+    "lines": 185
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/git_forensics.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/git_forensics.py",
+    "sha256": "4f8a5684afb0fe9374e863664c2bc07dbec286ad553070413735d10fd4b6adcc",
+    "lines": 210
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/__init__.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/__init__.py",
+    "sha256": "1bc5c4ec43ad59ba88d71b05d2438d88229c4af0c78250768644425eea0984b7",
+    "lines": 2
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/slack.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/slack.py",
+    "sha256": "9f72c07d29c30ae3d180ee702a648bb55ccb7d564f144038e144df2e5cd640a1",
+    "lines": 72
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/cache.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/cache.py",
+    "sha256": "b9e594114c6ccd1fdbf5cb325181cdb7eb6a92ab8abfc0b83496c756ad979652",
+    "lines": 103
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/legacy.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/legacy.py",
+    "sha256": "998b3d608f3b50949bd532aeaeaf900fc36ca44a5d79b1bd262bb2d789f8ae12",
+    "lines": 85
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/history.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/history.py",
+    "sha256": "f5ae50c04c0634da5cbe05a3a70d0f89aff152098ffd469f12e7453b25635128",
+    "lines": 101
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/virtual.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/virtual.py",
+    "sha256": "9f82a7945679e49405ead12a0ff5fb0f6469e563dd69d133149f595a4262d8af",
+    "lines": 123
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/GitHappens/backend/picup_web/modules/reference_diff.py",
+    "copy": "plugins/githappens/src/backend/picup_web/modules/reference_diff.py",
+    "sha256": "95868c7ea46cbaf628eaa917f35d70765743c0a8ec29c82e9b97da7b38b02049",
+    "lines": 78
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/HIDGrabber/README.md",
+    "copy": "plugins/hidgrabber/src/README.md",
+    "sha256": "7edaf10d45621514655eddec95da70d13f5dad9f46d336df3c18b9eefd6e3a80",
+    "lines": 357
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/HIDGrabber/pyproject.toml",
+    "copy": "plugins/hidgrabber/src/pyproject.toml",
+    "sha256": "ef0355ba07e7ad44dd5fc0971ffb3b9ecca23bdd99fa3695977f57a3ca02b198",
+    "lines": 15
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/HIDGrabber/test_hidgrabber.py",
+    "copy": "plugins/hidgrabber/src/test_hidgrabber.py",
+    "sha256": "aaf7b96f6cd5e73c91ab10c475a545c57b18a7caf4e71d7a88765c670061c05e",
+    "lines": 278
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/HIDGrabber/hid_database.py",
+    "copy": "plugins/hidgrabber/src/hid_database.py",
+    "sha256": "c86fa4f45c7cf4a9a1159a97f0b441a54a8c7cea9c010b113dc2b0ac4f7afbfa",
+    "lines": 135
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/HIDGrabber/HIDGrabber.py",
+    "copy": "plugins/hidgrabber/src/HIDGrabber.py",
+    "sha256": "256af116eeebf6329e7085c7f8d89fe6b4298c0f3246edd0d108a5e6a69ba729",
+    "lines": 1032
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/ROADMAP.md",
+    "copy": "plugins/pic-up/src/ROADMAP.md",
+    "sha256": "c4446cc132d21180ba8cb4b5e1e88f72150cb24c2e843a28a0a3709496dc332e",
+    "lines": 54
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/test_pic_up.py",
+    "copy": "plugins/pic-up/src/test_pic_up.py",
+    "sha256": "e5671addeaf85eb1092b57943aa07ec193789ab0b168d8990780a3f2167dab55",
+    "lines": 221
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/pic-up.py",
+    "copy": "plugins/pic-up/src/pic-up.py",
+    "sha256": "3b2b92e529e214a01a27e9f008ee21700db6973165aa786304d8cbbe47d79a6c",
+    "lines": 2383
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/pyproject.toml",
+    "copy": "plugins/pic-up/src/pyproject.toml",
+    "sha256": "d24c93314503e299141de039406590ea581a95d06a8968e9cf807f63d8fcdba1",
+    "lines": 23
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/PIC-UP.md",
+    "copy": "plugins/pic-up/src/PIC-UP.md",
+    "sha256": "fbcc962152d5d692184a837220379c042760acd27fbd59791beb874dce5d0896",
+    "lines": 268
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/picup/__main__.py",
+    "copy": "plugins/pic-up/src/picup/__main__.py",
+    "sha256": "d0f3d4e4a30f09650de2c53bf49f9b25cb4586915bf26c59b1ed271acc60b7f4",
+    "lines": 23
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/picup/__init__.py",
+    "copy": "plugins/pic-up/src/picup/__init__.py",
+    "sha256": "84138abbc890b0c8957f13c82532e0ef76a32ddf34772efc56aea379f8fe5894",
+    "lines": 24
+  },
+  {
+    "source": "/home/nomad/Scrivania/RootRunnersForensicTools/pic-up/picup/network.py",
+    "copy": "plugins/pic-up/src/picup/network.py",
+    "sha256": "452a47ec768b5791371d24b4d2b1f8dd0626df4930e5429de5fd36576104cd10",
+    "lines": 291
+  }
+]

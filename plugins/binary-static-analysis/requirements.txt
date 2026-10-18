@@ -1,0 +1,2 @@
+# Nessuna dipendenza Python obbligatoria.
+# Optional: python-magic, pefile, capstone, yara-python

@@ -1,0 +1,10 @@
+title: Possible Linux Reverse Shell
+id: local-linux-reverse-shell
+logsource: {product: linux}
+detection:
+  selection:
+    raw|contains: "/dev/tcp/"
+  condition: selection
+level: high
+tags: [attack.execution, attack.t1059.004]
+falsepositives: [Security testing]

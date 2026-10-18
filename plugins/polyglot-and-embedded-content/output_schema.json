@@ -1,0 +1,69 @@
+{
+  "description": "Contratto di presentazione: separa prove validate, candidati incerti, estrazioni e diagnostica. Il JSON tecnico rimane disponibile tramite progressive disclosure.",
+  "result_fields": {
+    "findings": "Conclusioni con offset, parser, severità e confidenza",
+    "sections": "Dashboard modulare ordinata",
+    "artifacts": "Oggetti carved o estratti e deduplicati SHA-256",
+    "derived_assets": "Asset reinseriti nella pipeline dal core",
+    "visualizations": "Mappa offset e grafo per l'engine 2D",
+    "flags": "Candidate classificate con catena di provenienza",
+    "timeline": "Eventi temporali quando disponibili",
+    "execution_events": "Fasi e durate",
+    "logs": "Log passivi",
+    "warnings": "Limiti o errori recuperabili",
+    "errors": "Errori terminali",
+    "metrics": "Copertura e contatori"
+  },
+  "sections": [
+    {"id": "file_identity", "title": "File identity", "description": "Dimensione, hash e copertura del byte budget.", "type": "summary", "order": 10},
+    {"id": "signature_inventory", "title": "Signature inventory", "description": "Tutte le firme candidate, senza implicare validità.", "type": "table", "order": 20},
+    {"id": "format_candidates", "title": "Uncertain candidates", "description": "Firme respinte e prova del rifiuto.", "type": "table", "order": 30},
+    {"id": "validated_formats", "title": "Validated formats", "description": "Formati provati dai parser strutturali.", "type": "table", "order": 40},
+    {"id": "boundary_map", "title": "Boundary map", "description": "Confini logici esclusivi e metodo di calcolo.", "type": "table", "order": 50},
+    {"id": "polyglot_classification", "title": "Polyglot classification", "description": "Relazioni prefix, suffix, embedded, overlap, concatenated e SFX.", "type": "details", "order": 60},
+    {"id": "appended_data", "title": "Prepended, appended and overlay data", "description": "Regioni fuori dal confine logico principale.", "type": "table", "order": 70},
+    {"id": "embedded_objects", "title": "Embedded and carved objects", "description": "Oggetti salvati senza byte estranei.", "type": "artifact_list", "order": 80},
+    {"id": "archive_analysis", "title": "Archive contents", "description": "Entry, CRC, ratio e decisioni di sicurezza.", "type": "details", "order": 90},
+    {"id": "pdf_analysis", "title": "PDF analysis", "description": "Oggetti, revisioni, stream, allegati e azioni passive.", "type": "details", "order": 100},
+    {"id": "png_analysis", "title": "PNG analysis", "description": "Chunk, CRC, testo e chunk custom.", "type": "details", "order": 110},
+    {"id": "jpeg_analysis", "title": "JPEG analysis", "description": "Segmenti, APP, commenti e fine EOI.", "type": "details", "order": 120},
+    {"id": "script_analysis", "title": "Script and SFX", "description": "Analisi statica; nessuna esecuzione.", "type": "details", "order": 130},
+    {"id": "decoys", "title": "Decoys", "description": "Firme casuali, origini deboli e flag duplicate.", "type": "table", "order": 140},
+    {"id": "payloads", "title": "Payloads", "description": "Decodifiche limitate e deduplicate.", "type": "table", "order": 150},
+    {"id": "flag_candidates", "title": "Flag candidates", "description": "Flag ordinate per prova e provenienza.", "type": "table", "order": 160},
+    {"id": "artifact_graph", "title": "Artifact graph", "description": "Catena input, formato, estrazione e flag.", "type": "visualization", "order": 170}
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "archive",
+    "include_unmapped": true,
+    "groups": [
+      {"id": "summary", "title": "Summary", "order": 1},
+      {"id": "proof", "title": "Signatures and validation", "order": 2},
+      {"id": "boundaries", "title": "Polyglot and boundaries", "order": 3},
+      {"id": "content", "title": "Embedded content", "order": 4},
+      {"id": "formats", "title": "Format analysis", "order": 5},
+      {"id": "evidence", "title": "Decoys, payloads and flags", "order": 6},
+      {"id": "graphs", "title": "Artifact graph", "order": 7}
+    ],
+    "sections": [
+      {"id": "identity", "title": "File identity", "source": "data.file_identity.items", "type": "summary", "group": "summary", "order": 10},
+      {"id": "validated", "title": "Validated formats", "source": "data.validated_formats.items", "type": "table", "group": "summary", "order": 20, "fields": [{"field": "format", "label": "Formato"}, {"field": "start_offset", "label": "Inizio", "format": "hex"}, {"field": "end_offset", "label": "Fine", "format": "hex"}, {"field": "boundary_method", "label": "Prova"}, {"field": "confidence", "label": "Confidenza", "format": "percent"}]},
+      {"id": "signatures", "title": "Signature inventory", "source": "data.signature_inventory.items", "type": "table", "group": "proof", "order": 30, "fields": [{"field": "format", "label": "Formato"}, {"field": "offset", "label": "Offset", "format": "hex"}, {"field": "signature", "label": "Firma", "format": "code"}, {"field": "validator", "label": "Validator"}]},
+      {"id": "uncertain", "title": "Uncertain candidates", "source": "data.format_candidates.items", "type": "table", "group": "proof", "order": 40},
+      {"id": "classification", "title": "Polyglot classification", "source": "data.polyglot_classification.items", "type": "details", "group": "boundaries", "order": 50},
+      {"id": "boundaries", "title": "Boundary map", "source": "data.boundary_map.items", "type": "table", "group": "boundaries", "order": 60},
+      {"id": "overlay", "title": "Appended and overlay data", "source": "data.appended_data.items", "type": "table", "group": "boundaries", "order": 70},
+      {"id": "objects", "title": "Embedded and carved objects", "source": "artifacts", "type": "artifact_list", "group": "content", "order": 80},
+      {"id": "archives", "title": "Archive contents", "source": "data.archive_analysis.items", "type": "details", "group": "content", "order": 90},
+      {"id": "pdf", "title": "PDF", "source": "data.pdf_analysis.items", "type": "details", "group": "formats", "order": 100},
+      {"id": "png", "title": "PNG", "source": "data.png_analysis.items", "type": "details", "group": "formats", "order": 110},
+      {"id": "jpeg", "title": "JPEG", "source": "data.jpeg_analysis.items", "type": "details", "group": "formats", "order": 120},
+      {"id": "scripts", "title": "Script and SFX", "source": "data.script_analysis.items", "type": "details", "group": "formats", "order": 130},
+      {"id": "decoys", "title": "Decoys", "source": "data.decoys.items", "type": "table", "group": "evidence", "order": 140},
+      {"id": "payloads", "title": "Payloads", "source": "data.payloads.items", "type": "table", "group": "evidence", "order": 150},
+      {"id": "flags", "title": "Flag candidates", "source": "flags", "type": "table", "group": "evidence", "order": 160, "fields": [{"field": "value", "label": "Valore", "format": "code"}, {"field": "classification", "label": "Classe"}, {"field": "source", "label": "Origine"}, {"field": "offset", "label": "Offset", "format": "hex"}, {"field": "decoder", "label": "Decoder"}, {"field": "confidence", "label": "Confidenza", "format": "percent"}]},
+      {"id": "graph", "title": "Artifact graph", "source": "data.artifact_graph.items", "type": "visualization_list", "group": "graphs", "order": 170}
+    ]
+  }
+}

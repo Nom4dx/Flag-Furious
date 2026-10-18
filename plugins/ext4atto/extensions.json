@@ -1,0 +1,26 @@
+{
+  "extensions": [
+    ".img",
+    ".dd",
+    ".raw",
+    ".qcow",
+    ".qcow2",
+    ".vhd",
+    ".vmdk",
+    ".e01",
+    ".gz",
+    ".xz",
+    ".zst"
+  ],
+  "content_signatures": [
+    "filesystem_image",
+    "qcow"
+  ],
+  "magic_bytes": [
+    "514649fb",
+    {
+      "pattern": "53ef",
+      "offset": 1080
+    }
+  ]
+}

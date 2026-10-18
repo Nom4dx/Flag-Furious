@@ -1,0 +1,43 @@
+{
+  "id": "githappens",
+  "name": "GitHappens",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "GitHappens \u2014 adapter Forensic Hub",
+  "entrypoint": "plugin.py",
+  "class": "Plugin",
+  "domains": [
+    "forensics",
+    "git",
+    "threat_intelligence"
+  ],
+  "supported_asset_types": [
+    "file",
+    "archive",
+    "disk_image",
+    "directory"
+  ],
+  "capabilities": [
+    "analysis",
+    "derived_assets",
+    "visualizations"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [
+    "git",
+    "qemu-img",
+    "tsk_recover",
+    "7z"
+  ],
+  "timeout": 120,
+  "cpu_seconds": 90,
+  "memory_mb": 768,
+  "byte_budget": 536870912,
+  "output_bytes": 268435456,
+  "input_access": "random_access",
+  "workspace_bytes": 1073741824
+}

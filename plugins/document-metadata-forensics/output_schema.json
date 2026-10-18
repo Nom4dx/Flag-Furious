@@ -1,0 +1,60 @@
+{
+  "description": "Contratto dei risultati statici. Ogni sezione conserva stato, elementi, finding, artefatti, flag, timeline e visualizzazione associata.",
+  "result_fields": {
+    "findings": "Finding con provenienza e confidenza",
+    "sections": "Moduli separati e ordinati",
+    "artifacts": "Derivati deduplicati SHA-256",
+    "derived_assets": "Asset registrati dall'hub",
+    "visualizations": "Descrizioni per l'engine 2D",
+    "flags": "Candidate classificate e collegate all'origine",
+    "timeline": "Timestamp normalizzati con valore raw",
+    "execution_events": "Durata e stato dei moduli",
+    "logs": "Log passivi",
+    "warnings": "Limitazioni recuperabili",
+    "errors": "Errori terminali",
+    "metrics": "Copertura e byte letti"
+  },
+  "sections": [
+    {"id": "section-identification", "title": "Identificazione", "description": "Firme, MIME e contenitore rilevati senza affidarsi all'estensione.", "type": "json", "order": 10},
+    {"id": "section-pdf", "title": "PDF", "description": "Oggetti, revisioni, layer, stream e azioni statiche.", "type": "json", "order": 20},
+    {"id": "section-metadata", "title": "Metadata", "description": "EXIF, XMP, IPTC, PDF Info e proprietà standard/custom.", "type": "json", "order": 30},
+    {"id": "section-office", "title": "Office e contenitori", "description": "OOXML, ODF, EPUB, commenti, revisioni, macro e oggetti incorporati.", "type": "json", "order": 40},
+    {"id": "section-ole", "title": "OLE", "description": "Stream e property set dei formati Office legacy.", "type": "json", "order": 50},
+    {"id": "section-rtf", "title": "RTF", "description": "Testo nascosto, campi, DDE e oggetti incorporati.", "type": "json", "order": 60},
+    {"id": "section-images", "title": "Immagini", "description": "Strutture JPEG/TIFF/PNG/WebP/HEIC/AVIF/GIF/SVG.", "type": "json", "order": 70},
+    {"id": "section-structured_text", "title": "HTML, XML e JSON", "description": "Metadata e contenuto attivo rilevato staticamente.", "type": "json", "order": 80},
+    {"id": "section-hidden_content", "title": "Contenuti nascosti", "description": "Zero-width, appendici, firme annidate e whitespace.", "type": "json", "order": 90},
+    {"id": "section-payloads", "title": "Payload", "description": "Catene Base64, hex e Brainfuck con limiti.", "type": "json", "order": 100},
+    {"id": "section-timeline", "title": "Timeline", "description": "Cronologia normalizzata dai metadata.", "type": "timeline", "order": 110},
+    {"id": "section-inconsistencies", "title": "Incoerenze", "description": "Confronto tra namespace e sorgenti.", "type": "json", "order": 120},
+    {"id": "section-flags", "title": "Flag", "description": "Candidate classificate e associate alla trasformazione di origine.", "type": "json", "order": 130}
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "document",
+    "include_unmapped": true,
+    "groups": [
+      {"id": "identification", "title": "Identificazione", "order": 1},
+      {"id": "metadata", "title": "Metadata", "order": 2},
+      {"id": "pdf", "title": "PDF", "order": 3},
+      {"id": "office", "title": "Office e immagini", "order": 4},
+      {"id": "hidden", "title": "Contenuti nascosti e payload", "order": 5},
+      {"id": "evidence", "title": "Timeline, incoerenze e flag", "order": 6}
+    ],
+    "sections": [
+      {"id": "identification", "title": "Formato e struttura", "source": "data.section-identification", "type": "details", "group": "identification", "order": 10},
+      {"id": "metadata", "title": "Valori metadata", "source": "data.section-metadata.items", "type": "table", "group": "metadata", "order": 20, "fields": [{"field": "namespace", "label": "Namespace"}, {"field": "field", "label": "Campo"}, {"field": "normalized_value", "label": "Valore"}, {"field": "internal_path", "label": "Origine"}, {"field": "offset", "label": "Offset", "format": "hex"}, {"field": "confidence", "label": "Affidabilità", "format": "percent"}]},
+      {"id": "pdf", "title": "Struttura PDF", "source": "data.section-pdf", "type": "details", "group": "pdf", "order": 30},
+      {"id": "office", "title": "Office e contenitori", "source": "data.section-office", "type": "details", "group": "office", "order": 40},
+      {"id": "ole", "title": "OLE legacy", "source": "data.section-ole", "type": "details", "group": "office", "order": 50},
+      {"id": "rtf", "title": "RTF", "source": "data.section-rtf", "type": "details", "group": "office", "order": 60},
+      {"id": "images", "title": "Immagini", "source": "data.section-images", "type": "details", "group": "office", "order": 70},
+      {"id": "structured", "title": "HTML, XML e JSON", "source": "data.section-structured_text", "type": "details", "group": "office", "order": 80},
+      {"id": "hidden", "title": "Contenuti nascosti", "source": "data.section-hidden_content", "type": "details", "group": "hidden", "order": 90},
+      {"id": "payloads", "title": "Payload decodificati", "source": "data.section-payloads.items", "type": "table", "group": "hidden", "order": 100},
+      {"id": "timeline", "title": "Timeline", "source": "timeline", "type": "timeline", "group": "evidence", "order": 110},
+      {"id": "inconsistencies", "title": "Incoerenze", "source": "data.section-inconsistencies.findings", "type": "table", "group": "evidence", "order": 120},
+      {"id": "flags", "title": "Flag candidate", "source": "flags", "type": "table", "group": "evidence", "order": 130, "fields": [{"field": "value", "label": "Valore", "format": "code"}, {"field": "classification", "label": "Classe"}, {"field": "source", "label": "Origine"}, {"field": "internal_path", "label": "Percorso"}, {"field": "decoder", "label": "Decoder"}, {"field": "confidence", "label": "Affidabilità", "format": "percent"}]}
+    ]
+  }
+}

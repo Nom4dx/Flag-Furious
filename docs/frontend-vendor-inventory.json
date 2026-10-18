@@ -1,0 +1,42 @@
+[
+  {
+    "path": "frontend/assets/vendor/BARLOW-OFL.txt",
+    "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f"
+  },
+  {
+    "path": "frontend/assets/vendor/BOOTSTRAP-LICENSE.txt",
+    "sha256": "4620c84ad5ce8602ff65640ed6b7c8b78ebb9e036584f0ebc1ccc88206a4bb51"
+  },
+  {
+    "path": "frontend/assets/vendor/FONTAWESOME-LICENSE.txt",
+    "sha256": "9b914eae88817d63b576eab5aafde7068c7a1abae125d7cdfb034f1da43a9afc"
+  },
+  {
+    "path": "frontend/assets/vendor/PLEX-MONO-OFL.txt",
+    "sha256": "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+  },
+  {
+    "path": "frontend/assets/vendor/barlow-semibold.woff2",
+    "sha256": "4b52ddd4836b592df0e4832b8286956883cdc651b015126bdd18f184b7f90cc3"
+  },
+  {
+    "path": "frontend/assets/vendor/barlow.woff2",
+    "sha256": "b0a8ad37ac45f5fb22ced461576db72e44e295107aad7a9c8a7a4bad728fd03b"
+  },
+  {
+    "path": "frontend/assets/vendor/bootstrap.min.css",
+    "sha256": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede"
+  },
+  {
+    "path": "frontend/assets/vendor/fa-solid-900.woff2",
+    "sha256": "aa75998623a391e61c6901794ace832e3ecdd288b56d608f21bea0411acc0b8e"
+  },
+  {
+    "path": "frontend/assets/vendor/fontawesome.min.css",
+    "sha256": "e8c7ea7d1f36a833212937165950cc4ed264f2053cd52cb8712b9f172e332f04"
+  },
+  {
+    "path": "frontend/assets/vendor/plex-mono.woff2",
+    "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+  }
+]

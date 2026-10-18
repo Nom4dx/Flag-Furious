@@ -1,0 +1,79 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "archive",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Estrazione",
+        "order": 0
+      }
+    ],
+    "sections": [
+      {
+        "id": "archive-files",
+        "title": "File estratti dall’archivio",
+        "source": "data.inventory",
+        "type": "table",
+        "group": "overview",
+        "order": 1,
+        "fields": [
+          {
+            "field": "name",
+            "label": "Nome del file",
+            "format": "auto"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione",
+            "format": "bytes"
+          },
+          {
+            "field": "crc",
+            "label": "CRC-32",
+            "format": "code"
+          },
+          {
+            "field": "offset",
+            "label": "Offset nell’archivio",
+            "format": "hex"
+          }
+        ],
+        "hide_empty": false
+      }
+    ],
+    "include_unmapped": true
+  }
+}

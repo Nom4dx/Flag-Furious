@@ -1,0 +1,1 @@
+{"timestamp": "2026-09-14T12:00:00Z", "verb": "create", "requestURI": "/api/v1/namespaces/default/pods/x/exec", "objectRef": {"resource": "pods", "subresource": "exec"}, "user": {"username": "alice"}}

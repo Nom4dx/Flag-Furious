@@ -1,0 +1,771 @@
+{
+  "description": "Dashboard log-forensics organizzata per eventi, detection, correlazione, grafi, artefatti e flag.",
+  "result_fields": {
+    "findings": "Detection con eventi collegati",
+    "sections": "Sezioni dashboard",
+    "artifacts": "Derivati deduplicati",
+    "derived_assets": "Asset reinseriti dal core",
+    "visualizations": "Timeline e grafi",
+    "flags": "Candidate ricostruite",
+    "timeline": "Eventi normalizzati",
+    "execution_events": "Fasi e durate",
+    "logs": "Audit tool",
+    "warnings": "Copertura parziale",
+    "errors": "Errori terminali",
+    "metrics": "Contatori"
+  },
+  "sections": [
+    {
+      "id": "file_identity",
+      "title": "File Identity",
+      "description": "Hash, MIME, dimensione e immutabilità",
+      "type": "summary",
+      "order": 10
+    },
+    {
+      "id": "detected_format",
+      "title": "Detected Format",
+      "description": "Candidati content-first con motivazioni",
+      "type": "table",
+      "order": 20
+    },
+    {
+      "id": "parser_used",
+      "title": "Parser Used",
+      "description": "Parser e quantità eventi",
+      "type": "table",
+      "order": 30
+    },
+    {
+      "id": "parsing_statistics",
+      "title": "Parsing Statistics",
+      "description": "Copertura e righe non valide",
+      "type": "metrics",
+      "order": 40
+    },
+    {
+      "id": "raw_events",
+      "title": "Raw Events",
+      "description": "Rappresentazione raw mascherata con linea e offset",
+      "type": "table",
+      "order": 50
+    },
+    {
+      "id": "normalized_events",
+      "title": "Normalized Events",
+      "description": "Modello ECS-like con campi originali",
+      "type": "table",
+      "order": 60
+    },
+    {
+      "id": "timestamp_analysis",
+      "title": "Timestamp Analysis",
+      "description": "Errori, duplicati e incoerenze",
+      "type": "table",
+      "order": 70
+    },
+    {
+      "id": "entities",
+      "title": "Entities",
+      "description": "IP, utenti, host, URL, processi e identificatori",
+      "type": "table",
+      "order": 80
+    },
+    {
+      "id": "authentication_analysis",
+      "title": "Authentication Analysis",
+      "description": "Brute force, spraying e successi correlati",
+      "type": "table",
+      "order": 90
+    },
+    {
+      "id": "web_analysis",
+      "title": "Web Analysis",
+      "description": "Payload e sequenze web sospette",
+      "type": "table",
+      "order": 100
+    },
+    {
+      "id": "network_analysis",
+      "title": "Network Analysis",
+      "description": "Scan, tunneling e beaconing",
+      "type": "table",
+      "order": 110
+    },
+    {
+      "id": "windows_analysis",
+      "title": "Windows Analysis",
+      "description": "Processi, PowerShell e log clearing",
+      "type": "table",
+      "order": 120
+    },
+    {
+      "id": "linux_analysis",
+      "title": "Linux Analysis",
+      "description": "Persistenza, shell e audit",
+      "type": "table",
+      "order": 130
+    },
+    {
+      "id": "cloud_analysis",
+      "title": "Cloud Analysis",
+      "description": "Operazioni cloud sensibili",
+      "type": "table",
+      "order": 140
+    },
+    {
+      "id": "container_analysis",
+      "title": "Container Analysis",
+      "description": "Kubernetes e container audit",
+      "type": "table",
+      "order": 150
+    },
+    {
+      "id": "sigma_matches",
+      "title": "Sigma Matches",
+      "description": "Match delle regole Sigma locali",
+      "type": "table",
+      "order": 160
+    },
+    {
+      "id": "anomalies",
+      "title": "Anomalies",
+      "description": "Deviazioni statistiche separate dalle detection",
+      "type": "table",
+      "order": 170
+    },
+    {
+      "id": "attack_chains",
+      "title": "Attack Chains",
+      "description": "Fasi ordinate con eventi di prova",
+      "type": "details",
+      "order": 180
+    },
+    {
+      "id": "sessions",
+      "title": "Sessions",
+      "description": "Sessioni e flow ricostruiti",
+      "type": "table",
+      "order": 190
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "description": "Timeline globale normalizzata",
+      "type": "timeline",
+      "order": 200
+    },
+    {
+      "id": "graphs",
+      "title": "Graphs",
+      "description": "Eventi, attacchi e ricostruzione flag",
+      "type": "visualization_list",
+      "order": 210
+    },
+    {
+      "id": "extracted_artifacts",
+      "title": "Extracted Artifacts",
+      "description": "Log decompressi e payload decodificati",
+      "type": "artifact_list",
+      "order": 220
+    },
+    {
+      "id": "decoder_chains",
+      "title": "Decoder Chains",
+      "description": "Catene di decoding bounded",
+      "type": "table",
+      "order": 230
+    },
+    {
+      "id": "flag_candidates",
+      "title": "Flag Candidates",
+      "description": "Candidate da ricostruzione",
+      "type": "table",
+      "order": 240
+    },
+    {
+      "id": "validated_flags",
+      "title": "Validated Flags",
+      "description": "Flag con struttura e provenance valide",
+      "type": "table",
+      "order": 250
+    },
+    {
+      "id": "decoys",
+      "title": "Decoys",
+      "description": "Stringhe provenienti da record non validi",
+      "type": "table",
+      "order": 260
+    },
+    {
+      "id": "findings",
+      "title": "Findings",
+      "description": "Detection aggregate con evidenza",
+      "type": "table",
+      "order": 270
+    },
+    {
+      "id": "external_tools",
+      "title": "External Tools",
+      "description": "Disponibilità e audit tool opzionali",
+      "type": "table",
+      "order": 890
+    },
+    {
+      "id": "warnings",
+      "title": "Warnings",
+      "description": "Limiti recuperabili",
+      "type": "list",
+      "order": 900
+    },
+    {
+      "id": "errors",
+      "title": "Errors",
+      "description": "Errori terminali",
+      "type": "list",
+      "order": 910
+    },
+    {
+      "id": "metrics",
+      "title": "Metrics",
+      "description": "Durate e conteggi",
+      "type": "metrics",
+      "order": 920
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "network",
+    "include_unmapped": false,
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Riepilogo",
+        "order": 1
+      },
+      {
+        "id": "events",
+        "title": "Eventi",
+        "order": 2
+      },
+      {
+        "id": "detections",
+        "title": "Detection e anomalie",
+        "order": 3
+      },
+      {
+        "id": "correlation",
+        "title": "Sessioni e correlazione",
+        "order": 4
+      },
+      {
+        "id": "graphs",
+        "title": "Grafi e timeline",
+        "order": 5
+      },
+      {
+        "id": "artifacts",
+        "title": "Payload e artefatti",
+        "order": 6
+      },
+      {
+        "id": "flags",
+        "title": "Flag",
+        "order": 7
+      },
+      {
+        "id": "diagnostics",
+        "title": "Diagnostica",
+        "order": 8
+      }
+    ],
+    "sections": [
+      {
+        "id": "file_identity",
+        "title": "File Identity",
+        "description": "Hash, MIME, dimensione e immutabilità",
+        "source": "data.file_identity",
+        "type": "summary",
+        "group": "overview",
+        "order": 10,
+        "hide_empty": true
+      },
+      {
+        "id": "detected_format",
+        "title": "Detected Format",
+        "description": "Candidati content-first con motivazioni",
+        "source": "data.detected_format",
+        "type": "table",
+        "group": "overview",
+        "order": 20,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "source_file",
+            "label": "Sorgente",
+            "format": "text"
+          },
+          {
+            "field": "detected_format",
+            "label": "Formato",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          },
+          {
+            "field": "declared_extension",
+            "label": "Estensione",
+            "format": "text"
+          },
+          {
+            "field": "reasons",
+            "label": "Prove",
+            "format": "tags"
+          }
+        ]
+      },
+      {
+        "id": "parser_used",
+        "title": "Parser Used",
+        "description": "Parser e quantità eventi",
+        "source": "data.parser_used",
+        "type": "table",
+        "group": "overview",
+        "order": 30,
+        "hide_empty": true
+      },
+      {
+        "id": "parsing_statistics",
+        "title": "Parsing Statistics",
+        "description": "Copertura e righe non valide",
+        "source": "data.parsing_statistics",
+        "type": "metrics",
+        "group": "overview",
+        "order": 40,
+        "hide_empty": true
+      },
+      {
+        "id": "raw_events",
+        "title": "Raw Events",
+        "description": "Rappresentazione raw mascherata con linea e offset",
+        "source": "data.raw_events",
+        "type": "table",
+        "group": "events",
+        "order": 50,
+        "hide_empty": true
+      },
+      {
+        "id": "normalized_events",
+        "title": "Normalized Events",
+        "description": "Modello ECS-like con campi originali",
+        "source": "data.normalized_events",
+        "type": "table",
+        "group": "events",
+        "order": 60,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "timestamp",
+            "label": "Timestamp",
+            "format": "datetime"
+          },
+          {
+            "field": "event_type",
+            "label": "Tipo",
+            "format": "text"
+          },
+          {
+            "field": "action",
+            "label": "Azione",
+            "format": "text"
+          },
+          {
+            "field": "user",
+            "label": "Utente",
+            "format": "text"
+          },
+          {
+            "field": "source_ip",
+            "label": "IP origine",
+            "format": "text"
+          },
+          {
+            "field": "host",
+            "label": "Host",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "timestamp_analysis",
+        "title": "Timestamp Analysis",
+        "description": "Errori, duplicati e incoerenze",
+        "source": "data.timestamp_analysis",
+        "type": "table",
+        "group": "events",
+        "order": 70,
+        "hide_empty": true
+      },
+      {
+        "id": "entities",
+        "title": "Entities",
+        "description": "IP, utenti, host, URL, processi e identificatori",
+        "source": "data.entities",
+        "type": "table",
+        "group": "events",
+        "order": 80,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "type",
+            "label": "Tipo",
+            "format": "text"
+          },
+          {
+            "field": "value",
+            "label": "Valore",
+            "format": "code"
+          },
+          {
+            "field": "timestamp",
+            "label": "Timestamp",
+            "format": "datetime"
+          },
+          {
+            "field": "source_file",
+            "label": "File",
+            "format": "text"
+          },
+          {
+            "field": "source_line",
+            "label": "Riga",
+            "format": "number"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "authentication_analysis",
+        "title": "Authentication Analysis",
+        "description": "Brute force, spraying e successi correlati",
+        "source": "data.authentication_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 90,
+        "hide_empty": true
+      },
+      {
+        "id": "web_analysis",
+        "title": "Web Analysis",
+        "description": "Payload e sequenze web sospette",
+        "source": "data.web_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 100,
+        "hide_empty": true
+      },
+      {
+        "id": "network_analysis",
+        "title": "Network Analysis",
+        "description": "Scan, tunneling e beaconing",
+        "source": "data.network_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 110,
+        "hide_empty": true
+      },
+      {
+        "id": "windows_analysis",
+        "title": "Windows Analysis",
+        "description": "Processi, PowerShell e log clearing",
+        "source": "data.windows_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 120,
+        "hide_empty": true
+      },
+      {
+        "id": "linux_analysis",
+        "title": "Linux Analysis",
+        "description": "Persistenza, shell e audit",
+        "source": "data.linux_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 130,
+        "hide_empty": true
+      },
+      {
+        "id": "cloud_analysis",
+        "title": "Cloud Analysis",
+        "description": "Operazioni cloud sensibili",
+        "source": "data.cloud_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 140,
+        "hide_empty": true
+      },
+      {
+        "id": "container_analysis",
+        "title": "Container Analysis",
+        "description": "Kubernetes e container audit",
+        "source": "data.container_analysis",
+        "type": "table",
+        "group": "detections",
+        "order": 150,
+        "hide_empty": true
+      },
+      {
+        "id": "sigma_matches",
+        "title": "Sigma Matches",
+        "description": "Match delle regole Sigma locali",
+        "source": "data.sigma_matches",
+        "type": "table",
+        "group": "detections",
+        "order": 160,
+        "hide_empty": true
+      },
+      {
+        "id": "anomalies",
+        "title": "Anomalies",
+        "description": "Deviazioni statistiche separate dalle detection",
+        "source": "data.anomalies",
+        "type": "table",
+        "group": "detections",
+        "order": 170,
+        "hide_empty": true
+      },
+      {
+        "id": "attack_chains",
+        "title": "Attack Chains",
+        "description": "Fasi ordinate con eventi di prova",
+        "source": "data.attack_chains",
+        "type": "details",
+        "group": "correlation",
+        "order": 180,
+        "hide_empty": true
+      },
+      {
+        "id": "sessions",
+        "title": "Sessions",
+        "description": "Sessioni e flow ricostruiti",
+        "source": "data.sessions",
+        "type": "table",
+        "group": "correlation",
+        "order": 190,
+        "hide_empty": true
+      },
+      {
+        "id": "timeline",
+        "title": "Timeline",
+        "description": "Timeline globale normalizzata",
+        "source": "data.timeline",
+        "type": "timeline",
+        "group": "correlation",
+        "order": 200,
+        "hide_empty": true
+      },
+      {
+        "id": "graphs",
+        "title": "Graphs",
+        "description": "Eventi, attacchi e ricostruzione flag",
+        "source": "data.graphs",
+        "type": "visualization_list",
+        "group": "graphs",
+        "order": 210,
+        "hide_empty": true
+      },
+      {
+        "id": "extracted_artifacts",
+        "title": "Extracted Artifacts",
+        "description": "Log decompressi e payload decodificati",
+        "source": "data.extracted_artifacts",
+        "type": "artifact_list",
+        "group": "artifacts",
+        "order": 220,
+        "hide_empty": true
+      },
+      {
+        "id": "decoder_chains",
+        "title": "Decoder Chains",
+        "description": "Catene di decoding bounded",
+        "source": "data.decoder_chains",
+        "type": "table",
+        "group": "artifacts",
+        "order": 230,
+        "hide_empty": true
+      },
+      {
+        "id": "flag_candidates",
+        "title": "Flag Candidates",
+        "description": "Candidate da ricostruzione",
+        "source": "data.flag_candidates",
+        "type": "table",
+        "group": "flags",
+        "order": 240,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "value",
+            "label": "Valore",
+            "format": "code"
+          },
+          {
+            "field": "status",
+            "label": "Stato",
+            "format": "text"
+          },
+          {
+            "field": "ordering_strategy",
+            "label": "Ordine",
+            "format": "text"
+          },
+          {
+            "field": "decoder_chain",
+            "label": "Decoder",
+            "format": "tags"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "validated_flags",
+        "title": "Validated Flags",
+        "description": "Flag con struttura e provenance valide",
+        "source": "data.validated_flags",
+        "type": "table",
+        "group": "flags",
+        "order": 250,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "value",
+            "label": "Valore",
+            "format": "code"
+          },
+          {
+            "field": "status",
+            "label": "Stato",
+            "format": "text"
+          },
+          {
+            "field": "source_files",
+            "label": "Sorgenti",
+            "format": "tags"
+          },
+          {
+            "field": "events",
+            "label": "Eventi",
+            "format": "tags"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "decoys",
+        "title": "Decoys",
+        "description": "Stringhe provenienti da record non validi",
+        "source": "data.decoys",
+        "type": "table",
+        "group": "flags",
+        "order": 260,
+        "hide_empty": true
+      },
+      {
+        "id": "findings",
+        "title": "Findings",
+        "description": "Detection aggregate con evidenza",
+        "source": "data.findings",
+        "type": "table",
+        "group": "detections",
+        "order": 270,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "severity",
+            "label": "Severità",
+            "format": "text"
+          },
+          {
+            "field": "type",
+            "label": "Detection",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          },
+          {
+            "field": "explanation",
+            "label": "Spiegazione",
+            "format": "text"
+          },
+          {
+            "field": "source_files",
+            "label": "Sorgenti",
+            "format": "tags"
+          }
+        ]
+      },
+      {
+        "id": "external_tools",
+        "title": "External Tools",
+        "description": "Disponibilità e audit tool opzionali",
+        "source": "data.external_tools",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 890,
+        "hide_empty": true,
+        "tone": "secondary"
+      },
+      {
+        "id": "warnings",
+        "title": "Warnings",
+        "description": "Limiti recuperabili",
+        "source": "data.warnings",
+        "type": "list",
+        "group": "diagnostics",
+        "order": 900,
+        "hide_empty": true,
+        "tone": "secondary"
+      },
+      {
+        "id": "errors",
+        "title": "Errors",
+        "description": "Errori terminali",
+        "source": "data.errors",
+        "type": "list",
+        "group": "diagnostics",
+        "order": 910,
+        "hide_empty": true,
+        "tone": "secondary"
+      },
+      {
+        "id": "metrics",
+        "title": "Metrics",
+        "description": "Durate e conteggi",
+        "source": "data.metrics",
+        "type": "metrics",
+        "group": "diagnostics",
+        "order": 920,
+        "hide_empty": true,
+        "tone": "secondary"
+      }
+    ]
+  }
+}

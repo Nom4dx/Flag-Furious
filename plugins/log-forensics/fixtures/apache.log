@@ -1,0 +1,2 @@
+192.0.2.10 - alice [14/Sep/2026:12:00:00 +0000] "GET /index HTTP/1.1" 200 120 "-" "Mozilla"
+192.0.2.11 - - [14/Sep/2026:12:01:00 +0000] "GET /?id=1%20UNION%20SELECT%20password%20FROM%20users HTTP/1.1" 403 42 "-" "scanner"

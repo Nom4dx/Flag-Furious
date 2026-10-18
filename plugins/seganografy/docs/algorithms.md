@@ -1,0 +1,2 @@
+# Algoritmi e confidence
+Lo scanner opera a blocchi e registra offset. I validator usano marker finali, lunghezze/chunk, CRC, directory ZIP e limiti dichiarati. Il carving salva solo intervalli validati. Le estrazioni ricorsive sono BFS con dedupe SHA-256 e budget. La confidence somma prove documentate; un solo indicatore statistico è limitato sotto la soglia di conferma. Le flag richiedono una struttura prefix{value} o regex esplicita e mantengono l'intera catena di origine.

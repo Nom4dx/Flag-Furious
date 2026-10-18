@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hidgrabber"
+version = "1.2.0"
+description = "USB HID keyboard and mouse forensic decoder for PCAP/PCAPNG"
+requires-python = ">=3.11"
+
+[project.scripts]
+hidgrabber = "HIDGrabber:main"
+
+[tool.setuptools]
+py-modules = ["HIDGrabber", "hid_database"]

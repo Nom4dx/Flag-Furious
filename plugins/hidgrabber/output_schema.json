@@ -1,0 +1,170 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "signal",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Acquisizione",
+        "order": 0
+      },
+      {
+        "id": "keyboard",
+        "title": "Tastiera",
+        "order": 1
+      },
+      {
+        "id": "mouse",
+        "title": "Mouse",
+        "order": 2
+      },
+      {
+        "id": "evidence",
+        "title": "Decodifica e riscontri",
+        "order": 3
+      },
+      {
+        "id": "diagnostics",
+        "title": "Diagnostica",
+        "order": 4
+      }
+    ],
+    "sections": [
+      {
+        "id": "hid-file",
+        "title": "Informazioni sulla cattura",
+        "source": "data.analysis.file",
+        "type": "details",
+        "group": "overview",
+        "order": 1
+      },
+      {
+        "id": "hid-metrics",
+        "title": "Inventario HID",
+        "source": "data.analysis.inventory",
+        "type": "details",
+        "group": "overview",
+        "order": 2,
+        "fields": [
+          {
+            "field": "hid_reports",
+            "label": "Report HID",
+            "format": "number"
+          },
+          {
+            "field": "keyboard_channels",
+            "label": "Canali tastiera",
+            "format": "number"
+          },
+          {
+            "field": "keyboard_events",
+            "label": "Eventi tastiera",
+            "format": "number"
+          },
+          {
+            "field": "mouse_events",
+            "label": "Eventi mouse",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "hid-keyboard",
+        "title": "Testo e layout ricostruiti",
+        "source": "data.analysis.keyboard",
+        "type": "auto",
+        "group": "keyboard",
+        "order": 3
+      },
+      {
+        "id": "hid-key_events",
+        "title": "Sequenza dei tasti",
+        "source": "data.analysis.key_events",
+        "type": "table",
+        "group": "keyboard",
+        "order": 4
+      },
+      {
+        "id": "hid-mouse",
+        "title": "Movimenti e pulsanti",
+        "source": "data.analysis.mouse",
+        "type": "table",
+        "group": "mouse",
+        "order": 5
+      },
+      {
+        "id": "hid-decoded_encodings",
+        "title": "Livelli di decodifica",
+        "source": "data.analysis.decoded_encodings",
+        "type": "auto",
+        "group": "evidence",
+        "order": 6
+      },
+      {
+        "id": "hid-matches",
+        "title": "Corrispondenze",
+        "source": "data.analysis.matches",
+        "type": "table",
+        "group": "evidence",
+        "order": 7
+      },
+      {
+        "id": "hid-hid_reports",
+        "title": "Report USB",
+        "source": "data.analysis.hid_reports",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 8
+      },
+      {
+        "id": "hid-diagnostics",
+        "title": "Messaggi del decoder",
+        "source": "data.analysis.diagnostics",
+        "type": "list",
+        "group": "diagnostics",
+        "order": 9
+      },
+      {
+        "id": "hid-artifacts",
+        "title": "Output del decoder",
+        "source": "data.analysis.artifacts",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 10
+      }
+    ],
+    "include_unmapped": true
+  }
+}

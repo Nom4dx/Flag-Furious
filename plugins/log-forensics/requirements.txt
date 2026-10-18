@@ -1,0 +1,2 @@
+# Nessuna dipendenza Python obbligatoria.
+# Opzionali: python-evtx, PyYAML, pysigma, dissect, regipy, maxminddb.

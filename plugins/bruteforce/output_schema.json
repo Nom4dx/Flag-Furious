@@ -1,0 +1,340 @@
+{
+  "description": "Dashboard Password Recovery; password raw esclusa dal mapping.",
+  "palette": "archive",
+  "style": {
+    "accent": "#d7a92b"
+  },
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Password Recovery Summary",
+      "type": "summary",
+      "source": "sections.summary",
+      "order": 10,
+      "group": "overview"
+    },
+    {
+      "id": "protected",
+      "title": "Protected Artifact",
+      "type": "table",
+      "order": 20,
+      "group": "overview"
+    },
+    {
+      "id": "adapters",
+      "title": "Available Adapters",
+      "type": "table",
+      "order": 30,
+      "group": "overview"
+    },
+    {
+      "id": "wordlists",
+      "title": "Wordlists",
+      "type": "table",
+      "order": 40,
+      "group": "wordlists",
+      "fields": [
+        {
+          "field": "name",
+          "label": "Lista"
+        },
+        {
+          "field": "relative_path",
+          "label": "Percorso"
+        },
+        {
+          "field": "size",
+          "label": "Dimensione"
+        },
+        {
+          "field": "estimated_lines",
+          "label": "Password stimate"
+        },
+        {
+          "field": "sha256",
+          "label": "SHA-256",
+          "format": "code"
+        },
+        {
+          "field": "encoding",
+          "label": "Encoding"
+        },
+        {
+          "field": "status",
+          "label": "Stato"
+        }
+      ]
+    },
+    {
+      "id": "selected",
+      "title": "Selected Wordlists",
+      "type": "list",
+      "order": 50,
+      "group": "wordlists"
+    },
+    {
+      "id": "candidates",
+      "title": "Candidate Generation",
+      "type": "summary",
+      "order": 60,
+      "group": "wordlists"
+    },
+    {
+      "id": "progress",
+      "title": "Progress",
+      "type": "metrics",
+      "order": 70,
+      "group": "results"
+    },
+    {
+      "id": "attempts",
+      "title": "Failed Attempts",
+      "type": "table",
+      "order": 80,
+      "group": "utilities"
+    },
+    {
+      "id": "successful",
+      "title": "Successful Password",
+      "type": "table",
+      "order": 90,
+      "group": "results"
+    },
+    {
+      "id": "unlocked",
+      "title": "Unlocked Artifacts",
+      "type": "artifact_list",
+      "order": 100,
+      "group": "results"
+    },
+    {
+      "id": "requests",
+      "title": "Parent Plugin Requests",
+      "type": "table",
+      "order": 110,
+      "group": "utilities"
+    },
+    {
+      "id": "audit",
+      "title": "Audit degli altri plugin",
+      "type": "table",
+      "order": 120,
+      "group": "utilities"
+    },
+    {
+      "id": "errors",
+      "title": "Errors",
+      "type": "terminal",
+      "order": 130,
+      "group": "utilities"
+    },
+    {
+      "id": "warnings",
+      "title": "Warnings",
+      "type": "terminal",
+      "source": "warnings",
+      "order": 140,
+      "group": "utilities"
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "archive",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Recovery",
+        "order": 10
+      },
+      {
+        "id": "wordlists",
+        "title": "Wordlist",
+        "order": 20
+      },
+      {
+        "id": "results",
+        "title": "Risultati",
+        "order": 30
+      },
+      {
+        "id": "utilities",
+        "title": "Audit e limiti",
+        "order": 40
+      }
+    ],
+    "sections": [
+      {
+        "id": "summary",
+        "title": "Password Recovery Summary",
+        "type": "summary",
+        "source": "data.summary",
+        "order": 10,
+        "group": "overview",
+        "description": "Password Recovery Summary",
+        "collapsed": false
+      },
+      {
+        "id": "protected",
+        "title": "Protected Artifact",
+        "type": "table",
+        "order": 20,
+        "group": "overview",
+        "source": "data.protected",
+        "description": "Protected Artifact",
+        "collapsed": false
+      },
+      {
+        "id": "adapters",
+        "title": "Available Adapters",
+        "type": "table",
+        "order": 30,
+        "group": "overview",
+        "source": "data.adapters",
+        "description": "Available Adapters",
+        "collapsed": false
+      },
+      {
+        "id": "wordlists",
+        "title": "Wordlists",
+        "type": "table",
+        "order": 40,
+        "group": "wordlists",
+        "fields": [
+          {
+            "field": "name",
+            "label": "Lista"
+          },
+          {
+            "field": "relative_path",
+            "label": "Percorso"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione"
+          },
+          {
+            "field": "estimated_lines",
+            "label": "Password stimate"
+          },
+          {
+            "field": "sha256",
+            "label": "SHA-256",
+            "format": "code"
+          },
+          {
+            "field": "encoding",
+            "label": "Encoding"
+          },
+          {
+            "field": "status",
+            "label": "Stato"
+          }
+        ],
+        "source": "data.wordlists",
+        "description": "Wordlists",
+        "collapsed": false
+      },
+      {
+        "id": "selected",
+        "title": "Selected Wordlists",
+        "type": "list",
+        "order": 50,
+        "group": "wordlists",
+        "source": "data.selected",
+        "description": "Selected Wordlists",
+        "collapsed": false
+      },
+      {
+        "id": "candidates",
+        "title": "Candidate Generation",
+        "type": "summary",
+        "order": 60,
+        "group": "wordlists",
+        "source": "data.candidates",
+        "description": "Candidate Generation",
+        "collapsed": false
+      },
+      {
+        "id": "progress",
+        "title": "Progress",
+        "type": "metrics",
+        "order": 70,
+        "group": "results",
+        "source": "data.progress",
+        "description": "Progress",
+        "collapsed": false
+      },
+      {
+        "id": "attempts",
+        "title": "Failed Attempts",
+        "type": "table",
+        "order": 80,
+        "group": "utilities",
+        "source": "data.attempts",
+        "description": "Failed Attempts",
+        "collapsed": true
+      },
+      {
+        "id": "successful",
+        "title": "Successful Password",
+        "type": "table",
+        "order": 90,
+        "group": "results",
+        "source": "data.successful",
+        "description": "Successful Password",
+        "collapsed": false
+      },
+      {
+        "id": "unlocked",
+        "title": "Unlocked Artifacts",
+        "type": "artifact_list",
+        "order": 100,
+        "group": "results",
+        "source": "data.unlocked",
+        "description": "Unlocked Artifacts",
+        "collapsed": false
+      },
+      {
+        "id": "requests",
+        "title": "Parent Plugin Requests",
+        "type": "table",
+        "order": 110,
+        "group": "utilities",
+        "source": "data.requests",
+        "description": "Parent Plugin Requests",
+        "collapsed": false
+      },
+      {
+        "id": "audit",
+        "title": "Audit degli altri plugin",
+        "type": "table",
+        "order": 120,
+        "group": "utilities",
+        "source": "data.audit",
+        "description": "Audit degli altri plugin",
+        "collapsed": true
+      },
+      {
+        "id": "errors",
+        "title": "Errors",
+        "type": "terminal",
+        "order": 130,
+        "group": "utilities",
+        "source": "data.errors",
+        "description": "Errors",
+        "collapsed": true
+      },
+      {
+        "id": "warnings",
+        "title": "Warnings",
+        "type": "terminal",
+        "source": "warnings",
+        "order": 140,
+        "group": "utilities",
+        "description": "Warnings",
+        "collapsed": true
+      }
+    ],
+    "include_unmapped": true
+  }
+}

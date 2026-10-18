@@ -1,0 +1,300 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "network",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Acquisizione",
+        "order": 0
+      },
+      {
+        "id": "network",
+        "title": "Rete e protocolli",
+        "order": 1
+      },
+      {
+        "id": "streams",
+        "title": "Flussi",
+        "order": 2
+      },
+      {
+        "id": "evidence",
+        "title": "Evidenze e decoder",
+        "order": 3
+      },
+      {
+        "id": "files",
+        "title": "File ricostruiti",
+        "order": 4
+      },
+      {
+        "id": "diagnostics",
+        "title": "Diagnostica",
+        "order": 5
+      }
+    ],
+    "sections": [
+      {
+        "id": "file",
+        "title": "Informazioni sulla cattura o sul file",
+        "source": "data.analysis.file",
+        "type": "details",
+        "group": "overview",
+        "order": 1,
+        "fields": [
+          {
+            "field": "name",
+            "label": "Nome",
+            "format": "auto"
+          },
+          {
+            "field": "size",
+            "label": "Dimensione",
+            "format": "bytes"
+          },
+          {
+            "field": "packets",
+            "label": "Pacchetti",
+            "format": "number"
+          },
+          {
+            "field": "duration",
+            "label": "Durata",
+            "format": "duration"
+          },
+          {
+            "field": "sha256",
+            "label": "SHA-256",
+            "format": "code"
+          }
+        ]
+      },
+      {
+        "id": "picup-protocols",
+        "title": "Protocolli",
+        "source": "data.analysis.protocols",
+        "type": "table",
+        "group": "network",
+        "order": 2
+      },
+      {
+        "id": "picup-hosts",
+        "title": "Host",
+        "source": "data.analysis.hosts",
+        "type": "table",
+        "group": "network",
+        "order": 3
+      },
+      {
+        "id": "picup-conversations",
+        "title": "Conversazioni",
+        "source": "data.analysis.conversations",
+        "type": "table",
+        "group": "network",
+        "order": 4
+      },
+      {
+        "id": "picup-dns",
+        "title": "Richieste DNS",
+        "source": "data.analysis.dns",
+        "type": "table",
+        "group": "network",
+        "order": 5
+      },
+      {
+        "id": "picup-http",
+        "title": "Traffico HTTP",
+        "source": "data.analysis.http",
+        "type": "table",
+        "group": "network",
+        "order": 6
+      },
+      {
+        "id": "picup-tls",
+        "title": "Sessioni TLS",
+        "source": "data.analysis.tls",
+        "type": "table",
+        "group": "network",
+        "order": 7
+      },
+      {
+        "id": "picup-hostnames",
+        "title": "Nomi host",
+        "source": "data.analysis.hostnames",
+        "type": "table",
+        "group": "network",
+        "order": 8
+      },
+      {
+        "id": "picup-protocol_details",
+        "title": "Dettagli dei protocolli",
+        "source": "data.analysis.protocol_details",
+        "type": "auto",
+        "group": "network",
+        "order": 9
+      },
+      {
+        "id": "picup-streams",
+        "title": "Flussi TCP",
+        "source": "data.analysis.streams",
+        "type": "table",
+        "group": "streams",
+        "order": 10
+      },
+      {
+        "id": "picup-udp_streams",
+        "title": "Flussi UDP",
+        "source": "data.analysis.udp_streams",
+        "type": "table",
+        "group": "streams",
+        "order": 11
+      },
+      {
+        "id": "picup-timeline",
+        "title": "Sequenza degli eventi",
+        "source": "data.analysis.timeline",
+        "type": "timeline",
+        "group": "streams",
+        "order": 12
+      },
+      {
+        "id": "picup-findings",
+        "title": "Evidenze",
+        "source": "data.analysis.findings",
+        "type": "table",
+        "group": "evidence",
+        "order": 13
+      },
+      {
+        "id": "picup-matches",
+        "title": "Corrispondenze e flag",
+        "source": "data.analysis.matches",
+        "type": "table",
+        "group": "evidence",
+        "order": 14
+      },
+      {
+        "id": "picup-iocs",
+        "title": "Indicatori",
+        "source": "data.analysis.iocs",
+        "type": "table",
+        "group": "evidence",
+        "order": 15
+      },
+      {
+        "id": "picup-credentials",
+        "title": "Credenziali rilevate",
+        "source": "data.analysis.credentials",
+        "type": "table",
+        "group": "evidence",
+        "order": 16
+      },
+      {
+        "id": "picup-xor",
+        "title": "Candidati XOR",
+        "source": "data.analysis.xor",
+        "type": "table",
+        "group": "evidence",
+        "order": 17
+      },
+      {
+        "id": "picup-covert",
+        "title": "Canali nascosti",
+        "source": "data.analysis.covert",
+        "type": "table",
+        "group": "evidence",
+        "order": 18
+      },
+      {
+        "id": "picup-extracted_files",
+        "title": "File estratti",
+        "source": "data.analysis.extracted_files",
+        "type": "table",
+        "group": "files",
+        "order": 19
+      },
+      {
+        "id": "picup-images",
+        "title": "Immagini ricostruite",
+        "source": "data.analysis.images",
+        "type": "table",
+        "group": "files",
+        "order": 20
+      },
+      {
+        "id": "picup-exports",
+        "title": "Oggetti esportati",
+        "source": "data.analysis.exports",
+        "type": "table",
+        "group": "files",
+        "order": 21
+      },
+      {
+        "id": "picup-log",
+        "title": "Analisi dei log",
+        "source": "data.analysis.log",
+        "type": "auto",
+        "group": "diagnostics",
+        "order": 22
+      },
+      {
+        "id": "picup-diagnostics",
+        "title": "Messaggi diagnostici",
+        "source": "data.analysis.diagnostics",
+        "type": "list",
+        "group": "diagnostics",
+        "order": 23
+      },
+      {
+        "id": "picup-expert",
+        "title": "Analisi esperta",
+        "source": "data.analysis.expert",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 24
+      },
+      {
+        "id": "picup-comments",
+        "title": "Commenti",
+        "source": "data.analysis.comments",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 25
+      }
+    ],
+    "include_unmapped": true
+  }
+}

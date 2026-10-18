@@ -1,0 +1,12 @@
+{
+  "extensions": [".log", ".txt", ".json", ".jsonl", ".ndjson", ".csv", ".tsv", ".xml", ".evtx", ".evt", ".journal", ".cef", ".leef", ".gelf", ".out", ".gz", ".bz2", ".xz", ".zip", ".1", ".2", ".old"],
+  "mime_types": ["text/plain", "application/json", "application/x-ndjson", "text/csv", "text/tab-separated-values", "application/xml", "text/xml", "application/gzip", "application/zip", "application/octet-stream"],
+  "magic_bytes": ["456c6646696c6500", "504b0304", "1f8b08", "fd377a585a00", "425a68"],
+  "asset_types": ["file", "directory", "text", "json", "log", "archive"],
+  "content_signatures": ["syslog", "apache_log", "nginx_log", "windows_event", "suricata_eve", "zeek", "cloudtrail", "audit_log"],
+  "keywords": ["timestamp", "event_type", "source_ip", "EventID", "flow_id", "syslog", "audit", "sshd", "HTTP/1."],
+  "regex": ["(?m)^<\\d{1,3}>", "(?m)^#Fields:", "(?m)^type=\\w+ msg=audit", "(?m)^\\d{1,3}(?:\\.\\d{1,3}){3} .*HTTP/"],
+  "encodings": ["utf-8", "utf-16le", "utf-16be"],
+  "custom_matcher": true,
+  "formats": ["plain text", "syslog RFC3164/RFC5424", "Apache/Nginx", "IIS W3C", "JSON/JSONL", "CSV/TSV", "CEF", "LEEF", "GELF", "logfmt", "XML", "EVTX", "journald export", "auditd", "Zeek", "Suricata EVE", "CloudTrail", "Azure Activity", "GCP Audit", "Kubernetes Audit", "Docker"]
+}

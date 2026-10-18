@@ -1,0 +1,18 @@
+{
+  "extensions": [
+    ".zip",
+    ".tar",
+    ".gz",
+    ".img",
+    ".dd",
+    ".qcow2"
+  ],
+  "asset_types": [
+    "directory"
+  ],
+  "content_signatures": [
+    "zip",
+    "tar",
+    "qcow"
+  ]
+}

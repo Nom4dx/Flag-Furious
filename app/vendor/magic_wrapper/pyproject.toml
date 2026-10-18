@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magic-wrapper"
+version = "1.0.0"
+description = "Evidence-preserving file signature, structure, hash, and metadata inspector"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+magic-wrapper = "app:main"
+
+[tool.setuptools]
+py-modules = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["test_magic_wrapper.py"]

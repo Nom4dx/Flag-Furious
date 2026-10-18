@@ -1,0 +1,65 @@
+{
+  "id": "ext4atto",
+  "name": "Ext4atto",
+  "version": "1.1.0",
+  "author": "RootRunners",
+  "description": "Ext4atto — adapter Forensic Hub",
+  "entrypoint": "plugin.py",
+  "class": "Plugin",
+  "domains": [
+    "forensics",
+    "disk_forensics"
+  ],
+  "supported_asset_types": [
+    "file",
+    "disk_image"
+  ],
+  "capabilities": [
+    "analysis",
+    "derived_assets",
+    "visualizations"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "python_dependencies": [
+    "zstandard",
+    "pydantic_settings"
+  ],
+  "binaries": [],
+  "optional_binaries": [
+    "mmls",
+    "fls",
+    "icat",
+    "qemu-img",
+    "ewfexport",
+    "fsstat",
+    "img_stat",
+    "mmstat",
+    "ils",
+    "jls",
+    "istat",
+    "blkls",
+    "srch_strings",
+    "file",
+    "7z",
+    "pdftotext"
+  ],
+  "timeout": 120,
+  "cpu_seconds": 90,
+  "memory_mb": 768,
+  "byte_budget": 536870912,
+  "output_bytes": 268435456,
+  "input_access": "random_access",
+  "workspace_bytes": 1073741824,
+  "unlock_capabilities": {
+    "can_request_password": true,
+    "supported_protection_types": [
+      "zipcrypto",
+      "zip_aes",
+      "7z",
+      "rar"
+    ],
+    "broker_plugin": "bruteforce"
+  }
+}

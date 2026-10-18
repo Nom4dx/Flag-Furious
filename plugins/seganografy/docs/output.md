@@ -1,0 +1,2 @@
+# Output
+Ogni risultato normalizzato espone origine, hash, offset/lunghezza, tecnica/decoder, stato, confidence ed evidenza quando disponibili. `detected` non implica estrazione; `extracted` non implica interpretazione; `extracted_uninterpreted` conserva bytes validi ma non compresi; `decoded` indica una trasformazione riuscita. Il raw JSON resta apribile dalla UI. Grafi usano `source`/`target` e visualizzazioni il contratto dell'engine 2D.

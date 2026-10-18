@@ -1,0 +1,97 @@
+{
+  "id": "seganografy",
+  "aliases": [
+    "steganography-forensics"
+  ],
+  "name": "Steganography Forensics",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "Steganalisi statica e limitata di testo, Unicode, immagini, audio, video, documenti, archivi e file binari",
+  "entrypoint": "entrypoint.py",
+  "class": "Plugin",
+  "domains": [
+    "forensics",
+    "steganography",
+    "ctf"
+  ],
+  "supported_asset_types": [
+    "file",
+    "archive",
+    "text",
+    "json",
+    "structured",
+    "disk_image"
+  ],
+  "capabilities": [
+    "unicode_steg",
+    "text_steg",
+    "whitespace_steg",
+    "image_lsb",
+    "image_statistics",
+    "audio_pcm_lsb",
+    "audio_spectrum",
+    "video_sampling",
+    "document_hidden_content",
+    "metadata",
+    "structural_carving",
+    "recursive_decoding",
+    "flag_search",
+    "artifact_graph"
+  ],
+  "dependencies": [],
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [
+    "binwalk",
+    "steghide",
+    "stegseek",
+    "zsteg",
+    "stegcloak",
+    "stegsnow",
+    "openstego",
+    "exiftool",
+    "ffprobe",
+    "ffmpeg",
+    "sox",
+    "identify",
+    "convert",
+    "pngcheck",
+    "jpeginfo",
+    "strings",
+    "file",
+    "xxd",
+    "foremost",
+    "tesseract",
+    "zbarimg"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "permissions": [],
+  "timeout": 300,
+  "cpu_seconds": 270,
+  "memory_mb": 1536,
+  "byte_budget": 536870912,
+  "output_bytes": 268435456,
+  "input_access": "random_access",
+  "workspace_bytes": 536870912,
+  "custom_routes": "routes.py",
+  "endpoints": [
+    {
+      "path": "/about",
+      "method": "GET",
+      "handler": "about"
+    }
+  ],
+  "unlock_capabilities": {
+    "can_request_password": true,
+    "supported_protection_types": [
+      "zipcrypto",
+      "zip_aes",
+      "steghide",
+      "openstego",
+      "encrypted_text"
+    ],
+    "broker_plugin": "bruteforce"
+  }
+}

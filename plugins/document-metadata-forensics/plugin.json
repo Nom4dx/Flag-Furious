@@ -1,0 +1,60 @@
+{
+  "id": "document-metadata-forensics",
+  "name": "Document Metadata Forensics",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "Analisi statica di metadata, struttura, revisioni, contenuti nascosti e payload nei documenti",
+  "entrypoint": "entrypoint.py",
+  "class": "Plugin",
+  "domains": [
+    "document_forensics",
+    "file_analysis",
+    "steganography"
+  ],
+  "supported_asset_types": [
+    "file",
+    "archive",
+    "text",
+    "json",
+    "structured"
+  ],
+  "capabilities": [
+    "identification",
+    "metadata",
+    "hidden_content",
+    "payload_decoding",
+    "artifact_extraction",
+    "timeline",
+    "flag_search",
+    "visualizations"
+  ],
+  "dependencies": [],
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [
+    "exiftool",
+    "pdfinfo",
+    "pdftotext",
+    "olevba"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "permissions": [],
+  "timeout": 180,
+  "cpu_seconds": 150,
+  "memory_mb": 1024,
+  "byte_budget": 134217728,
+  "output_bytes": 67108864,
+  "input_access": "bounded",
+  "workspace_bytes": 268435456,
+  "unlock_capabilities": {
+    "can_request_password": true,
+    "supported_protection_types": [
+      "pdf",
+      "office_agile",
+      "office_standard"
+    ],
+    "broker_plugin": "bruteforce"
+  }
+}

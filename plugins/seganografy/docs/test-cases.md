@@ -1,0 +1,2 @@
+# Casi di test
+Le fixture locali coprono ZWSP/ZWNJ, bidi/homoglyph, whitespace bitstream, Base64→gzip, Brainfuck, PNG RGB/alpha LSB, WAV LSB e payload ignoto. I test generano ZIP benigni e ostili per verificare CRC, Zip Slip e symlink; una falsa firma ZIP deve restare `rejected`. I test d'integrazione verificano manifest/alias, JSON, flag, report, limiti e SHA-256 invariato. Media/video e binari opzionali sono testabili soltanto quando i relativi codec/tool sono presenti.

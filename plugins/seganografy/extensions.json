@@ -1,0 +1,13 @@
+{
+  "description": "Matcher generale per file e testo. Estensione e MIME determinano soltanto il routing; i risultati principali richiedono parser, firme o euristiche documentate.",
+  "extensions": [".txt", ".md", ".html", ".htm", ".json", ".xml", ".pdf", ".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt", ".rtf", ".odt", ".ods", ".odp", ".epub", ".mhtml", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff", ".webp", ".avif", ".heic", ".heif", ".svg", ".psd", ".raw", ".wav", ".au", ".aiff", ".flac", ".mp3", ".ogg", ".opus", ".m4a", ".mp4", ".mkv", ".avi", ".mov", ".webm", ".mpeg", ".zip", ".tar", ".gz", ".7z", ".rar", ".iso", ".bin", ".dat", ".exe"],
+  "mime_types": ["application/octet-stream", "text/plain", "text/html", "application/json", "application/xml", "application/pdf", "application/zip", "image/png", "image/jpeg", "image/gif", "image/bmp", "image/tiff", "image/webp", "image/avif", "image/heic", "image/svg+xml", "audio/wav", "audio/x-wav", "audio/flac", "audio/mpeg", "audio/ogg", "video/mp4", "video/x-matroska", "video/webm", "video/quicktime"],
+  "magic_bytes": ["89504e470d0a1a0a", "ffd8ff", "47494638", "424d", "49492a00", "4d4d002a", "255044462d", "504b0304", "1f8b08", "526172211a07", "377abcaf271c", "7f454c46", "4d5a", "53514c69746520666f726d6174203300", "52494646", "4f676753", "664c6143", "494433", "cafebabe"],
+  "content_signatures": ["IEND", "%%EOF", "PK\\x03\\x04", "PK\\x05\\x06", "Exif", "XMP", "ID3", "OggS", "fLaC", "ftyp", "EBML", "zero-width", "bidi"],
+  "regex": ["[\\u200B\\u200C\\u200D\\u2060\\u202A-\\u202E\\u2066-\\u2069]", "(?is)display\\s*:\\s*none|visibility\\s*:\\s*hidden|font-size\\s*:\\s*0", "(?m)[ \\t]+$"],
+  "keywords": ["steganography", "steg", "hidden", "secret", "payload", "flag"],
+  "encodings": ["binary", "ascii", "utf-8", "utf-16le", "utf-16be"],
+  "asset_types": ["file", "archive", "text", "json", "structured", "disk_image"],
+  "container_formats": ["zip", "pdf", "png", "jpeg", "riff", "office", "video"],
+  "custom_matcher": true
+}

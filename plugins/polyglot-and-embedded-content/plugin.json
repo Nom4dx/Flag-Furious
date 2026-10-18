@@ -1,0 +1,60 @@
+{
+  "id": "polyglot-and-embedded-content",
+  "name": "Polyglot & Embedded Content",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "Rilevamento strutturale, validazione, carving ed estrazione sicura di file polyglot, concatenati ed embedded",
+  "entrypoint": "entrypoint.py",
+  "class": "Plugin",
+  "domains": [
+    "digital_forensics",
+    "file_analysis",
+    "polyglot_analysis",
+    "carving"
+  ],
+  "supported_asset_types": [
+    "file",
+    "archive",
+    "disk_image"
+  ],
+  "capabilities": [
+    "signature_inventory",
+    "format_validation",
+    "boundary_detection",
+    "polyglot_classification",
+    "overlay_analysis",
+    "safe_carving",
+    "archive_extraction",
+    "payload_decoding",
+    "flag_search",
+    "artifact_graph"
+  ],
+  "dependencies": [],
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [
+    "7z",
+    "unrar"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "permissions": [],
+  "timeout": 240,
+  "cpu_seconds": 210,
+  "memory_mb": 1024,
+  "byte_budget": 536870912,
+  "output_bytes": 134217728,
+  "input_access": "random_access",
+  "workspace_bytes": 536870912,
+  "unlock_capabilities": {
+    "can_request_password": true,
+    "supported_protection_types": [
+      "zipcrypto",
+      "zip_aes",
+      "7z",
+      "rar"
+    ],
+    "broker_plugin": "bruteforce"
+  }
+}

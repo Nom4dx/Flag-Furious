@@ -1,0 +1,747 @@
+{
+  "description": "Mappa dichiarativa della dashboard Binary Static Analysis; ogni sezione resta distinta per provenienza e livello di validazione.",
+  "style": {
+    "palette": "code",
+    "accent": "#9ad5ff"
+  },
+  "sections": [
+    {
+      "id": "file_identity",
+      "title": "File Identity",
+      "description": "Hash, dimensione, MIME e immutabilità.",
+      "type": "table",
+      "order": 10
+    },
+    {
+      "id": "format_detection",
+      "title": "Format Detection",
+      "description": "Candidati separati dai formati strutturalmente validati.",
+      "type": "table",
+      "order": 20
+    },
+    {
+      "id": "binary_header",
+      "title": "Binary Header",
+      "description": "Campi interpretati dal parser del formato primario.",
+      "type": "table",
+      "order": 30
+    },
+    {
+      "id": "sections",
+      "title": "Sections",
+      "description": "Sezioni con offset, indirizzi, permessi ed entropia.",
+      "type": "table",
+      "order": 40
+    },
+    {
+      "id": "segments",
+      "title": "Segments",
+      "description": "Segmenti mappati e limiti fisici o virtuali.",
+      "type": "table",
+      "order": 50
+    },
+    {
+      "id": "entry_points",
+      "title": "Entry Points",
+      "description": "Entrypoint validati o candidati.",
+      "type": "table",
+      "order": 60
+    },
+    {
+      "id": "symbols",
+      "title": "Symbols",
+      "description": "Simboli statici e dinamici disponibili.",
+      "type": "table",
+      "order": 70
+    },
+    {
+      "id": "imports",
+      "title": "Imports",
+      "description": "Import e indicatori associati, senza verdetto comportamentale.",
+      "type": "table",
+      "order": 80
+    },
+    {
+      "id": "exports",
+      "title": "Exports",
+      "description": "Esportazioni riconosciute.",
+      "type": "table",
+      "order": 90
+    },
+    {
+      "id": "relocations",
+      "title": "Relocations",
+      "description": "Relocation bounded estratte dai parser.",
+      "type": "table",
+      "order": 100
+    },
+    {
+      "id": "strings",
+      "title": "Strings",
+      "description": "Stringhe ricercabili con encoding, offset e categoria.",
+      "type": "table",
+      "order": 110
+    },
+    {
+      "id": "hex_view",
+      "title": "Hex View",
+      "description": "Anteprima esadecimale bounded con colonna ASCII.",
+      "type": "table",
+      "order": 115
+    },
+    {
+      "id": "entropy",
+      "title": "Entropy",
+      "description": "Entropia globale, per regione e per finestra.",
+      "type": "visualization",
+      "order": 120
+    },
+    {
+      "id": "compression",
+      "title": "Compression",
+      "description": "Indicatori strutturali o statistici di compressione.",
+      "type": "table",
+      "order": 130
+    },
+    {
+      "id": "encryption",
+      "title": "Encryption Indicators",
+      "description": "Euristiche non conclusive su cifratura o casualità.",
+      "type": "table",
+      "order": 140
+    },
+    {
+      "id": "embedded_files",
+      "title": "Embedded Files",
+      "description": "Firme, validazione, confini e artefatti carved.",
+      "type": "table",
+      "order": 150
+    },
+    {
+      "id": "overlay",
+      "title": "Overlay",
+      "description": "Dati oltre la fine logica del formato primario.",
+      "type": "table",
+      "order": 160
+    },
+    {
+      "id": "firmware",
+      "title": "Firmware",
+      "description": "Volumi, immagini boot, device tree e indicatori hardware.",
+      "type": "table",
+      "order": 170
+    },
+    {
+      "id": "file_system",
+      "title": "File System",
+      "description": "File system embedded rilevati e validazione disponibile.",
+      "type": "table",
+      "order": 180
+    },
+    {
+      "id": "disassembly",
+      "title": "Static Disassembly",
+      "description": "Istruzioni da regioni eseguibili soltanto.",
+      "type": "table",
+      "order": 190
+    },
+    {
+      "id": "functions",
+      "title": "Functions",
+      "description": "Funzioni e blocchi confermati o candidati.",
+      "type": "table",
+      "order": 200
+    },
+    {
+      "id": "code_graph",
+      "title": "Code Analysis Graph",
+      "description": "Relazioni statiche tra entrypoint, blocchi, call e import.",
+      "type": "visualization",
+      "order": 210
+    },
+    {
+      "id": "structure_graph",
+      "title": "File Structure Graph",
+      "description": "Grafo completo di file, header, regioni, embedded e finding.",
+      "type": "visualization",
+      "order": 220
+    },
+    {
+      "id": "yara",
+      "title": "YARA Matches",
+      "description": "Match di regole locali; non costituiscono prova di malware.",
+      "type": "table",
+      "order": 230
+    },
+    {
+      "id": "indicators",
+      "title": "Suspicious Indicators",
+      "description": "Evidenze con severità, confidenza e spiegazione.",
+      "type": "table",
+      "order": 240
+    },
+    {
+      "id": "flags",
+      "title": "Flag Candidates",
+      "description": "Candidate con offset e provenienza.",
+      "type": "table",
+      "order": 250
+    },
+    {
+      "id": "artifacts",
+      "title": "Extracted Artifacts",
+      "description": "Oggetti validati estratti senza esecuzione.",
+      "type": "artifact_list",
+      "order": 260
+    },
+    {
+      "id": "tools",
+      "title": "Tools and Diagnostics",
+      "description": "Tool opzionali, warning, errori e limiti applicati.",
+      "type": "table",
+      "order": 900
+    },
+    {
+      "id": "metrics",
+      "title": "Metrics",
+      "description": "Durate, byte elaborati e conteggi.",
+      "type": "metrics",
+      "order": 910
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "code",
+    "include_unmapped": false,
+    "groups": [
+      {
+        "id": "summary",
+        "title": "Riepilogo",
+        "order": 1
+      },
+      {
+        "id": "structure",
+        "title": "Struttura binaria",
+        "order": 2
+      },
+      {
+        "id": "content",
+        "title": "Dati e indicatori",
+        "order": 3
+      },
+      {
+        "id": "embedded",
+        "title": "Contenitori e artefatti",
+        "order": 4
+      },
+      {
+        "id": "code",
+        "title": "Analisi statica del codice",
+        "order": 5
+      },
+      {
+        "id": "graphs",
+        "title": "Grafi",
+        "order": 6
+      },
+      {
+        "id": "diagnostics",
+        "title": "Strumenti e diagnostica",
+        "order": 7
+      }
+    ],
+    "sections": [
+      {
+        "id": "file_identity",
+        "title": "File Identity",
+        "description": "Hash, dimensione, MIME e immutabilità.",
+        "source": "data.file_identity",
+        "type": "table",
+        "group": "summary",
+        "order": 10,
+        "hide_empty": true
+      },
+      {
+        "id": "format_detection",
+        "title": "Format Detection",
+        "description": "Candidati separati dai formati strutturalmente validati.",
+        "source": "data.format_detection",
+        "type": "table",
+        "group": "summary",
+        "order": 20,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "format",
+            "label": "Formato",
+            "format": "text"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "length",
+            "label": "Byte",
+            "format": "bytes"
+          },
+          {
+            "field": "status",
+            "label": "Stato",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "binary_header",
+        "title": "Binary Header",
+        "description": "Campi interpretati dal parser del formato primario.",
+        "source": "data.binary_header",
+        "type": "table",
+        "group": "summary",
+        "order": 30,
+        "hide_empty": true
+      },
+      {
+        "id": "sections",
+        "title": "Sections",
+        "description": "Sezioni con offset, indirizzi, permessi ed entropia.",
+        "source": "data.sections",
+        "type": "table",
+        "group": "structure",
+        "order": 40,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "name",
+            "label": "Sezione",
+            "format": "text"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "size",
+            "label": "Byte",
+            "format": "bytes"
+          },
+          {
+            "field": "permissions",
+            "label": "Permessi",
+            "format": "code"
+          },
+          {
+            "field": "entropy",
+            "label": "Entropia",
+            "format": "number"
+          },
+          {
+            "field": "valid_bounds",
+            "label": "Limiti validi",
+            "format": "boolean"
+          }
+        ]
+      },
+      {
+        "id": "segments",
+        "title": "Segments",
+        "description": "Segmenti mappati e limiti fisici o virtuali.",
+        "source": "data.segments",
+        "type": "table",
+        "group": "structure",
+        "order": 50,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "type",
+            "label": "Tipo",
+            "format": "text"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "file_size",
+            "label": "Byte file",
+            "format": "bytes"
+          },
+          {
+            "field": "virtual_address",
+            "label": "Indirizzo virtuale",
+            "format": "hex"
+          },
+          {
+            "field": "permissions",
+            "label": "Permessi",
+            "format": "code"
+          }
+        ]
+      },
+      {
+        "id": "entry_points",
+        "title": "Entry Points",
+        "description": "Entrypoint validati o candidati.",
+        "source": "data.entry_points",
+        "type": "table",
+        "group": "structure",
+        "order": 60,
+        "hide_empty": true
+      },
+      {
+        "id": "symbols",
+        "title": "Symbols",
+        "description": "Simboli statici e dinamici disponibili.",
+        "source": "data.symbols",
+        "type": "table",
+        "group": "structure",
+        "order": 70,
+        "hide_empty": true
+      },
+      {
+        "id": "imports",
+        "title": "Imports",
+        "description": "Import e indicatori associati, senza verdetto comportamentale.",
+        "source": "data.imports",
+        "type": "table",
+        "group": "code",
+        "order": 80,
+        "hide_empty": true
+      },
+      {
+        "id": "exports",
+        "title": "Exports",
+        "description": "Esportazioni riconosciute.",
+        "source": "data.exports",
+        "type": "table",
+        "group": "code",
+        "order": 90,
+        "hide_empty": true
+      },
+      {
+        "id": "relocations",
+        "title": "Relocations",
+        "description": "Relocation bounded estratte dai parser.",
+        "source": "data.relocations",
+        "type": "table",
+        "group": "structure",
+        "order": 100,
+        "hide_empty": true
+      },
+      {
+        "id": "strings",
+        "title": "Strings",
+        "description": "Stringhe ricercabili con encoding, offset e categoria.",
+        "source": "data.strings",
+        "type": "table",
+        "group": "content",
+        "order": 110,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "value",
+            "label": "Valore",
+            "format": "code"
+          },
+          {
+            "field": "encoding",
+            "label": "Encoding",
+            "format": "text"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "category",
+            "label": "Categoria",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "hex_view",
+        "title": "Hex View",
+        "description": "Anteprima esadecimale bounded con colonna ASCII.",
+        "source": "data.hex_view",
+        "type": "table",
+        "group": "structure",
+        "order": 115,
+        "hide_empty": true
+      },
+      {
+        "id": "entropy",
+        "title": "Entropy",
+        "description": "Entropia globale, per regione e per finestra.",
+        "source": "data.entropy",
+        "type": "visualization_list",
+        "group": "summary",
+        "order": 120,
+        "hide_empty": true
+      },
+      {
+        "id": "compression",
+        "title": "Compression",
+        "description": "Indicatori strutturali o statistici di compressione.",
+        "source": "data.compression",
+        "type": "table",
+        "group": "content",
+        "order": 130,
+        "hide_empty": true
+      },
+      {
+        "id": "encryption",
+        "title": "Encryption Indicators",
+        "description": "Euristiche non conclusive su cifratura o casualità.",
+        "source": "data.encryption",
+        "type": "table",
+        "group": "content",
+        "order": 140,
+        "hide_empty": true
+      },
+      {
+        "id": "embedded_files",
+        "title": "Embedded Files",
+        "description": "Firme, validazione, confini e artefatti carved.",
+        "source": "data.embedded_files",
+        "type": "table",
+        "group": "embedded",
+        "order": 150,
+        "hide_empty": true
+      },
+      {
+        "id": "overlay",
+        "title": "Overlay",
+        "description": "Dati oltre la fine logica del formato primario.",
+        "source": "data.overlay",
+        "type": "table",
+        "group": "embedded",
+        "order": 160,
+        "hide_empty": true
+      },
+      {
+        "id": "firmware",
+        "title": "Firmware",
+        "description": "Volumi, immagini boot, device tree e indicatori hardware.",
+        "source": "data.firmware",
+        "type": "table",
+        "group": "embedded",
+        "order": 170,
+        "hide_empty": true
+      },
+      {
+        "id": "file_system",
+        "title": "File System",
+        "description": "File system embedded rilevati e validazione disponibile.",
+        "source": "data.file_system",
+        "type": "table",
+        "group": "embedded",
+        "order": 180,
+        "hide_empty": true
+      },
+      {
+        "id": "disassembly",
+        "title": "Static Disassembly",
+        "description": "Istruzioni da regioni eseguibili soltanto.",
+        "source": "data.disassembly",
+        "type": "table",
+        "group": "code",
+        "order": 190,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "address",
+            "label": "Indirizzo",
+            "format": "hex"
+          },
+          {
+            "field": "opcode",
+            "label": "Opcode",
+            "format": "code"
+          },
+          {
+            "field": "mnemonic",
+            "label": "Istruzione",
+            "format": "code"
+          },
+          {
+            "field": "operands",
+            "label": "Operandi",
+            "format": "code"
+          },
+          {
+            "field": "section",
+            "label": "Sezione",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "functions",
+        "title": "Functions",
+        "description": "Funzioni e blocchi confermati o candidati.",
+        "source": "data.functions",
+        "type": "table",
+        "group": "code",
+        "order": 200,
+        "hide_empty": true
+      },
+      {
+        "id": "code_graph",
+        "title": "Code Analysis Graph",
+        "description": "Relazioni statiche tra entrypoint, blocchi, call e import.",
+        "source": "data.code_graph",
+        "type": "visualization_list",
+        "group": "graphs",
+        "order": 210,
+        "hide_empty": true
+      },
+      {
+        "id": "structure_graph",
+        "title": "File Structure Graph",
+        "description": "Grafo completo di file, header, regioni, embedded e finding.",
+        "source": "data.structure_graph",
+        "type": "visualization_list",
+        "group": "graphs",
+        "order": 220,
+        "hide_empty": true
+      },
+      {
+        "id": "yara",
+        "title": "YARA Matches",
+        "description": "Match di regole locali; non costituiscono prova di malware.",
+        "source": "data.yara",
+        "type": "table",
+        "group": "content",
+        "order": 230,
+        "hide_empty": true
+      },
+      {
+        "id": "indicators",
+        "title": "Suspicious Indicators",
+        "description": "Evidenze con severità, confidenza e spiegazione.",
+        "source": "data.indicators",
+        "type": "table",
+        "group": "content",
+        "order": 240,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "type",
+            "label": "Indicatore",
+            "format": "text"
+          },
+          {
+            "field": "severity",
+            "label": "Severità",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "section",
+            "label": "Sezione",
+            "format": "text"
+          },
+          {
+            "field": "explanation",
+            "label": "Spiegazione",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "flags",
+        "title": "Flag Candidates",
+        "description": "Candidate con offset e provenienza.",
+        "source": "data.flags",
+        "type": "table",
+        "group": "content",
+        "order": 250,
+        "hide_empty": true,
+        "fields": [
+          {
+            "field": "value",
+            "label": "Valore",
+            "format": "code"
+          },
+          {
+            "field": "offset",
+            "label": "Offset",
+            "format": "hex"
+          },
+          {
+            "field": "technique",
+            "label": "Tecnica",
+            "format": "text"
+          },
+          {
+            "field": "confidence",
+            "label": "Confidenza",
+            "format": "percent"
+          },
+          {
+            "field": "source_file",
+            "label": "Origine",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "artifacts",
+        "title": "Extracted Artifacts",
+        "description": "Oggetti validati estratti senza esecuzione.",
+        "source": "data.artifacts",
+        "type": "artifact_list",
+        "group": "embedded",
+        "order": 260,
+        "hide_empty": true
+      },
+      {
+        "id": "tools",
+        "title": "Tools and Diagnostics",
+        "description": "Tool opzionali, warning, errori e limiti applicati.",
+        "source": "data.tools",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 900,
+        "hide_empty": true,
+        "tone": "secondary"
+      },
+      {
+        "id": "metrics",
+        "title": "Metrics",
+        "description": "Durate, byte elaborati e conteggi.",
+        "source": "data.metrics",
+        "type": "metrics",
+        "group": "diagnostics",
+        "order": 910,
+        "hide_empty": true,
+        "tone": "secondary"
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "extensions": [".pdf", ".jpg", ".jpeg", ".tif", ".tiff", ".png", ".webp", ".heic", ".heif", ".avif", ".gif", ".svg", ".docx", ".dotx", ".docm", ".xlsx", ".xlsm", ".pptx", ".pptm", ".doc", ".xls", ".ppt", ".rtf", ".odt", ".ods", ".odp", ".epub", ".html", ".htm", ".mhtml", ".mht", ".xml", ".json", ".zip"],
+  "mime_types": ["application/pdf", "image/jpeg", "image/tiff", "image/png", "image/webp", "image/gif", "image/svg+xml", "application/rtf", "text/rtf", "text/html", "application/xml", "text/xml", "application/json", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.oasis.opendocument.text", "application/epub+zip"],
+  "magic_bytes": ["25504446", "ffd8ff", "89504e47", "47494638", "49492a00", "4d4d002a", "52494646", "d0cf11e0a1b11ae1", "7b5c727466", "504b0304"],
+  "content_signatures": ["pdf", "jpeg", "png", "gif", "zip"],
+  "asset_types": ["text", "json", "structured"],
+  "regex": ["(?is)<(?:x:xmpmeta|svg|html|\\?xml)|\\{\\\\rtf|%PDF-"],
+  "encodings": ["utf-8", "utf-16le", "utf-16be", "latin-1"],
+  "formats": ["PDF", "PDF/A", "JPEG", "TIFF", "PNG", "WebP", "HEIC", "AVIF", "GIF", "SVG", "OOXML", "OLE", "RTF", "ODF", "EPUB", "HTML", "MHTML", "XML", "JSON"],
+  "keywords": ["xmpmeta", "Exif", "docProps", "Dublin Core", "CreatorTool", "LastModifiedBy"],
+  "custom_matcher": true
+}

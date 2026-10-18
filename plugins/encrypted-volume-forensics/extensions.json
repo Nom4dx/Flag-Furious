@@ -1,0 +1,12 @@
+{
+  "extensions": [".raw", ".img", ".dd", ".001", ".vhd", ".vhdx", ".bin", ".bde", ".fve", ".bek", ".mem", ".dmp", ".vmem", ".lime"],
+  "mime_types": ["application/octet-stream", "application/x-raw-disk-image", "application/x-vhd", "application/x-vhdx"],
+  "magic_bytes": ["2d4656452d46532d", "636f6e6563746978", "7668647866696c65", "4546492050415254", "55aa"],
+  "asset_types": ["file", "disk_image", "memory_dump", "archive"],
+  "content_signatures": ["bitlocker_fve", "bitlocker_fvek_memory_pool", "mbr", "gpt", "vhd", "vhdx", "ntfs", "fat", "exfat"],
+  "keywords": ["BitLocker", "FVE", "recovery password", "dislocker"],
+  "regex": ["(?:\\d{6}[- ]?){7}\\d{6}"],
+  "encodings": ["binary", "utf-8", "utf-16le"],
+  "formats": ["RAW", "split RAW", "MBR", "GPT", "VHD", "VHDX", "BitLocker/FVE", "BEK", "NTFS", "FAT", "exFAT", "ext4"],
+  "custom_matcher": true
+}

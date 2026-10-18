@@ -1,0 +1,2 @@
+# Limiti conosciuti
+La steganografia cifrata senza password può essere classificata solo come possibile alta entropia. DCT/DWT JPEG, phase coding, echo hiding, spread spectrum, QIM e video inter-frame sono valutazioni statistiche o delegate a tool opzionali; detection ed extraction restano distinte. HEIC/AVIF/RAW dipendono dal decoder Pillow/OS. OCR, QR, sonogrammi e codec video dipendono da tool locali. Nessun brute force illimitato. File oltre i budget producono risultati parziali espliciti.

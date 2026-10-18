@@ -1,0 +1,31 @@
+{
+  "id": "example-plugin",
+  "name": "Example plugin",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "Example plugin",
+  "entrypoint": "plugin.py",
+  "class": "Plugin",
+  "domains": [
+    "custom_domain"
+  ],
+  "supported_asset_types": [
+    "text"
+  ],
+  "capabilities": [
+    "analysis",
+    "derived_assets",
+    "visualizations"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "python_dependencies": [],
+  "binaries": [],
+  "optional_binaries": [],
+  "timeout": 120,
+  "cpu_seconds": 90,
+  "memory_mb": 768,
+  "byte_budget": 67108864,
+  "output_bytes": 67108864
+}

@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Forensic Hub — Workspace</title>
+    <link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/assets/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/static/assets/vendor/fontawesome.min.css" />
+    <link rel="stylesheet" href="/static/css/hub.css" />
+    <script type="module" src="/static/js/app.js?v=20260914-2"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Vai al workspace</a>
+    <div id="view-loader" class="view-loader" role="status" aria-live="polite" hidden>
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <span class="visually-hidden">Caricamento</span>
+    </div>
+    <header class="masthead">
+      <a href="/" class="brand" aria-label="Forensic Hub home"
+        ><span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-fingerprint"></i></span></a
+      >
+      <div class="health">
+        <span id="health-symbol" aria-hidden="true">○</span
+        ><span id="health">Connessione…</span
+        ><button id="registry-button" class="plain" title="Registro plugin">
+          <i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> Plugin
+        </button>
+      </div>
+    </header>
+    <div class="app-layout">
+      <aside class="case-rail" aria-label="Casi">
+        <div class="rail-title">
+          <button id="case-toggle" class="plain" aria-expanded="false">
+            REGISTRO CASI <span id="case-total">0</span>
+          </button
+          ><button id="new-case" class="plain" aria-label="Crea un nuovo caso">
+            ＋
+          </button>
+        </div>
+        <label class="case-search-label" for="case-search">Cerca caso</label>
+        <input id="case-search" class="case-search" type="search" placeholder="Nome o identificativo" />
+        <nav id="case-list" aria-label="Seleziona caso"></nav>
+        <div class="rail-footer">
+          <span class="mono">CATENA DI PROVENIENZA</span>
+          <p>Originali conservati.<br />Ogni derivazione tracciata.</p>
+          <a href="/docs" target="_blank" rel="noopener">API reference ↗</a>
+        </div>
+      </aside>
+      <main id="workspace">
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <div class="workspace-heading">
+          <div>
+            <div class="eyebrow">
+              CASO / <span id="case-number">NON SELEZIONATO</span>
+            </div>
+            <h1 id="case-title">Nuova indagine</h1>
+          </div>
+          <button
+            id="delete-case"
+            class="plain danger-action"
+            disabled
+            aria-label="Elimina il caso"
+          >
+            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Elimina
+            caso
+          </button>
+        </div>
+        <section id="case-console" class="case-console" aria-labelledby="case-console-title" hidden>
+          <div class="section-heading">
+            <span class="index">CASO</span>
+            <h2 id="case-console-title">Console del caso</h2>
+            <span id="case-console-meta" class="section-note"></span>
+          </div>
+          <div id="case-job-list" class="case-dashboard-entry"></div>
+        </section>
+        <section id="workflow-section" class="workflow-section" aria-labelledby="workflow-title" hidden>
+          <nav class="workflow-breadcrumb" aria-label="Breadcrumb workflow">
+            <button id="workflow-back" class="plain">← Torna al caso</button>
+            <span>Casi / <strong id="workflow-case-name"></strong> / Estrazione</span>
+          </nav>
+          <div class="section-heading workflow-heading">
+            <span class="index">WF</span>
+            <div>
+              <h2 id="workflow-title">Workflow di estrazione</h2>
+              <p>Collega evidenze e connector. Ogni output diventa l’input del nodo successivo.</p>
+            </div>
+            <div class="workflow-actions">
+              <input id="workflow-name" class="form-control" value="Workflow estrazione" aria-label="Nome workflow" />
+              <select id="workflow-saved" class="form-select" aria-label="Workflow salvati"><option value="">Nuovo workflow</option></select>
+              <button id="workflow-save" class="action">Salva</button>
+              <button id="workflow-run" class="action primary">Avvia workflow →</button>
+            </div>
+          </div>
+          <div class="workflow-progress" aria-live="polite">
+            <div><strong id="workflow-run-status">PRONTO</strong><span id="workflow-run-detail">Costruisci il flusso trascinando i nodi.</span></div>
+            <div class="progress-line" role="progressbar" aria-label="Avanzamento workflow" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="workflow-progress-bar"></div></div>
+            <button id="workflow-cancel" class="plain" hidden>■ Annulla</button>
+          </div>
+          <div class="workflow-workbench">
+            <aside class="workflow-pool" aria-label="Elementi disponibili">
+              <label for="workflow-pool-mode">Elementi</label>
+              <select id="workflow-pool-mode" class="form-select">
+                <option value="files">File e asset</option>
+                <option value="connectors">Connector</option>
+              </select>
+              <input id="workflow-pool-search" type="search" class="form-control" placeholder="Cerca…" aria-label="Cerca elementi" />
+              <p class="workflow-pool-help">Trascina un elemento nell’area di lavoro.</p>
+              <div id="workflow-pool-items" class="workflow-pool-items"></div>
+            </aside>
+            <section class="workflow-board" aria-labelledby="workflow-board-title">
+              <header>
+                <h3 id="workflow-board-title">Flusso</h3>
+                <span id="workflow-board-count">0 nodi · 0 collegamenti</span>
+              </header>
+              <div id="workflow-canvas" class="workflow-canvas" tabindex="0" aria-label="Editor grafico del workflow">
+                <svg id="workflow-edges" aria-hidden="true"><defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z"></path></marker></defs><g></g></svg>
+                <p id="workflow-empty" class="workflow-empty">Trascina qui un file e uno o più connector.</p>
+                <div id="workflow-nodes"></div>
+              </div>
+            </section>
+            <aside id="workflow-inspector" class="workflow-inspector" aria-label="Configurazione nodo">
+              <h3>Configurazione</h3>
+              <p class="empty">Seleziona un nodo per vedere proprietà e parametri.</p>
+            </aside>
+          </div>
+          <section class="workflow-results" aria-labelledby="workflow-results-title">
+            <div class="section-heading compact"><span class="index">OUT</span><h3 id="workflow-results-title">Output del workflow</h3></div>
+            <div id="workflow-run-output"><p class="empty">Nessuna esecuzione avviata.</p></div>
+          </section>
+        </section>
+        <section class="intake" aria-labelledby="intake-title">
+          <div class="section-heading">
+            <span class="index">01</span>
+            <h2 id="intake-title">Acquisizione asset</h2>
+            <span class="section-note">FILE, TESTO E DATI STRUTTURATI</span>
+          </div>
+          <form id="asset-form">
+            <div class="intake-grid">
+              <div class="input-column">
+                <label for="asset-type">Tipo di asset</label>
+                <select id="asset-type" class="form-select">
+                  <option value="file">File / immagine disco / cattura</option>
+                  <option value="directory">Directory</option>
+                  <option value="text">Stringa / log</option>
+                  <option value="hex">Dati esadecimali</option>
+                  <option value="json">JSON</option>
+                  <option value="url">URL come riferimento testuale</option>
+                  <option value="custom">Tipo definito da plugin</option>
+                </select>
+                <input
+                  id="custom-type"
+                  class="form-control mt-2"
+                  placeholder="Nome del tipo di asset"
+                  aria-label="Tipo personalizzato"
+                  hidden
+                />
+                <div id="file-input-panel" class="file-input-panel">
+                  <i
+                    class="fa-solid fa-arrow-up-from-bracket"
+                    aria-hidden="true"
+                  ></i
+                  ><label for="asset-files">Seleziona le evidenze</label>
+                  <p>Uno o più file. L’originale resta invariato.</p>
+                  <input id="asset-files" type="file" multiple /><output
+                    id="file-selection"
+                    >Nessun file selezionato</output
+                  >
+                </div>
+                <label id="content-label" for="asset-content" hidden
+                  >Contenuto</label
+                ><textarea
+                  id="asset-content"
+                  class="form-control mono"
+                  rows="7"
+                  spellcheck="false"
+                  placeholder="Inserisci il contenuto da analizzare…"
+                  hidden
+                ></textarea>
+              </div>
+              <div class="analysis-settings">
+                <label for="flag-prefix"
+                  >Prefissi flag
+                  <span class="optional">separati da virgola</span></label
+                ><input
+                  id="flag-prefix"
+                  class="form-control mono"
+                  value="flag, CTF, HTB, picoCTF"
+                />
+                <label for="expected-hash"
+                  >Hash atteso <span class="optional">opzionale</span></label
+                ><input
+                  id="expected-hash"
+                  class="form-control mono"
+                  placeholder="SHA-256, MD5…"
+                  autocomplete="off"
+                />
+                <div class="row g-3">
+                  <div class="col-6">
+                    <label for="analysis-mode">Modalità</label
+                    ><select id="analysis-mode" class="form-select">
+                      <option value="quick">Rapida</option>
+                      <option value="balanced" selected>Bilanciata</option>
+                      <option value="deep">Approfondita</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label for="depth">Profondità</label
+                    ><select id="depth" class="form-select">
+                      <option value="0">Solo originali</option>
+                      <option value="1">1 livello</option>
+                      <option value="2">2 livelli</option>
+                      <option value="3" selected>3 livelli</option>
+                    </select>
+                  </div>
+                </div>
+                <button id="identify" type="submit" class="action primary">
+                  Identifica e proponi plugin <span>↗</span>
+                </button>
+                <p class="hint">
+                  Hash e firme vengono acquisiti prima dell’analisi. Gli URL non
+                  vengono visitati.
+                </p>
+              </div>
+            </div>
+          </form>
+        </section>
+        <section id="asset-section" hidden aria-labelledby="asset-title">
+          <div class="section-heading">
+            <span class="index">02</span>
+            <h2 id="asset-title">Evidenze & compatibilità</h2>
+            <span id="asset-count" class="section-note"></span>
+          </div>
+          <div id="asset-list"></div>
+          <div id="plugin-selection"></div>
+          <div class="run-bar">
+            <span id="run-hint">Seleziona i plugin da eseguire.</span
+            ><button id="run" class="action primary">
+              Avvia analisi <span>→</span>
+            </button>
+          </div>
+        </section>
+        <section id="results-section" hidden aria-labelledby="results-title">
+          <nav
+            id="analysis-breadcrumb"
+            class="analysis-breadcrumb"
+            aria-label="Breadcrumb"
+          >
+            <button id="back-to-cases" class="plain">← Torna ai casi</button>
+            <span>Casi / <strong id="breadcrumb-case"></strong> / Analisi</span>
+            <button id="open-workflow-analysis" class="plain"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> Workflow estrazione</button>
+            <button id="latest-results" class="plain">
+              ↓ Vai agli ultimi risultati
+            </button>
+          </nav>
+          <div class="section-heading">
+            <span class="index">03</span>
+            <h2 id="results-title">Traccia dell’analisi</h2>
+            <span id="job-status" class="status-tag">IN ATTESA</span
+            ><button id="pause-job" class="plain">Ⅱ Pausa</button><button id="cancel-job" class="plain">■ Annulla</button>
+          </div>
+          <div class="progress-line" role="progressbar" aria-label="Avanzamento analisi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="job-progress"></div></div>
+          <div class="analysis-status-line">
+            <span><span class="mono">JOB</span> <strong id="analysis-job-id">—</strong></span>
+            <span id="analysis-progress-context" class="analysis-progress-context">Preparazione</span>
+            <span><span class="mono">AVANZAMENTO</span> <strong id="analysis-progress-label">0%</strong></span>
+          </div>
+          <div class="analysis-layout">
+            <aside class="analysis-sidebar" aria-label="Navigazione analisi">
+              <button id="analysis-menu-toggle" class="analysis-menu-toggle" aria-expanded="false">
+                Sezioni analisi <span>☰</span>
+              </button>
+              <p class="sidebar-label">ANALISI</p>
+              <div
+                class="result-navigation"
+                role="tablist"
+                aria-label="Viste risultati"
+              >
+                <button id="tab-button-summary" class="active" data-tab="summary" role="tab" aria-selected="true" aria-controls="tab-summary" tabindex="0">
+                  <span>Riepilogo</span>
+                </button>
+                <button id="tab-button-flags" data-tab="flags" role="tab" aria-selected="false" aria-controls="tab-flags" tabindex="-1">
+                  <span>Flag candidate</span><strong id="flag-count">0</strong>
+                </button>
+                <button id="tab-button-issues" data-tab="issues" role="tab" aria-selected="false" aria-controls="tab-issues" tabindex="-1">
+                  <span>Problemi</span><strong id="issue-count">0</strong>
+                </button>
+                <button id="tab-button-artifacts" data-tab="artifacts" role="tab" aria-selected="false" aria-controls="tab-artifacts" tabindex="-1">
+                  <span>Artefatti</span>
+                </button>
+              </div>
+              <p class="sidebar-label plugin-sidebar-label">PLUGIN E SEZIONI</p>
+              <div
+                id="plugin-run-list"
+                class="plugin-run-list"
+                aria-label="Risultati dei plugin"
+              ></div>
+              <p class="sidebar-label utility-sidebar-label">STRUMENTI</p>
+              <div class="result-navigation utility-navigation" role="tablist" aria-label="Strumenti analisi">
+                <button id="tab-button-graph" data-tab="graph" role="tab" aria-selected="false" aria-controls="tab-graph" tabindex="-1">
+                  <span>Grafo esecuzione</span>
+                </button>
+                <button id="tab-button-logs" data-tab="logs" role="tab" aria-selected="false" aria-controls="tab-logs" tabindex="-1">
+                  <span>Log & diagnostica</span>
+                </button>
+              </div>
+              <div class="report-links">
+                <a id="report-json">Scarica JSON ↓</a><a id="report-html">Apri report HTML ↗</a>
+              </div>
+            </aside>
+            <div class="analysis-content">
+          <header class="analysis-content-heading">
+            <span id="analysis-view-kicker" class="mono">ANALISI</span>
+            <h3 id="analysis-view-title">Riepilogo dell’analisi</h3>
+          </header>
+          <div id="tab-summary" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-summary">
+            <div id="analysis-summary"></div>
+          </div>
+          <div id="tab-graph" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-graph" hidden>
+            <div class="graph-toolbar">
+              <label
+                >Plugin
+                <select id="graph-plugin">
+                  <option value="">Tutti</option>
+                </select></label
+              ><label
+                >Stato
+                <select id="graph-status">
+                  <option value="">Tutti</option>
+                  <option>completed</option>
+                  <option>running</option>
+                  <option>partial</option>
+                  <option>failed</option>
+                  <option>skipped</option>
+                  <option>cancelled</option>
+                </select></label
+              ><label
+                ><input type="checkbox" id="graph-phases" /> Dettaglio completo</label
+              ><button id="graph-export" class="plain">Esporta JSON ↓</button>
+            </div>
+            <div id="graph" class="graph-surface"></div>
+            <div class="graph-legend">
+              <span>□ Asset</span><span>▭ Plugin</span><span>◇ Flag</span
+              ><span>┄ Parziale / ignorato</span><span>× Errore</span
+              ><span>Seleziona un nodo per vedere provenienza e output.</span>
+            </div>
+            <div id="node-details" hidden></div>
+          </div>
+          <div id="tab-outputs" class="tab-panel" role="tabpanel" aria-label="Dashboard del plugin" hidden>
+            <div id="outputs"></div>
+          </div>
+          <div id="tab-flags" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-flags" hidden>
+            <div id="flags"></div>
+          </div>
+          <div id="tab-issues" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-issues" hidden>
+            <div id="issues"></div>
+          </div>
+          <div id="tab-artifacts" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-artifacts" hidden>
+            <div id="artifacts"></div>
+          </div>
+          <div id="tab-logs" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-logs" hidden>
+            <label class="log-follow"
+              ><input id="follow-logs" type="checkbox" /> Segui i nuovi log
+              quando sono già in fondo</label
+            >
+            <pre id="logs" class="terminal"></pre>
+          </div>
+            </div>
+          </div>
+        </section>
+        <footer class="workspace-footer">
+          <span>FORENSIC HUB</span
+          ><span class="mono">PROVENANCE / STRUCTURE / RESULTS</span>
+        </footer>
+      </main>
+    </div>
+    <dialog id="detail-dialog">
+      <div class="dialog-heading">
+        <h2 id="dialog-title">Dettagli</h2>
+        <button id="close-dialog" class="plain" aria-label="Chiudi">×</button>
+      </div>
+      <div id="dialog-content"></div>
+    </dialog>
+  </body>
+</html>

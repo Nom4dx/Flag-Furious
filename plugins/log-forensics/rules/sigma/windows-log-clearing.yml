@@ -1,0 +1,10 @@
+title: Windows Event Log Cleared
+id: local-windows-log-cleared
+logsource: {product: windows}
+detection:
+  selection:
+    raw|contains: "wevtutil cl"
+  condition: selection
+level: high
+tags: [attack.defense-evasion, attack.t1070.001]
+falsepositives: [Authorized maintenance]

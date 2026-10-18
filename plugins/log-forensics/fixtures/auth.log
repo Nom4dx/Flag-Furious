@@ -1,0 +1,7 @@
+Sep 14 12:00:00 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:01 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:02 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:03 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:04 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:05 server sshd[10]: Failed password for admin from 198.51.100.9 port 22 ssh2
+Sep 14 12:00:09 server sshd[10]: Accepted password for admin from 198.51.100.9 port 22 ssh2

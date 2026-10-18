@@ -1,0 +1,36 @@
+{
+  "id": "hidgrabber",
+  "name": "HIDGrabber",
+  "version": "1.0.0",
+  "author": "RootRunners",
+  "description": "HIDGrabber \u2014 adapter Forensic Hub",
+  "entrypoint": "plugin.py",
+  "class": "Plugin",
+  "domains": [
+    "network_analysis",
+    "usb_hid"
+  ],
+  "supported_asset_types": [
+    "file",
+    "pcap"
+  ],
+  "capabilities": [
+    "analysis",
+    "derived_assets",
+    "visualizations"
+  ],
+  "execution_mode": "isolated",
+  "requires_network": false,
+  "requires_root": false,
+  "python_dependencies": [],
+  "binaries": [
+    "tshark",
+    "capinfos"
+  ],
+  "optional_binaries": [],
+  "timeout": 120,
+  "cpu_seconds": 90,
+  "memory_mb": 768,
+  "byte_budget": 67108864,
+  "output_bytes": 67108864
+}

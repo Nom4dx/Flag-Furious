@@ -1,0 +1,71 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "text",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Sintesi",
+        "order": 0
+      },
+      {
+        "id": "content",
+        "title": "Contenuto",
+        "order": 1
+      }
+    ],
+    "sections": [
+      {
+        "id": "text-metrics",
+        "title": "Misure del contenuto",
+        "source": "data.inventory",
+        "type": "metrics",
+        "group": "overview",
+        "order": 1,
+        "description": "Dimensioni, righe e distribuzione dell’informazione."
+      },
+      {
+        "id": "text-content",
+        "title": "Contenuto analizzato",
+        "source": "data.analysis",
+        "type": "auto",
+        "group": "content",
+        "order": 2,
+        "description": "Campi e valori riconosciuti nell’asset, organizzati per struttura."
+      }
+    ],
+    "include_unmapped": true
+  }
+}

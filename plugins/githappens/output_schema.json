@@ -1,0 +1,181 @@
+{
+  "sections": [
+    {
+      "id": "summary",
+      "title": "Riepilogo",
+      "type": "summary",
+      "order": 1
+    },
+    {
+      "id": "inventory",
+      "title": "Inventario",
+      "type": "table",
+      "order": 2
+    },
+    {
+      "id": "analysis",
+      "title": "Analisi",
+      "type": "json",
+      "order": 3
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 4
+    },
+    {
+      "id": "logs",
+      "title": "Log e comandi",
+      "type": "terminal",
+      "order": 5
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "code",
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Acquisizione e immagini",
+        "order": 0
+      },
+      {
+        "id": "git",
+        "title": "Repository Git",
+        "order": 1
+      },
+      {
+        "id": "applications",
+        "title": "Applicazioni e attività",
+        "order": 2
+      },
+      {
+        "id": "evidence",
+        "title": "Riscontri",
+        "order": 3
+      },
+      {
+        "id": "diagnostics",
+        "title": "Esecuzione",
+        "order": 4
+      }
+    ],
+    "sections": [
+      {
+        "id": "git-metadata",
+        "title": "Metadati acquisiti",
+        "source": "data.analysis.metadata",
+        "type": "auto",
+        "group": "overview",
+        "order": 1
+      },
+      {
+        "id": "git-extract",
+        "title": "Estrazione",
+        "source": "data.analysis.extract",
+        "type": "auto",
+        "group": "overview",
+        "order": 2
+      },
+      {
+        "id": "git-virtual",
+        "title": "Immagini virtuali",
+        "source": "data.analysis.virtual",
+        "type": "auto",
+        "group": "overview",
+        "order": 3
+      },
+      {
+        "id": "git-legacy",
+        "title": "Recupero filesystem",
+        "source": "data.analysis.legacy",
+        "type": "auto",
+        "group": "overview",
+        "order": 4
+      },
+      {
+        "id": "git-git",
+        "title": "Repository, commit e oggetti",
+        "source": "data.analysis.git",
+        "type": "auto",
+        "group": "git",
+        "order": 5
+      },
+      {
+        "id": "git-diff",
+        "title": "Confronto con il riferimento",
+        "source": "data.analysis.diff",
+        "type": "auto",
+        "group": "git",
+        "order": 6
+      },
+      {
+        "id": "git-slack",
+        "title": "Conversazioni Slack",
+        "source": "data.analysis.slack",
+        "type": "auto",
+        "group": "applications",
+        "order": 7
+      },
+      {
+        "id": "git-cache",
+        "title": "Cache applicative",
+        "source": "data.analysis.cache",
+        "type": "auto",
+        "group": "applications",
+        "order": 8
+      },
+      {
+        "id": "git-history",
+        "title": "Cronologia",
+        "source": "data.analysis.history",
+        "type": "auto",
+        "group": "applications",
+        "order": 9
+      },
+      {
+        "id": "git-scan",
+        "title": "Copertura della ricerca",
+        "source": "data.analysis.scan",
+        "type": "auto",
+        "group": "evidence",
+        "order": 10
+      },
+      {
+        "id": "git-findings",
+        "title": "Evidenze raccolte",
+        "source": "findings",
+        "type": "table",
+        "group": "evidence",
+        "order": 20
+      },
+      {
+        "id": "git-timeline",
+        "title": "Timeline delle attività",
+        "source": "timeline",
+        "type": "timeline",
+        "group": "applications",
+        "order": 21
+      },
+      {
+        "id": "git-logs",
+        "title": "Fasi e messaggi",
+        "source": "data.logs",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 22
+      },
+      {
+        "id": "git-legacy-timeline",
+        "title": "Timeline del report originale",
+        "source": "data.timeline",
+        "type": "table",
+        "group": "diagnostics",
+        "order": 23,
+        "collapsed": true
+      }
+    ],
+    "include_unmapped": true
+  }
+}

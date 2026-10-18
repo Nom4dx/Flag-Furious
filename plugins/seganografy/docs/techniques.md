@@ -1,0 +1,2 @@
+# Tecniche
+Text analyzer: acrostico, telestico, iniziali/finali, righe e parole pari/dispari, case, punteggiatura, HTML invisibile. Image analyzer: LSB/MSB 1–8 bit, RGB/BGR/RGBA, xy/yx e bit-plane; statistiche restano candidate. Audio: bit-plane PCM, canali, waveform, spettrogramma, reverse/rate e indicatori DTMF/eco. Video: probe e sampling limitato di frame/audio. Decoder: basi, URL/entities/escape, ROT/Caesar/Atbash/XOR, Morse/Baudot/Bacon/A1Z26, Brainfuck/Ook/Whitespace, gzip/zlib e catene.

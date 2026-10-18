@@ -1,0 +1,15 @@
+title: Suspicious Encoded PowerShell
+id: local-powershell-encoded
+status: experimental
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    raw|contains:
+      - "powershell -enc"
+      - "powershell.exe -encodedcommand"
+  condition: selection
+level: high
+tags: [attack.execution, attack.t1059.001]
+falsepositives: [Administrative automation]
