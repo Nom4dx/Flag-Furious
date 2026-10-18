@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import itertools
 import re
 import shutil
 import zlib
@@ -14,6 +15,9 @@ from ..models import Finding
 from ..util import run, run_binary, safe_name
 
 OID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+LOOSE_OBJECT_LIMIT = 16 * 1024 * 1024
+LOOSE_OBJECT_READ_SIZE = 64 * 1024
+LOOSE_OBJECT_PREFIX_LIMIT = 4096
 
 
 def find_repositories(root: Path) -> list[dict[str, Any]]:
@@ -45,12 +49,24 @@ def _git(git_dir: Path, args: list[str], timeout: int = 120) -> dict[str, Any]:
 
 def parse_loose_object(path: Path, oid: str | None = None) -> dict[str, Any] | None:
     try:
-        if path.stat().st_size > 16 * 1024 * 1024:
-            return None
         decoder = zlib.decompressobj()
-        raw = decoder.decompress(path.read_bytes(), 16 * 1024 * 1024 + 1)
-        if len(raw) > 16 * 1024 * 1024 or decoder.unconsumed_tail:
+        raw = bytearray()
+        compressed_bytes = 0
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as source:
+            if os.fstat(source.fileno()).st_size > LOOSE_OBJECT_LIMIT:
+                return None
+            while block := source.read(LOOSE_OBJECT_READ_SIZE):
+                compressed_bytes += len(block)
+                if compressed_bytes > LOOSE_OBJECT_LIMIT:
+                    return None
+                remaining = LOOSE_OBJECT_LIMIT + 1 - len(raw)
+                raw.extend(decoder.decompress(block, remaining))
+                if len(raw) > LOOSE_OBJECT_LIMIT or decoder.unconsumed_tail:
+                    return None
+        if not decoder.eof or decoder.unused_data:
             return None
+        raw = bytes(raw)
         header, body = raw.split(b"\0", 1)
         object_type, declared = header.decode("ascii").split(" ", 1)
         if object_type not in {"blob", "tree", "commit", "tag"} or int(declared) != len(body):
@@ -62,31 +78,58 @@ def parse_loose_object(path: Path, oid: str | None = None) -> dict[str, Any] | N
         return None
 
 
-def loose_objects(git_dir: Path, limit: int = 50_000) -> Iterable[dict[str, Any]]:
+def loose_objects(git_dir: Path, limit: int = 50_000,
+                  stats: dict[str, int | bool] | None = None) -> Iterable[dict[str, Any]]:
     objects = git_dir / "objects"
+    counters = stats if stats is not None else {}
+    counters.update({"considered": 0, "parsed": 0, "rejected": 0, "limit_reached": False})
     if not objects.is_dir():
         return
-    count = 0
-    for prefix in sorted(objects.iterdir()):
-        if not prefix.is_dir() or not re.fullmatch(r"[0-9a-f]{2}", prefix.name):
+    if objects.is_symlink():
+        counters["rejected"] = 1
+        return
+    prefixes = list(itertools.islice(objects.iterdir(), LOOSE_OBJECT_PREFIX_LIMIT + 1))
+    prefix_capped = len(prefixes) > LOOSE_OBJECT_PREFIX_LIMIT
+    prefixes = sorted(prefixes[:LOOSE_OBJECT_PREFIX_LIMIT], key=lambda item: item.name)
+    entries_seen = 0
+    for prefix in prefixes:
+        if not re.fullmatch(r"[0-9a-f]{2}", prefix.name):
             continue
-        for child in sorted(prefix.iterdir()):
+        if prefix.is_symlink() or not prefix.is_dir():
+            counters["rejected"] = int(counters["rejected"]) + 1
+            continue
+        remaining = max(0, limit - entries_seen)
+        batch = list(itertools.islice(prefix.iterdir(), remaining + 1))
+        capped = len(batch) > remaining
+        batch = sorted(batch[:remaining], key=lambda item: item.name)
+        entries_seen += len(batch)
+        for child in batch:
             oid = prefix.name + child.name
-            if child.is_file() and OID_RE.fullmatch(oid):
-                parsed = parse_loose_object(child, oid)
-                if parsed:
-                    parsed["path"] = str(child)
-                    yield parsed
-                    count += 1
-                    if count >= limit:
-                        return
+            if not OID_RE.fullmatch(oid):
+                continue
+            if child.is_symlink() or not child.is_file():
+                counters["rejected"] = int(counters["rejected"]) + 1
+                continue
+            counters["considered"] = int(counters["considered"]) + 1
+            parsed = parse_loose_object(child, oid)
+            if not parsed:
+                counters["rejected"] = int(counters["rejected"]) + 1
+                continue
+            parsed["path"] = str(child)
+            counters["parsed"] = int(counters["parsed"]) + 1
+            yield parsed
+        if capped:
+            counters["limit_reached"] = True
+            return
+    if prefix_capped:
+        counters["limit_reached"] = True
 
 
 def _all_git_objects(git_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     commands: list[dict[str, Any]] = []
     objects: list[dict[str, Any]] = []
     if not shutil.which("git"):
-        return list(loose_objects(git_dir)), commands
+        return objects, commands
     record = _git(git_dir, ["cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype) %(objectsize) %(objectsize:disk)"])
     commands.append(record)
     for line in record["stdout"].splitlines():
@@ -217,12 +260,21 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
         removed = "\n".join(line[1:] for line in diff["stdout"].splitlines() if line.startswith("-") and not line.startswith("---"))
         result["findings"].extend(scan_bytes(removed.encode(), source=str(git_dir), path="git:removed-lines", module="git", config=config, method="git-diff-removed"))
     else:
-        loose = list(loose_objects(git_dir))
-        result["objects"] = [{k: v for k, v in item.items() if k != "body"} for item in loose]
-        result["valid"] = any(item["valid"] for item in loose)
-        result["integrity"] = "partial" if result["valid"] else "unverified"
-        for item in loose:
+        audit: dict[str, int | bool] = {}
+        result["objects"] = []
+        for item in loose_objects(git_dir, max_objects, audit):
+            result["objects"].append({k: v for k, v in item.items() if k != "body"})
+            result["valid"] = result["valid"] or item["valid"]
             result["findings"].extend(scan_bytes(item["body"], source=str(git_dir), path=item["path"], module="git", config=config, method="loose-object-parser"))
+        rejected = int(audit.get("rejected", 0))
+        capped = bool(audit.get("limit_reached", False))
+        if rejected:
+            result["warnings"].append(f"{rejected} loose Git objects were malformed or exceeded the per-object budget.")
+            config.warn(f"Loose Git object parsing incomplete in {git_dir}: {rejected} objects rejected")
+        if capped:
+            result["warnings"].append(f"Loose Git object inventory capped at {max_objects} objects.")
+            config.warn(f"Loose Git object inventory limit reached in {git_dir}")
+        result["integrity"] = "partial" if rejected or capped else "complete" if result["valid"] else "unverified"
     return result
 
 
