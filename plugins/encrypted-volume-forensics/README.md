@@ -19,7 +19,8 @@ exports are deleted before the attempt returns.
 
 ## Analysis pipeline
 
-1. Calculate full MD5, SHA-1 and SHA-256 over the original.
+1. Reuse complete MD5, SHA-1 and SHA-256 from core ingestion, or calculate them
+   in one local pass when the asset hashes are absent or the view is partial.
 2. Identify RAW, split RAW, VHD, VHDX or BEK input.
 3. Parse MBR or GPT and verify the primary and backup GPT structures.
 4. Search partition starts and a bounded byte view for the `-FVE-FS-` OEM ID.
@@ -69,6 +70,8 @@ Plugin options are nested below `encrypted-volume-forensics`:
 
 The password fields must come from the connector secret form. They are consumed
 in memory and omitted from results, reports and command audit.
+The identity section records whether hashes came from core ingestion or a local
+source read; complete asset hashes avoid rereading a large disk image.
 
 ## Dependencies
 

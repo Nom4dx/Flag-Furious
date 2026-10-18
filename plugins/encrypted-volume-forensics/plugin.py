@@ -81,9 +81,16 @@ class Plugin(BasePlugin):
         runner=ToolRunner();warnings=[];errors=[];events=[];findings=[];artifacts=[];unlock_rows=[];filesystem_rows=[];deleted=[];ads=[]
         output=Path(context["output_dir"]);store=ArtifactStore(output,output_budget)
 
-        reporter.phase("Input e hash");phase=time.monotonic();digest=hashes(source);kind=container_type(source)
+        reporter.phase("Input e hash");phase=time.monotonic()
+        provided_hashes=asset.get("hashes",{})
+        reusable_hashes={name:provided_hashes.get(name) for name in ("md5","sha1","sha256")}
+        if not input_partial and declared_size==size and all(isinstance(value,str) and value for value in reusable_hashes.values()):
+            digest={**reusable_hashes,"bytes_hashed":size,"hash_source":"forensic hub asset ingestion"}
+        else:
+            digest={**hashes(source),"hash_source":"encrypted volume source read"}
+        kind=container_type(source)
         identity={"name":asset.get("name",source.name),"path_type":"local_regular_file","size":size,"declared_size":declared_size,"partial_input":input_partial,"container":kind,**digest,"original_modified":False}
-        events.append(event("Input e hash",phase,"partial" if input_partial else "completed"));reporter.log("Hash completi calcolati in streaming; originale aperto in sola lettura")
+        events.append(event("Input e hash",phase,"partial" if input_partial else "completed"));reporter.log(f"Hash da {digest['hash_source']}; originale aperto in sola lettura")
         if input_partial:warnings.append(f"Input già parziale: vista montata {size} byte su asset dichiarato {declared_size}")
 
         memory_mode=asset.get("type")=="memory_dump" or source.suffix.casefold() in {".mem",".dmp",".vmem",".lime"}
