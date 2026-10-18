@@ -160,7 +160,9 @@ class Plugin(BasePlugin):
         ]
         metrics={"duration":round(time.monotonic()-started,4),"physical_size":physical,"bytes_analyzed":budget,"signature_hits":len(candidates),"validated_formats":len(validated),"rejected_signatures":len(rejected),"strings":len(strings),"artifacts":len(artifacts),"instructions":len(instructions),"functions":len(functions["functions"]),"yara_matches":len(yara_matches),"original_modified":False}
         sections.append(section("metrics","Metrics",910,[metrics],kind="metrics"))
-        status="partial" if truncated or budget<physical or parser_error else "completed"
+        # Each warning records a coverage reduction or unavailable enrichment.
+        # Keep the job state aligned with these diagnostics for downstream UI.
+        status="partial" if warnings or truncated or budget<physical or parser_error else "completed"
         result={"plugin_id":"binary-static-analysis","status":status,"summary":f"{len(validated)} formati validati, {len(findings)} indicatori, {len(artifacts)} artefatti","confidence":max((item["confidence"] for item in validated),default=.45),"phase":"binary static analysis","findings":findings,"sections":sections,"artifacts":artifacts,"derived_assets":[],"visualizations":[entropy_visual,offset_visual,byte_visual,structure_visual,code_visual],"flags":flags,"timeline":[],"execution_events":events,"logs":runner.audit,"warnings":warnings,"errors":errors,"metrics":metrics,"unlock_requests":unlock_requests}
         report=json.dumps({**result,"artifacts":[{k:v for k,v in item.items() if k!="path"} for item in artifacts]},ensure_ascii=False,indent=2).encode()
         try:result["artifacts"].append(store.save("report","binary-static-analysis-report.json",report,{"detected_type":"json","validated":True,"confidence":1.0,"extraction_method":"plugin_report"}))

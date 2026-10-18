@@ -79,7 +79,7 @@ nascodono aggiornando attese senza spiegazione.
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate; diagnostics e input troncato producono `partial`; restano provenance frame-level e limiti dichiarati |
 | githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; warning/errori propagati come esito parziale. Restano limiti adapter e fixture |
 | ext4atto | refactor | Warning include `mmls` mancante e soglia reale di recupero; restano limiti TSK/output da verificare |
-| binary-static-analysis | audit | Trovato disallineamento: warning delle fasi non influenza `status`; file e directory del plugin sono root-owned e non modificabili dall’utente workspace, quindi il fix resta da fare dopo ripristino permessi |
+| binary-static-analysis | refactor | `status=partial` ora riflette warning delle fasi e copertura incompleta; restano gate di fixture/contratto e matrice verificata formati/tool |
 | document-metadata-forensics | refactor | Matcher allineato alla validazione su file montato; input oltre byte budget ora dichiarato `partial`; restano matrice formati e gate fixture/contratto |
 | polyglot-and-embedded-content | audit | 8 file test; audit confini/duplicati da svolgere |
 | seganografy | audit | 3 file test; audit falsi positivi/tool opzionali da svolgere |
@@ -89,14 +89,14 @@ nascodono aggiornando attese senza spiegazione.
 
 ### Rilievi specialistici in attesa di permessi scrittura
 
-Audit statico read-only del 2026-10-18. Queste correzioni non sono state
-applicate: le directory dei plugin risultano `root:root`, mentre il workspace è
-eseguito dall'utente `nomad` senza sudo non interattivo. Ripristinare ownership
-del checkout prima di attuare ciascun rilievo e aggiungere le fixture previste.
+Audit statico read-only del 2026-10-18; le correzioni pendenti sono in lavorazione
+nel worktree Git `forensic-plugin-refactor`, creato dal checkout remoto per
+evitare di alterare le copie root-owned del workspace originale. Le fixture
+previste restano un gate prima di dichiarare i plugin `done`.
 
 | Plugin | Rilievo | Priorità |
 | --- | --- | --- |
-| `binary-static-analysis` | `status` ignora gli avvisi accumulati da parser, YARA, carving e archivi e può mostrare `completed` con copertura ridotta | Alta |
+| `binary-static-analysis` | Corretto: warning da parser, YARA, carving e archivi ora producono `partial` | Risolta |
 | `log-forensics` | Asset inline viene serializzato interamente in memoria in `analyze`; il `byte_budget` non limita questa sorgente, a differenza dei file/directory | Alta |
 | `polyglot-and-embedded-content` | Scansione di un artefatto derivato usa `read_bytes()` prima di tagliare a 16 MiB, quindi può caricare l'intero artefatto in memoria | Alta |
 | `seganografy` | Lettura completa di ogni artefatto estratto per rilevarne il tipo, senza applicare il byte budget; possibile picco di memoria | Alta |

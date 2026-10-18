@@ -70,6 +70,10 @@ rete. Le firme false restano nella sezione Detection con stato `rejected`. Il
 byte budget, 4.096 signature hit, 5.000 stringhe, 4.096 finestre di entropia,
 20.000 istruzioni e 64 MiB per singolo carving limitano lavoro e output. Alta
 entropia significa soltanto compressione, cifratura o casualità possibile.
+Il risultato passa a `partial` quando una fase segnala copertura ridotta,
+inclusi limiti di byte/output, parser non riusciti, tool o regole YARA non
+disponibili e carving/archivi incompleti. Un arricchimento saltato perché non
+applicabile al formato non è da solo un errore.
 L'analisi UEFI non espande GUID compression internamente; APFS, YAFFS, UBIFS e
 formati proprietari richiedono adapter specializzati per enumerare i file.
 
