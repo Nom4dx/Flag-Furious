@@ -76,6 +76,8 @@ universale di acquisizione certificata, mobile, cloud o live response.
   dichiarato (`input`, `artifact`, `disk`, `decoded_payload`); per payload
   trasformati la posizione decodificata e quella del candidato codificato sono
   mostrate separatamente.
+- Se il normalizer elimina una visualizzazione invalida, il relativo warning e lo
+  stato `partial` aggiornano anche la sezione Warnings del risultato plugin.
 - L'indice di ricerca delle tabelle serializzava ogni record intero all'apertura.
   Ora si costruisce solo al primo filtro e usa valori scalari dei campi mostrati,
   limitati a 2 KiB per campo, così i payload raw non gonfiano inutilmente memoria
