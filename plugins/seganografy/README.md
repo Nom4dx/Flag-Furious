@@ -25,6 +25,11 @@ L'originale è aperto in sola lettura. Niente rete, shell, macro, script, JavaSc
 Le fasi in memoria leggono al massimo 64 MiB. Se il budget concesso o la vista
 montata è più ampia, il risultato segnala `partial` e separa vista letta,
 dimensione fisica e byte budget nelle metriche.
+Le euristiche testuali, Unicode e whitespace leggono al massimo 8 MiB e segnano
+moduli ed eventi di fase `partial` se il testo è più lungo. L'inventario Unicode
+limita le righe sospette e mixed-script a 10.000, i simboli
+decodificati a 100.000 e le viste derivate a 100.000 codepoint; le omissioni
+sono conteggiate e rendono parziale la sezione e l'analisi.
 
 ## Estensione
 
