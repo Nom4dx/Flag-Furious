@@ -23,6 +23,12 @@ export function readPath(value, path) {
   return value;
 }
 const isObject = (value) => value !== null && typeof value === "object";
+const confidenceValue = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.max(0, Math.min(100, numeric <= 1 ? numeric * 100 : numeric));
+};
 const scalar = (value) => !isObject(value);
 const fieldsFor = (fields) =>
   (fields || []).map((f) =>
@@ -186,7 +192,7 @@ export function renderTable(data, fields = [], depth = 0) {
     toolbar.append(select);
   }
   let confidenceFilter = null;
-  if (data.some((row) => Number.isFinite(Number(row.confidence)))) {
+  if (data.some((row) => confidenceValue(row.confidence) !== null)) {
     confidenceFilter = make("select");
     confidenceFilter.setAttribute("aria-label", "Confidenza minima");
     confidenceFilter.append(
@@ -264,7 +270,7 @@ export function renderTable(data, fields = [], depth = 0) {
             !select.value || String(r.value[key] ?? "") === select.value,
         ) &&
         (!confidenceFilter?.value ||
-          Number(r.value.confidence) >= Number(confidenceFilter.value)),
+          (confidenceValue(r.value.confidence) ?? -1) >= Number(confidenceFilter.value) * 100),
     );
     const direction = sortDirection === "ascending" ? 1 : -1;
     const ordered = sortField
@@ -274,13 +280,16 @@ export function renderTable(data, fields = [], depth = 0) {
           let comparison = 0;
           if (sortField === "severity")
             comparison = (severityOrder[String(av).toLowerCase()] || 0) - (severityOrder[String(bv).toLowerCase()] || 0);
+          else if (sortField === "confidence")
+            comparison = (confidenceValue(av) ?? -1) - (confidenceValue(bv) ?? -1);
           else if (Number.isFinite(Number(av)) && Number.isFinite(Number(bv)))
             comparison = Number(av) - Number(bv);
           else
             comparison = String(av ?? "").localeCompare(String(bv ?? ""), "it-IT", { numeric: true, sensitivity: "base" });
           if (comparison) return comparison * direction;
           if (sortField === "severity") {
-            const confidence = Number(b.value.confidence || 0) - Number(a.value.confidence || 0);
+            const confidence = (confidenceValue(b.value.confidence) ?? -1) -
+              (confidenceValue(a.value.confidence) ?? -1);
             if (confidence) return confidence;
           }
           return a.index - b.index;

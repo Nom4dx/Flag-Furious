@@ -309,6 +309,7 @@ const resultHasEvidence = (result) =>
 const pluginHasEvidence = (results) => results.some(resultHasEvidence);
 const assetName = (id) => state.assets.find((asset) => asset.id === id)?.name || id || "Asset";
 const confidencePercent = (value) => {
+  if (value === null || value === undefined || value === "") return null;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
   return Math.round(Math.max(0, Math.min(100, numeric <= 1 ? numeric * 100 : numeric)));
@@ -683,14 +684,16 @@ function renderSummary(job, results, graph) {
   const host = $("analysis-summary");
   host.replaceChildren();
   const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
-  const flags = [...(job.flags || [])].sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0));
+  const flags = [...(job.flags || [])].sort((a, b) =>
+    (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1),
+  );
   const issues = issueItems(job, results);
   const findings = results.flatMap((result) =>
     (result.findings || []).map((finding) => ({ ...finding, plugin_id: result.plugin_id })),
   ).sort((a, b) =>
     (severityOrder[String(b.severity || "").toLowerCase()] || 0) -
       (severityOrder[String(a.severity || "").toLowerCase()] || 0) ||
-    Number(b.confidence || 0) - Number(a.confidence || 0),
+    (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1),
   );
   const pluginIds = [...new Set(results.map((result) => result.plugin_id))].filter((id) => id !== "magic-wrapper");
   const assets = new Set(graph.nodes.filter((node) => node.type === "asset").map((node) => node.asset_id || node.id));
