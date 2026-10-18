@@ -174,17 +174,18 @@ class Plugin(BasePlugin):
                     continue
                 leaf = _bounded_text(name.name, 180) or "member"
                 target = output / f"{index}-{leaf}"
+                member_budget = remaining
                 try:
                     written = 0
                     digest = hashlib.sha256()
                     with archive.open(member) as source, target.open("xb") as destination:
-                        while block := source.read(min(65536, remaining + 1)):
+                        while block := source.read(min(65536, member_budget - written + 1)):
                             written += len(block)
-                            remaining -= len(block)
-                            if remaining < 0:
+                            if written > member_budget:
                                 raise ValueError("Budget estrazione esaurito")
                             destination.write(block)
                             digest.update(block)
+                    remaining -= written
                     derived.append(
                         {
                             "path": str(target),
@@ -202,6 +203,9 @@ class Plugin(BasePlugin):
                     reporter.phase("Estratto " + _bounded_text(member.filename, 256))
                 except (ValueError, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error, zipfile.BadZipFile) as exc:
                     target.unlink(missing_ok=True)
+                    # Failed/CRC-invalid members are deleted, so their bytes do
+                    # not consume the cumulative budget available to later files.
+                    remaining = member_budget
                     row.update(status="failed", error=str(exc)[:240])
                     warn(f"Estrazione fallita per {_bounded_text(member.filename, 256)}: {str(exc)[:240]}")
         if omitted_unlock_requests:
