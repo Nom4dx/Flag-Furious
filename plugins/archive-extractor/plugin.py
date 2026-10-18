@@ -122,6 +122,7 @@ class Plugin(BasePlugin):
         omitted_warnings = 0
         unlock_requests = []
         omitted_unlock_requests = 0
+        archive_base_offset = 0
 
         def warn(message):
             nonlocal omitted_warnings
@@ -143,6 +144,11 @@ class Plugin(BasePlugin):
             if end_record is None:
                 raise zipfile.BadZipFile("EOCD non trovato")
             central_directory_bytes = int(end_record[zipfile._ECD_SIZE])
+            central_directory_offset = int(end_record[zipfile._ECD_OFFSET])
+            eocd_offset = int(end_record[zipfile._ECD_LOCATION])
+            archive_base_offset = eocd_offset - central_directory_bytes - central_directory_offset
+            if archive_base_offset < 0:
+                raise zipfile.BadZipFile("Offset dell'archivio ZIP incoerente")
             if central_directory_bytes > MAX_CENTRAL_DIRECTORY_BYTES:
                 warn(
                     f"Indice ZIP oltre budget: {central_directory_bytes} byte, "
@@ -187,8 +193,10 @@ class Plugin(BasePlugin):
                     "size": member.file_size,
                     "compressed_size": member.compress_size,
                     "crc": f"{member.CRC:08x}",
-                    "offset": member.header_offset,
+                    "offset": member.header_offset - archive_base_offset,
                     "offset_scope": "archive",
+                    "source_offset": member.header_offset,
+                    "source_offset_scope": "input",
                     "status": "pending",
                 }
                 rows.append(row)
@@ -272,7 +280,9 @@ class Plugin(BasePlugin):
                             "source_member_truncated": member_name["name_truncated"],
                             "source_member_sha256": member_name["name_sha256"],
                             "source_offset": member.header_offset,
-                            "source_offset_scope": "archive",
+                            "source_offset_scope": "input",
+                            "archive_offset": member.header_offset - archive_base_offset,
+                            "archive_offset_scope": "archive",
                             "source_size": member.file_size,
                             "compressed_size": member.compress_size,
                             "sha256": digest.hexdigest(),

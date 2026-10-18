@@ -37,6 +37,7 @@ il [programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i gate
 ancora aperti.
 I nomi visualizzati sono limitati a 512 byte UTF-8; il booleano di troncamento e
 lo SHA-256 del nome Unicode interpretato distinguono i prefissi abbreviati.
-Gli offset sono relativi all'inizio dell'archivio (source_offset_scope=archive);
-per un archivio derivato, la catena degli asset padre permette di risalire alla
-fonte senza presentarli come offset assoluti dell'evidenza.
+`offset` e `archive_offset` sono relativi all'inizio dell'archivio, mentre
+`source_offset` è relativo all'input montato. Per SFX e ZIP con prefisso le due
+coordinate differiscono; la catena degli asset padre collega l'input all'evidenza
+originale senza confondere offset ZIP e offset assoluti del caso.
