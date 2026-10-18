@@ -102,7 +102,7 @@ previste restano un gate prima di dichiarare i plugin `done`.
 | `polyglot-and-embedded-content` | Corretto: flag scan legge al massimo 16 MiB per artefatto e segnala il troncamento | Risolta |
 | `seganografy` | Corretto: detection del tipo usa un prefisso massimo di 1 MiB e registra la coverage parziale | Risolta |
 | `encrypted-volume-forensics` | Corretto: warning di hash, filesystem e flag ora producono `partial`; fase hash disabilitata resta `skipped` | Risolta |
-| `bruteforce` | Corretto: routing limitato a prefix/tail, PDF adapter bounded e scan BitLocker riservata a candidati disk-image; read/hash adapter a budget, ZIP streamato, estrazione 7z/RAR per membro con quota output durante la scrittura e cleanup degli output incompleti, BitLocker usa runner con stream capped, input password da stdin e output file limitato dove supportato. Restano gate fixture/runtime e verifica cross-platform del limite file | Parziale |
+| `bruteforce` | Corretto: routing limitato a prefix/tail, PDF adapter bounded e scan BitLocker riservata a candidati disk-image; read/hash adapter a budget, ZIP streamato, estrazione 7z/RAR per membro con quota output durante la scrittura e cleanup degli output incompleti, BitLocker usa runner con stream capped, input password da stdin e output file limitato dove supportato; lo stato `cancelled` viene propagato e non genera un finding di password fallita. Restano gate fixture/runtime e verifica cross-platform del limite file | Parziale |
 
 ## Registro moduli futuri
 
