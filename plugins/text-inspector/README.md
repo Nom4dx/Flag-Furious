@@ -8,7 +8,8 @@ dei byte e anteprima limitata. Non interpreta il contenuto come codice né visit
 Le misure descrivono solo i byte visibili nel budget del job. Un input troncato viene
 marcato `partial`; la vista di contenuto restituita è limitata a 16 KiB per non
 duplicare l'intero asset nel risultato. Il decoder è scelto dal BOM (UTF-8/16/32),
-altrimenti usa UTF-8; le sequenze invalide sono sostituite e dichiarate. La tabella
+altrimenti usa UTF-8; le sequenze invalide sono sostituite, dichiarate e rendono
+parziale il risultato quando la preview non è decodificabile senza perdita. La tabella
 righe indica offset assoluti in byte nella vista e mostra al massimo 200 righe. La
 vista riga è indicata come parziale anche quando una riga supera 1.024 caratteri o
 quando restano righe oltre le prime 200; lo stato compare nella UI. La scansione di

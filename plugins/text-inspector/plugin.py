@@ -200,7 +200,7 @@ class Plugin(BasePlugin):
         invisible, invisible_count = _invisible_characters(
             text, preview_body, codec, bom_bytes, not decode_errors
         )
-        partial = bool(asset.get("partial_input")) or truncated or input_bytes > len(data)
+        partial = bool(asset.get("partial_input")) or truncated or input_bytes > len(data) or decode_errors
         warnings = []
         if partial:
             if input_bytes > len(data):
@@ -246,6 +246,7 @@ class Plugin(BasePlugin):
                 "partial_input": partial,
                 "analysis_cap_bytes": cap,
                 "encoding": encoding,
+                "decode_errors_in_preview": decode_errors,
                 "encoding_scope_bytes": len(preview_body),
                 "line_count": line_count,
                 "newline_count": newline_count,
