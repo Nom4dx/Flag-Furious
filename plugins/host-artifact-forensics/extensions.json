@@ -1,0 +1,8 @@
+{
+  "extensions": [".sqlite", ".sqlite3", ".db", ".sqlite-wal"],
+  "mime_types": ["application/vnd.sqlite3", "application/x-sqlite3", "application/octet-stream"],
+  "magic_bytes": ["53514c69746520666f726d6174203300"],
+  "asset_types": ["file", "directory"],
+  "content_signatures": ["SQLite format 3", "Chromium History", "Firefox places.sqlite", "Safari History.db"],
+  "keywords": ["history", "places.sqlite", "cookies", "web data", "login data", "history.db"]
+}

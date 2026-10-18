@@ -54,9 +54,12 @@ nascodono aggiornando attese senza spiegazione.
    Ripetere i percorsi di integrazione che attraversano derivati e workflow.
 3. **A2 — Gruppo B:** rifare i sette specialisti. Per i plugin che condividono formati,
    definire il proprietario del parser e i confini di responsabilità prima delle modifiche.
-4. **A3 — Gate plugin presenti:** nessuna riga `audit` o `refactor`; tutte le limitazioni
-   restanti devono essere dichiarate e accettate nel registro di copertura. Solo allora
-   iniziano i plugin nuovi.
+4. **A3 — Gate iniziale plugin presenti:** nessun plugin deve restare in `audit`; ogni
+   plugin esistente deve avere almeno un miglioramento concreto di limiti, matcher,
+   copertura o presentazione e i rilievi alti devono essere risolti o registrati come
+   bloccati. I gate di fixture/validazione restano `refactor` finché non sono eseguiti;
+   questo debito non va nascosto né scambiato per copertura verificata. Superato il gate
+   iniziale, B1 può partire mentre le verifiche dei plugin continuano in parallelo.
 5. **B1 — Host artifact forensics:** SQLite/WAL, browser, Windows Registry/EVTX,
    macOS plist/Unified Logs, Linux journald; implementazione incrementale con schema
    comune e correlazione timeline.
@@ -105,5 +108,12 @@ previste restano un gate prima di dichiarare i plugin `done`.
 
 ## Registro moduli futuri
 
-Nessun nuovo plugin deve essere implementato prima del gate A3. I moduli candidati e
-la motivazione sono in [roadmap del dominio forensic](FORENSIC_DOMAIN_ROADMAP.md).
+Il gate iniziale A3 è stato superato: tutti i plugin presenti hanno un intervento
+concreto registrato; i test/fixture non eseguiti restano visibili in stato `refactor`.
+Il primo modulo nuovo in sviluppo è `host-artifact-forensics` (SQLite/WAL e cronologia
+browser offline). I moduli successivi e la motivazione sono in
+[roadmap del dominio forensic](FORENSIC_DOMAIN_ROADMAP.md).
+
+| Modulo | Stato | Copertura iniziale | Debito aperto |
+| --- | --- | --- | --- |
+| `host-artifact-forensics` | in sviluppo | Inventario SQLite, WAL, visite/download Chromium, Firefox e Safari; inventario presenza cookie/credenziali senza valori | Registry, EVTX, artefatti Linux/macOS e app DB; fixture e verifica runtime |

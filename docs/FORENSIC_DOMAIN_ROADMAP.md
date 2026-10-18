@@ -25,7 +25,7 @@ universale di acquisizione certificata, mobile, cloud o live response.
 | Memoria volatile | Mancante | Il tipo `memory_dump` è accettato da alcuni plugin generici | Plugin dedicato a Volatility 3 e simboli, processi/moduli/connessioni/handle, timeline e dipendenze versionate |
 | Mobile | Mancante | Nessun parser iOS/Android dedicato | Backup iTunes/iOS, Android backup/ADB e filesystem extraction, SQLite/WAL, artifact timeline, limiti legali e acquisizione esplicita |
 | Sistemi operativi e host | Parziale | Analisi log generica e alcune integrazioni di recupero | Windows Registry/EVTX/Prefetch/Amcache/USN, macOS Unified Log/Plist/FSEvents, Linux journald/auth/audit, artefatti browser e persistenza |
-| Browser | Mancante | I database possono essere caricati come file generici | Chrome/Chromium, Firefox, Safari; SQLite/WAL, download, cookie/sessioni, cache, profili e normalizzazione timeline |
+| Browser | Parziale, in sviluppo | `host-artifact-forensics` introduce parsing offline di History/Places/Safari e download SQLite, associazione WAL e timeline | Fixture/runtime da verificare; Cookie/credenziali (solo presenza), LevelDB/cache, profili multi-file e record cancellati |
 | Email e messaggistica | Mancante | Nessun plugin mailbox | EML/MBOX/PST/OST, header, MIME, allegati, thread, timezone, deduplica e chat export |
 | Rete | Parziale | PCAP tramite pic-up, HID USB e analisi di flussi disponibili | Parser/protocolli e TCP stream dichiarati, DNS/HTTP/TLS, canali covert, NetFlow/Zeek, correlazione multi-cattura |
 | Log e incident response | Parziale | Plugin log con normalizzazione, regole e timeline | Copertura schema/fonti, SIEM import, Sigma testata, regole versionate, correlazione multi-host e quality score |
@@ -34,7 +34,7 @@ universale di acquisizione certificata, mobile, cloud o live response.
 | Archivi e file danneggiati | Parziale | ZIP estrazione sicura e carving/embedded | TAR/7z/RAR e formati cifrati con supporto dichiarato; riparazione su copia con diff e validazione; bomb resistance e fixture avversarie |
 | Crittografia e password | Parziale | Rilevamento e tentativi password/volumi selezionati | Hash format ampiamente aggiornati, gestione chiavi, formati documentali e vault; strategia esplicita per credenziali senza conservarle |
 | Cloud e SaaS | Mancante | URL trattati come testo; nessun accesso di rete | Parser export AWS/Azure/GCP/M365/Google Workspace, audit trail, correlazione identità/risorsa; import esplicito, nessuna chiamata implicita al tenant |
-| Database e applicazioni | Mancante | SQLite può essere analizzato come file generico | SQLite WAL/SHM, browser/app DB, LevelDB, plist, registry hive e applicazioni comuni con schema/versione |
+| Database e applicazioni | Parziale, in sviluppo | Inventario schema SQLite generico e parsing browser circoscritto | WAL/SHM in casi con sidecar assenti, carving/freelist, LevelDB, plist, Registry hive e schemi di altre applicazioni |
 | Visualizzazione e reporting | Parziale | Sezioni, tabelle, timeline, grafi e grafici SVG con palette controllate | Vista caso unificata, finding prioritizzati, navigazione finding→byte/record, coverage/incompletezza, timeline correlata e report firmabile |
 | Acquisizione live/remota | Fuori ambito attuale | API locale, input manuale | Agenti/collector e rete non vanno aggiunti finché non esistono modello autorizzativo, autenticazione, audit, trasporto protetto e threat model |
 

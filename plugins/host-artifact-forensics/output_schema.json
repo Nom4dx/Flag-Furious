@@ -1,0 +1,244 @@
+{
+  "description": "SQLite inventory, browser events, source provenance and explicit coverage limits.",
+  "result_fields": {
+    "sections": "Database inventory, browser events, entities, timeline and diagnostics",
+    "timeline": "Timestamped history/download records with source database and row ID",
+    "flags": "Candidates found in bounded URL/title values",
+    "warnings": "Incomplete copies, missing WAL and unrecognized schemas"
+  },
+  "sections": [
+    {
+      "id": "database_inventory",
+      "title": "Database SQLite",
+      "type": "table",
+      "order": 10
+    },
+    {
+      "id": "browser_events",
+      "title": "Cronologia e download",
+      "type": "table",
+      "order": 20
+    },
+    {
+      "id": "domain_entities",
+      "title": "Domini osservati",
+      "type": "table",
+      "order": 30
+    },
+    {
+      "id": "cookie_credential_inventory",
+      "title": "Cookie e credenziali",
+      "type": "table",
+      "order": 40
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline",
+      "type": "timeline",
+      "order": 50
+    },
+    {
+      "id": "flags",
+      "title": "Flag candidate",
+      "type": "table",
+      "order": 60
+    },
+    {
+      "id": "warnings",
+      "title": "Copertura e diagnostica",
+      "type": "list",
+      "order": 90
+    },
+    {
+      "id": "metrics",
+      "title": "Metriche",
+      "type": "metrics",
+      "order": 100
+    }
+  ],
+  "presentation": {
+    "version": 1,
+    "palette": "network",
+    "include_unmapped": true,
+    "groups": [
+      {
+        "id": "overview",
+        "title": "Copertura e sorgenti",
+        "order": 1
+      },
+      {
+        "id": "activity",
+        "title": "Attività browser",
+        "order": 2
+      },
+      {
+        "id": "entities",
+        "title": "Entità e correlazioni",
+        "order": 3
+      },
+      {
+        "id": "evidence",
+        "title": "Evidenze",
+        "order": 4
+      }
+    ],
+    "sections": [
+      {
+        "id": "database_inventory",
+        "title": "Database SQLite",
+        "source": "data.section-database_inventory",
+        "type": "table",
+        "group": "overview",
+        "order": 10,
+        "fields": [
+          {
+            "field": "source_file"
+          },
+          {
+            "field": "browser"
+          },
+          {
+            "field": "source_size",
+            "format": "bytes"
+          },
+          {
+            "field": "sha256"
+          },
+          {
+            "field": "wal_present"
+          },
+          {
+            "field": "complete_copy"
+          }
+        ]
+      },
+      {
+        "id": "warnings",
+        "title": "Copertura e diagnostica",
+        "source": "data.section-warnings",
+        "type": "list",
+        "group": "overview",
+        "order": 20,
+        "fields": []
+      },
+      {
+        "id": "browser_events",
+        "title": "Cronologia e download",
+        "source": "data.section-browser_events",
+        "type": "table",
+        "group": "activity",
+        "order": 30,
+        "fields": [
+          {
+            "field": "timestamp",
+            "format": "datetime"
+          },
+          {
+            "field": "timestamp_raw"
+          },
+          {
+            "field": "timestamp_encoding"
+          },
+          {
+            "field": "event_type"
+          },
+          {
+            "field": "application"
+          },
+          {
+            "field": "domain"
+          },
+          {
+            "field": "url",
+            "format": "code"
+          },
+          {
+            "field": "title"
+          },
+          {
+            "field": "target_path"
+          },
+          {
+            "field": "row_id"
+          },
+          {
+            "field": "source_file"
+          },
+          {
+            "field": "source_sha256"
+          },
+          {
+            "field": "source_snapshot_sha256"
+          },
+          {
+            "field": "confidence",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "timeline",
+        "title": "Timeline",
+        "source": "timeline",
+        "type": "timeline",
+        "group": "activity",
+        "order": 40,
+        "fields": []
+      },
+      {
+        "id": "domain_entities",
+        "title": "Domini osservati",
+        "source": "data.section-domain_entities",
+        "type": "table",
+        "group": "entities",
+        "order": 50,
+        "fields": []
+      },
+      {
+        "id": "cookie_credential_inventory",
+        "title": "Cookie e credenziali",
+        "source": "data.section-cookie_credential_inventory",
+        "type": "table",
+        "group": "evidence",
+        "order": 60,
+        "fields": []
+      },
+      {
+        "id": "flags",
+        "title": "Flag candidate",
+        "source": "flags",
+        "type": "table",
+        "group": "evidence",
+        "order": 70,
+        "fields": [
+          {
+            "field": "value",
+            "format": "code"
+          },
+          {
+            "field": "source_file"
+          },
+          {
+            "field": "event_id"
+          },
+          {
+            "field": "technique"
+          },
+          {
+            "field": "confidence",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "metrics",
+        "title": "Metriche",
+        "source": "data.section-metrics",
+        "type": "metrics",
+        "group": "overview",
+        "order": 80,
+        "fields": []
+      }
+    ]
+  }
+}
