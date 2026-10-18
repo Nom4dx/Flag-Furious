@@ -13,6 +13,32 @@ from .util import hashes, iter_files, mime_for, sha256_file
 from .modules import cache, git_forensics, history, legacy, reference_diff, slack, virtual
 
 Progress = Callable[[str, int], None]
+MAX_CASE_WARNINGS = 100
+
+
+def _record_warnings(manifest: dict[str, Any], phase: str, warnings: list[str] | tuple[str, ...]) -> None:
+    """Keep a bounded, deduplicated case-level warning index."""
+    coverage = manifest.setdefault("warning_coverage", {"stored": len(manifest.get("warnings", [])), "omitted": 0, "complete": True})
+    known = set(manifest.setdefault("warnings", []))
+    for warning in warnings:
+        message = f"{phase}: {warning}"
+        if message in known:
+            continue
+        if len(manifest["warnings"]) >= MAX_CASE_WARNINGS:
+            coverage["omitted"] = int(coverage.get("omitted", 0)) + 1
+            continue
+        manifest["warnings"].append(message)
+        known.add(message)
+    omitted = int(coverage.get("omitted", 0))
+    if omitted:
+        summary = f"Additional case warnings omitted after {MAX_CASE_WARNINGS} stored warnings."
+        if summary not in known:
+            # Replace the last detail with a durable summary without exceeding the cap.
+            if len(manifest["warnings"]) >= MAX_CASE_WARNINGS:
+                manifest["warnings"][-1] = summary
+            else:
+                manifest["warnings"].append(summary)
+    coverage.update(stored=len(manifest["warnings"]), complete=omitted == 0)
 
 
 class Pipeline:
@@ -64,7 +90,7 @@ class Pipeline:
                         )
                         config.bytes_read += sum(path.stat().st_size for path in extracted if path.is_file())
                         roots = [evidence, *extracted]
-                        manifest["warnings"].extend(warnings)
+                        _record_warnings(manifest, phase, warnings)
                         for path in extracted:
                             self.store.add_artifact(manifest, case_dir, path, source=str(evidence), module="extract", method="bounded-recursive-extraction")
                     elif phase == "virtual":
@@ -75,10 +101,11 @@ class Pipeline:
                         for path in targets or [evidence]:
                             info = virtual.analyze(path, config)
                             module_result["images"].append(_serial(info))
+                            _record_warnings(manifest, phase, info.get("warnings", []))
                             self.store.add_findings(manifest, info["findings"])
                             if info["metadata"].get("format") in {"qcow2", "qcow", "vmdk", "vdi", "vhd", "vhdx", "qed"}:
                                 raw, commands, warnings = virtual.materialize_copy(path, output / "qcow" / sha256_file(path)[:12])
-                                info["commands"].extend(commands); manifest["warnings"].extend(warnings)
+                                info["commands"].extend(commands); _record_warnings(manifest, phase, warnings)
                                 if raw:
                                     roots.append(raw)
                                     self.store.add_artifact(manifest, case_dir, raw, source=str(path), module="virtual", method="qemu-img-convert-private-copy", status="snapshot")
@@ -90,6 +117,7 @@ class Pipeline:
                         for path in images:
                             report = legacy.analyze(path, config, output / "legacy" / sha256_file(path)[:12])
                             reports.append(_serial(report)); self.store.add_findings(manifest, report["findings"])
+                            _record_warnings(manifest, phase, report.get("warnings", []))
                         known_artifacts = {a["path"] for a in manifest["artifacts"]}
                         for recovered in iter_files(output / "legacy"):
                             relative = str(recovered.relative_to(case_dir))
@@ -106,6 +134,8 @@ class Pipeline:
                             if root.exists():
                                 report = git_forensics.analyze(root, output / "git", config)
                                 combined.extend(report["repositories"]); self.store.add_findings(manifest, report["findings"])
+                                for repository in report["repositories"]:
+                                    _record_warnings(manifest, phase, repository.get("warnings", []))
                         manifest["modules"][phase] = {"repositories": [_serial(x) for x in combined], "count": len(combined)}
                         for recovered in (output / "git").rglob("*.bin"):
                             if not any(a["path"] == str(recovered.relative_to(case_dir)) for a in manifest["artifacts"]):
@@ -115,7 +145,7 @@ class Pipeline:
                         manifest["modules"][phase] = _serial(report); self.store.add_findings(manifest, report["findings"])
                     elif phase == "slack":
                         report = slack.analyze(output / "files", config, configured.get("timezone", "Europe/Rome"))
-                        manifest["modules"][phase] = _serial(report); self.store.add_findings(manifest, report["findings"])
+                        manifest["modules"][phase] = _serial(report); self.store.add_findings(manifest, report["findings"]); _record_warnings(manifest, phase, report.get("warnings", []))
                     elif phase == "cache":
                         report = cache.analyze(output / "files", output / "cache", config)
                         manifest["modules"][phase] = _serial(report); self.store.add_findings(manifest, report["findings"])
@@ -133,16 +163,24 @@ class Pipeline:
                     manifest["errors"].append(f"{phase}: {type(exc).__name__}: {exc}")
                     manifest["modules"][phase] = {"status": "error", "error": str(exc)}
             else:
-                manifest.update(status="complete", phase="complete", progress=100)
+                partial = bool(manifest["warnings"] or manifest["errors"] or config.diagnostics or manifest.get("finding_coverage", {}).get("omitted", 0) or manifest.get("warning_coverage", {}).get("omitted", 0))
+                manifest.update(status="partial" if partial else "complete", phase="coverage limited" if partial else "complete", progress=100)
             manifest["result"] = "flags_found" if manifest["findings"] else "no_flags_found"
         except Exception as exc:
             manifest.update(status="failed", phase="failed")
             manifest["errors"].append(f"pipeline: {type(exc).__name__}: {exc}")
         finally:
-            manifest["warnings"].extend(config.diagnostics)
-            self.store.save(case_id, manifest)
-            with self.lock:
-                self.cancelled.discard(case_id)
+            _record_warnings(manifest, "scan", config.diagnostics)
+            manifest["findings"].sort(key=lambda row: row.get("confidence", 0), reverse=True)
+            if manifest.get("status") in {"complete", "partial"}:
+                partial = bool(manifest["warnings"] or manifest["errors"] or manifest.get("finding_coverage", {}).get("omitted", 0) or manifest.get("warning_coverage", {}).get("omitted", 0))
+                manifest.update(status="partial" if partial else "complete", phase="coverage limited" if partial else "complete", progress=100)
+            try:
+                self.store.save(case_id, manifest)
+            finally:
+                self.store.release_case_cache(case_id)
+                with self.lock:
+                    self.cancelled.discard(case_id)
 
 
 def _serial(value: Any) -> Any:

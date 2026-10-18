@@ -13,6 +13,7 @@ from .models import Artifact, Finding
 from .util import inside, json_dump, mime_for, safe_name, sha256_file
 
 OUTPUT_DIRS = ("files", "images", "objects", "qcow", "legacy", "git", "slack", "cache", "history", "diff", "timeline", "flag_candidates", "logs")
+MAX_CASE_FINDINGS = 50_000
 
 
 class CaseStore:
@@ -21,6 +22,8 @@ class CaseStore:
         self.root.mkdir(parents=True, exist_ok=True)
         self.db_path = self.root / "cases.sqlite3"
         self.lock = threading.RLock()
+        self._finding_keys: dict[str, set[tuple]] = {}
+        self._finding_omitted: dict[str, int] = {}
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
@@ -71,7 +74,9 @@ class CaseStore:
             "original": str(original.relative_to(case_dir)),
             "reference": str(reference.relative_to(case_dir)) if reference else None,
             "output": str(output.relative_to(case_dir)), "metadata": {}, "artifacts": [],
-            "findings": [], "modules": {}, "timeline": [], "logs": [], "warnings": [], "errors": [],
+            "findings": [], "finding_coverage": {"stored": 0, "omitted": 0, "complete": True},
+            "modules": {}, "timeline": [], "logs": [], "warnings": [],
+            "warning_coverage": {"stored": 0, "omitted": 0, "complete": True}, "errors": [],
         }
         json_dump(case_dir / "manifest.json", manifest)
         with self._connect() as conn:
@@ -113,15 +118,37 @@ class CaseStore:
         return item
 
     def add_findings(self, manifest: dict[str, Any], findings: list[Finding]) -> None:
-        known = {(x["module"], x["value"], x.get("path"), x.get("offset"), x.get("method")) for x in manifest["findings"]}
+        case_id = manifest["id"]
+        known = self._finding_keys.get(case_id)
+        if known is None:
+            known = {(x["module"], x["value"], x.get("path"), x.get("offset"), x.get("method")) for x in manifest["findings"]}
+            self._finding_keys[case_id] = known
+        coverage = manifest.setdefault("finding_coverage", {"stored": len(manifest["findings"]), "omitted": 0, "complete": True})
+        omitted = self._finding_omitted.setdefault(case_id, int(coverage.get("omitted", 0)))
         for finding in findings:
             key = (finding.module, finding.value, finding.path, finding.offset, finding.method)
-            if key not in known:
-                manifest["findings"].append(finding.dict())
-                known.add(key)
-        manifest["findings"].sort(key=lambda row: row.get("confidence", 0), reverse=True)
+            if key in known:
+                continue
+            if len(manifest["findings"]) >= MAX_CASE_FINDINGS:
+                omitted += 1
+                continue
+            manifest["findings"].append(finding.dict())
+            known.add(key)
+        self._finding_omitted[case_id] = omitted
+        coverage.update(stored=len(manifest["findings"]), omitted=omitted, complete=omitted == 0)
+        if omitted and not any("finding storage limit" in item.lower() for item in manifest["warnings"]):
+            message = f"Finding storage limit reached ({MAX_CASE_FINDINGS}); {omitted} findings omitted so far."
+            if len(manifest["warnings"]) < 100:
+                manifest["warnings"].append(message)
+            warning_coverage = manifest.setdefault("warning_coverage", {"stored": len(manifest["warnings"]), "omitted": 0, "complete": True})
+            warning_coverage.update(stored=len(manifest["warnings"]), complete=warning_coverage.get("omitted", 0) == 0)
+    def release_case_cache(self, case_id: str) -> None:
+        """Drop temporary deduplication state after a case run finishes."""
+        self._finding_keys.pop(case_id, None)
+        self._finding_omitted.pop(case_id, None)
 
     def delete(self, case_id: str) -> None:
+        self.release_case_cache(case_id)
         case_dir = self.path(case_id)
         shutil.rmtree(case_dir)
         with self._connect() as conn:

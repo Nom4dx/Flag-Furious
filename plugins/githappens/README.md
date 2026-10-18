@@ -17,3 +17,8 @@ oggetti malformati o raggiunge il limite di inventario; i link simbolici dentro
 `objects/` vengono ignorati.
 Le anteprime degli artefatti testuali leggono al massimo 2 MiB e mostrano una nota
 esplicita quando il contenuto supera tale limite.
+
+Il riepilogo del caso conserva al massimo 50.000 finding e 100 warning distinti;
+le coperture mostrano quanti elementi sono stati omessi. Un caso con warning,
+errori di fase o coverage troncata termina con stato `partial`, che chiude anche
+lo stream SSE. I report dei moduli mantengono i dettagli specifici del modulo.

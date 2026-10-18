@@ -164,7 +164,7 @@ def events(case_id: str):
             payload = json.dumps({key: current.get(key) for key in ("status", "phase", "progress", "result")})
             if payload != previous:
                 yield f"data: {payload}\n\n"; previous = payload
-            if current["status"] in {"complete", "failed", "cancelled"}:
+            if current["status"] in {"complete", "partial", "failed", "cancelled"}:
                 return
             time.sleep(1)
     return StreamingResponse(stream(), media_type="text/event-stream")
