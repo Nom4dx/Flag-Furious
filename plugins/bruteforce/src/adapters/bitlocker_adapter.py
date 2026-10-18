@@ -46,11 +46,20 @@ class BitLockerAdapter(PasswordAdapter):
         import pybde
         path=self.path(artifact);region=_volume(path)
         if not region:raise ValueError('bitlocker signature not found')
-        view=_Slice(path,*region);handle=pybde.volume();handle.open_file_object(view)
-        compact=''.join(c for c in password if c.isdigit())
-        if len(compact)==48:handle.set_recovery_password(password)
-        else:handle.set_password(password)
-        return view,handle,bool(handle.unlock() and not handle.locked)
+        view=_Slice(path,*region);handle=None
+        try:
+            handle=pybde.volume()
+            handle.open_file_object(view)
+            compact=''.join(c for c in password if c.isdigit())
+            if len(compact)==48:handle.set_recovery_password(password)
+            else:handle.set_password(password)
+            return view,handle,bool(handle.unlock() and not handle.locked)
+        except Exception:
+            if handle is not None:
+                try:handle.close()
+                except Exception:pass
+            view.close()
+            raise
     def verify_password(self,artifact,password,context):
         """Ask libbde to validate the VMK; parsing alone is not success."""
         try:view,handle,valid=self._open(artifact,password);handle.close();view.close();return {'valid':valid,'reason':'verified_by_libbde' if valid else 'wrong_password'}
@@ -78,13 +87,17 @@ class BitLockerAdapter(PasswordAdapter):
             limit=context['limits'].max_output;size=int(handle.size)
             if size>limit:return []
             root=Path(context['output_dir'])/'bruteforce'/'unlocked';root.mkdir(parents=True,exist_ok=True);target=root/'bitlocker-volume.raw';digest=hashlib.sha256()
-            with target.open('xb') as destination:
-                remaining=size
-                while remaining:
-                    data=handle.read(min(8*1024*1024,remaining))
-                    if not data:break
-                    destination.write(data);digest.update(data);remaining-=len(data)
-            if remaining:target.unlink(missing_ok=True);return []
+            try:
+                with target.open('xb') as destination:
+                    remaining=size
+                    while remaining:
+                        data=handle.read(min(8*1024*1024,remaining))
+                        if not data:break
+                        destination.write(data);digest.update(data);remaining-=len(data)
+                if remaining:target.unlink(missing_ok=True);return []
+            except Exception:
+                target.unlink(missing_ok=True)
+                raise
             target.chmod(0o400);return [{'artifact_id':'artifact-'+digest.hexdigest()[:16],'path':str(target),'name':target.name,'sha256':digest.hexdigest(),'size':size,'detected_type':'decrypted filesystem image','writable':False}]
         finally:handle.close();view.close()
 
@@ -117,33 +130,37 @@ class BitLockerAdapter(PasswordAdapter):
         if not which('bitlocker2john') or not which('hashcat'):return {'status':'not_supported','attempts':0,'successes':[],'failures':[],'duration':0}
         started=time.monotonic()
         probe=run('bitlocker2john',['-i',str(self.path(artifact))],min(120,context['limits'].timeout_seconds))
-        if probe.get('output_truncated') or probe.get('status')=='timeout':return {'status':'partial','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        if probe.get('exit_code')!=0 or probe.get('output_truncated') or probe.get('status')!='completed':return {'status':'partial','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         lines=[line[line.find('$bitlocker$'):].strip().encode() for line in (probe.get('stdout','')+'\n'+probe.get('stderr','')).splitlines() if '$bitlocker$0$' in line]
         if not lines:return {'status':'corrupted_artifact','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        if len(lines[0])>min(64*1024,max(0,context['limits'].max_output-1)):return {'status':'partial','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         root=Path(context['output_dir'])/'bruteforce'/'bitlocker-recovery'/uuid.uuid4().hex;root.mkdir(parents=True,exist_ok=False)
         hash_file=root/'bitlocker.hash';candidate_file=root/'candidates.txt';found_file=root/'found.txt'
-        hash_file.write_bytes(lines[0]+b'\n');seen=set();attempts=0
-        candidate_bytes=0;candidate_budget=context['limits'].max_output
-        with candidate_file.open('w',encoding='utf-8',newline='\n') as output:
-            for value,_origin,_line in candidates:
-                if value in seen:continue
-                if not isinstance(value,str) or len(value)>4096:continue
-                encoded_size=len(value.encode('utf-8'))+1
-                if candidate_bytes+encoded_size>candidate_budget:break
-                seen.add(value);output.write(value+'\n');attempts+=1
-                candidate_bytes+=encoded_size
-                if attempts>=context['limits'].max_attempts:break
-        if not attempts:
-            hash_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True)
-            root.rmdir()
-            return {'status':'not_found','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
-        timeout=max(1,context['limits'].timeout_seconds-int(time.monotonic()-started))
-        done=run('hashcat',['-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],timeout,max_stdout=1024*1024,max_file_size=context['limits'].max_output)
-        if done['status']!='completed':
-            found_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True);hash_file.unlink(missing_ok=True)
-            root.rmdir()
-            return {'status':'timeout' if done['status']=='timeout' else 'partial','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
-        password=found_file.read_text(encoding='utf-8',errors='replace').splitlines()[0] if found_file.is_file() and found_file.stat().st_size else None
-        found_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True);hash_file.unlink(missing_ok=True)
-        root.rmdir()
-        return {'status':'success' if password else 'not_found','attempts':attempts,'successes':[{'password':password,'origin':'selected_wordlists','line':None,'verification':{'valid':True,'reason':'hashcat_bitlocker_22100'}}] if password else [],'failures':[],'duration':time.monotonic()-started}
+        try:
+            hash_file.write_bytes(lines[0]+b'\n');seen=set();attempts=0
+            candidate_bytes=0;candidate_budget=context['limits'].max_output
+            with candidate_file.open('w',encoding='utf-8',newline='\n') as output:
+                for value,_origin,_line in candidates:
+                    if not isinstance(value,str) or len(value)>4096:continue
+                    if value in seen:continue
+                    encoded_size=len(value.encode('utf-8'))+1
+                    if candidate_bytes+encoded_size>candidate_budget:break
+                    seen.add(value);output.write(value+'\n');attempts+=1
+                    candidate_bytes+=encoded_size
+                    if attempts>=context['limits'].max_attempts:break
+            if not attempts:
+                return {'status':'not_found','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+            timeout=max(1,context['limits'].timeout_seconds-int(time.monotonic()-started))
+            done=run('hashcat',['-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],timeout,max_stdout=1024*1024,max_file_size=context['limits'].max_output)
+            if done['status']!='completed':
+                return {'status':'timeout' if done['status']=='timeout' else 'partial','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
+            password=None
+            if found_file.is_file():
+                with found_file.open('rb') as source:raw=source.read(4097)
+                if len(raw)>4096:
+                    return {'status':'partial','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
+                password=raw.decode('utf-8',errors='replace').splitlines()[0] if raw else None
+            return {'status':'success' if password else 'not_found','attempts':attempts,'successes':[{'password':password,'origin':'selected_wordlists','line':None,'verification':{'valid':True,'reason':'hashcat_bitlocker_22100'}}] if password else [],'failures':[],'duration':time.monotonic()-started}
+        finally:
+            import shutil
+            shutil.rmtree(root,ignore_errors=True)
