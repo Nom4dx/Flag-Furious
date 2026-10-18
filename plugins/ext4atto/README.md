@@ -42,7 +42,10 @@ limitate aggiungono un warning al job, la tabella Markdown mostra la copertura e
 `GET /api/jobs/{id}/artifacts?scan_status=partial` filtra gli artefatti incompleti.
 Il motore conserva al massimo 100 warning deduplicati, con gli omessi esposti in
 `metrics.warning_coverage`; comandi TSK mancanti o con codice di uscita non zero
-generano warning di fase invece di apparire come inventari vuoti completi.
+generano warning di fase invece di apparire come inventari vuoti completi. Se
+`srch_strings` non parte perché il budget stdout TSK è esaurito, l'immagine non viene
+contata come già letta: la ricerca prova il fallback a blocchi entro il budget nativo
+residuo.
 L'export ZIP del caso usa uno spool che passa su disco oltre 8 MiB e rifiuta
 archivi oltre 64 MiB o 50.000 voci (HTTP 413); symlink e percorsi fuori dalla root
 degli artefatti non vengono inclusi.

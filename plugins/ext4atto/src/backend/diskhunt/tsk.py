@@ -167,7 +167,7 @@ class TSK:
         remaining = self._remaining_output()
         if not remaining:
             self.warn("srch_strings: budget cumulativo output TSK esaurito")
-            return []
+            return None
         proc = run_bounded(argv, timeout=self.timeout, max_stdout=min(64 * 1024 * 1024, remaining))
         self.output_bytes += len(proc["stdout"])
         if proc["truncated"] or proc["timed_out"]:
