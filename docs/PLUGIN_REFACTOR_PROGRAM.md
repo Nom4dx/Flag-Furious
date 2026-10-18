@@ -76,7 +76,7 @@ nascodono aggiornando attese senza spiegazione.
 | archive-extractor | refactor | Matcher ZIP corretto; AES/ZipCrypto distinti, cifratura e vista incompleta parziali; inventario limitato a 10.000 membri. Restano validatori e fixture |
 | text-inspector | refactor | Preview limitata a 16 KiB e conteggi marcati parziali; restano offset e decodifica dichiarata |
 | pic-up | refactor | Matcher limitato a stream, immagini e archivi; candidate convertite in finding/flag; accetta tutti i prefissi |
-| hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate al risultato; restano provenance frame-level e limiti dichiarati |
+| hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate; diagnostics e input troncato producono `partial`; restano provenance frame-level e limiti dichiarati |
 | githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; warning/errori propagati come esito parziale. Restano limiti adapter e fixture |
 | ext4atto | refactor | Warning include `mmls` mancante e soglia reale di recupero; restano limiti TSK/output da verificare |
 | binary-static-analysis | audit | Trovato disallineamento: warning delle fasi non influenza `status`; file e directory del plugin sono root-owned e non modificabili dall’utente workspace, quindi il fix resta da fare dopo ripristino permessi |
