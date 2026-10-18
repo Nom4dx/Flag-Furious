@@ -166,6 +166,7 @@ class Plugin(BasePlugin):
                     "compressed_size": member.compress_size,
                     "crc": f"{member.CRC:08x}",
                     "offset": member.header_offset,
+                    "offset_scope": "archive",
                     "status": "pending",
                 }
                 rows.append(row)
@@ -249,6 +250,7 @@ class Plugin(BasePlugin):
                             "source_member_truncated": member_name["name_truncated"],
                             "source_member_sha256": member_name["name_sha256"],
                             "source_offset": member.header_offset,
+                            "source_offset_scope": "archive",
                             "source_size": member.file_size,
                             "compressed_size": member.compress_size,
                             "sha256": digest.hexdigest(),

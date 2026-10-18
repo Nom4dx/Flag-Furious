@@ -91,6 +91,11 @@
             "format": "hex"
           },
           {
+            "field": "offset_scope",
+            "label": "Ambito offset",
+            "format": "text"
+          },
+          {
             "field": "compressed_size",
             "label": "Dimensione compressa",
             "format": "bytes"

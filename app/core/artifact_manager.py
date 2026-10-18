@@ -84,5 +84,8 @@ class ArtifactManager:
             value = item.get(key)
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 artifact[key] = value
+        scope = item.get("source_offset_scope")
+        if isinstance(scope, str):
+            artifact["source_offset_scope"] = scope[:64]
         self.store.put("artifact", artifact)
         return artifact, derived

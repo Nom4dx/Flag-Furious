@@ -31,3 +31,6 @@ il [programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i gate
 ancora aperti.
 I nomi visualizzati sono limitati a 512 byte UTF-8; il booleano di troncamento e
 lo SHA-256 del nome Unicode interpretato distinguono i prefissi abbreviati.
+Gli offset sono relativi all'inizio dell'archivio (source_offset_scope=archive);
+per un archivio derivato, la catena degli asset padre permette di risalire alla
+fonte senza presentarli come offset assoluti dell'evidenza.
