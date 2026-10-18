@@ -1,14 +1,15 @@
 from __future__ import annotations
 import re
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Callable
+from .bounded_process import run_bounded
 
 
 class TSK:
-    def __init__(self, image: Path, logger: Callable[..., None], timeout: int = 120):
-        self.image = image; self.logger = logger; self.timeout = timeout
+    def __init__(self, image: Path, logger: Callable[..., None], timeout: int = 120,
+                 warn: Callable[[str], None] | None = None):
+        self.image = image; self.logger = logger; self.timeout = timeout; self.warn = warn or (lambda _message: None)
 
     def run(self, command: str, *args: str) -> tuple[int, str]:
         return self._execute(command, list(args), [])
@@ -20,15 +21,25 @@ class TSK:
             return 127, ""
         argv = [binary, *args, str(self.image), *tail]
         printable = " ".join(argv)
-        try:
-            proc = subprocess.run(argv, capture_output=True, text=True, errors="replace", timeout=self.timeout,
-                                  env={"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"})
-            raw = (proc.stdout + ("\n" + proc.stderr if proc.stderr else ""))[:2_000_000]
-            self.logger("INFO" if proc.returncode == 0 else "WARNING", f"command exited {proc.returncode}", printable, raw)
-            return proc.returncode, proc.stdout
-        except subprocess.TimeoutExpired:
-            self.logger("ERROR", f"command timed out after {self.timeout}s", printable, "")
+        proc = run_bounded(argv, timeout=self.timeout, max_stdout=8 * 1024 * 1024)
+        stdout = proc["stdout"].decode("utf-8", "replace")
+        stderr = proc["stderr"].decode("utf-8", "replace")
+        if proc["truncated"]:
+            message = f"{command}: output troncato ai limiti di processo; risultati parziali"
+            self.warn(message)
+            self.logger("WARNING", message, printable, (stdout + "\n" + stderr)[:2_000_000])
+        elif proc["timed_out"]:
+            self.warn(f"{command}: timeout dopo {self.timeout}s; risultati parziali")
+            self.logger("ERROR", f"command timed out after {self.timeout}s", printable, stderr)
             return 124, ""
+        if proc["stderr_truncated"]:
+            self.warn(f"{command}: stderr limitato")
+        else:
+            self.logger("INFO" if proc["returncode"] == 0 else "WARNING",
+                        f"command exited {proc['returncode']}", printable,
+                        (stdout + ("\n" + stderr if stderr else ""))[:2_000_000])
+        # Retain parseable output from capped listings; the warning records incomplete coverage.
+        return (0 if proc["truncated"] else proc["returncode"]), stdout
 
     def filesystem_stats(self, sector_offset: int) -> str:
         return self.run("fsstat", "-o", str(sector_offset))[1]
@@ -60,19 +71,25 @@ class TSK:
                           "status": status, **timestamps})
         return files
 
-    def recover(self, sector_offset: int, inode: int, target: Path, deleted: bool = False) -> bool:
+    def recover(self, sector_offset: int, inode: int, target: Path, deleted: bool = False,
+                max_bytes: int = 64 * 1024 * 1024) -> bool:
         binary = shutil.which("icat")
         if not binary: return False
         argv = [binary]
         if deleted: argv.append("-r")
         argv += ["-o", str(sector_offset), str(self.image), str(inode)]
         try:
-            with target.open("xb") as output:
-                proc = subprocess.run(argv, stdout=output, stderr=subprocess.PIPE, timeout=self.timeout)
-            self.logger("INFO" if proc.returncode == 0 else "WARNING", f"icat inode {inode} exited {proc.returncode}", " ".join(argv), proc.stderr.decode("utf-8", "replace"))
-            return proc.returncode == 0 and target.stat().st_size > 0
-        except (subprocess.TimeoutExpired, FileExistsError):
+            proc = run_bounded(argv, timeout=self.timeout, max_stdout=max_bytes,
+                               output_path=target)
+        except FileExistsError:
             return False
+        if proc["timed_out"] or proc["truncated"] or proc["returncode"] != 0:
+            target.unlink(missing_ok=True)
+            message = f"icat inode {inode}: recupero incompleto o oltre limite"
+            self.warn(message); self.logger("WARNING", message, " ".join(argv), proc["stderr"].decode("utf-8", "replace"))
+            return False
+        self.logger("INFO", f"icat inode {inode} recovered {target.stat().st_size} bytes", " ".join(argv), proc["stderr"].decode("utf-8", "replace"))
+        return target.stat().st_size > 0
 
     def inode_stats(self, sector_offset: int, inode: int) -> str:
         return self._execute("istat", ["-o", str(sector_offset)], [str(inode)])[1]
@@ -94,21 +111,24 @@ class TSK:
         if not binary: return False, False
         flag = "-s" if mode == "slack" else "-A"
         argv = [binary, flag, "-o", str(sector_offset), str(self.image)]
-        target.parent.mkdir(parents=True, exist_ok=True); written = 0; truncated = False
+        target.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with target.open("xb") as output:
-                proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                assert proc.stdout is not None
-                while block := proc.stdout.read(min(1024 * 1024, max_bytes - written + 1)):
-                    if written + len(block) > max_bytes:
-                        output.write(block[:max_bytes-written]); truncated = True; proc.terminate(); break
-                    output.write(block); written += len(block)
-                _, stderr = proc.communicate(timeout=10)
-            self.logger("INFO" if proc.returncode in {0, -15} else "WARNING", f"blkls {mode} produced {target.stat().st_size} bytes", " ".join(argv), stderr.decode("utf-8", "replace"))
-            return target.stat().st_size > 0, truncated
-        except (subprocess.TimeoutExpired, FileExistsError) as exc:
-            self.logger("WARNING", f"blkls {mode} failed: {exc}", " ".join(argv), "")
-            return target.exists() and target.stat().st_size > 0, truncated
+            proc = run_bounded(argv, timeout=self.timeout, max_stdout=max_bytes,
+                               output_path=target)
+        except FileExistsError:
+            return target.exists() and target.stat().st_size > 0, False
+        if proc["timed_out"]:
+            self.warn(f"blkls {mode}: timeout, dump parziale")
+        if proc["truncated"]:
+            self.warn(f"blkls {mode}: dump limitato a {max_bytes} byte")
+        if proc["stderr_truncated"]:
+            self.warn(f"blkls {mode}: stderr limitato")
+        if not target.exists():
+            return False, proc["truncated"] or proc["timed_out"]
+        self.logger("INFO" if proc["returncode"] == 0 and not proc["timed_out"] else "WARNING",
+                    f"blkls {mode} produced {target.stat().st_size} bytes", " ".join(argv),
+                    proc["stderr"].decode("utf-8", "replace"))
+        return target.stat().st_size > 0, proc["truncated"] or proc["timed_out"]
 
     def search_strings(self, patterns) -> list[dict] | None:
         """Stream srch_strings output, retaining matching evidence without buffering all strings."""
@@ -116,19 +136,21 @@ class TSK:
         if not binary: return None
         from .scanner import scan_bytes
         argv = [binary, "-a", "-t", "d", str(self.image)]; found = []; evidence = []
-        try:
-            proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                match = re.match(r"\s*(\d+)\s+(.*)", line.rstrip("\n"))
-                if not match: continue
-                offset, value = int(match.group(1)), match.group(2).encode("utf-8", "replace")
-                matches = scan_bytes(value, offset, patterns, source="srch_strings", method="raw")
-                if matches:
-                    found.extend(matches)
-                    if len(evidence) < 500: evidence.append(line.rstrip())
-            _, stderr = proc.communicate(timeout=self.timeout)
-            self.logger("INFO" if proc.returncode == 0 else "WARNING", f"srch_strings found {len(found)} flag candidates", " ".join(argv), "\n".join(evidence) + stderr)
-        except subprocess.TimeoutExpired:
-            proc.kill(); self.logger("WARNING", "srch_strings timed out", " ".join(argv), "")
+        proc = run_bounded(argv, timeout=self.timeout, max_stdout=64 * 1024 * 1024)
+        if proc["truncated"] or proc["timed_out"]:
+            self.warn("srch_strings: output o tempo limitato; ricerca parziale")
+        for line in proc["stdout"].decode("utf-8", "replace").splitlines():
+            match = re.match(r"\s*(\d+)\s+(.*)", line.rstrip("\n"))
+            if not match: continue
+            offset, value = int(match.group(1)), match.group(2).encode("utf-8", "replace")
+            matches = scan_bytes(value, offset, patterns, source="srch_strings", method="raw")
+            if matches:
+                found.extend(matches[:max(0, 10_000-len(found))])
+                if len(evidence) < 500: evidence.append(line.rstrip())
+                if len(found) >= 10_000:
+                    self.warn("srch_strings: finding limit 10000 raggiunto")
+                    break
+        self.logger("INFO" if proc["returncode"] == 0 else "WARNING",
+                    f"srch_strings found {len(found)} flag candidates", " ".join(argv),
+                    ("\n".join(evidence) + proc["stderr"].decode("utf-8", "replace"))[:2_000_000])
         return found

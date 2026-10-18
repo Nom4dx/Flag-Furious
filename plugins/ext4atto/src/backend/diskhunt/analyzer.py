@@ -50,7 +50,7 @@ class Analyzer:
             self.db.update_job(self.job_id, image_path=str(image)); self.completed.append("image preparation")
             patterns = compile_flag_patterns(options.prefix, options.prefix_is_regex, options.prefixes)
             catalog = ArtifactCatalog(self.db, self.job_id, workdir / "artifacts", patterns)
-            tsk = TSK(image, self.log)
+            tsk = TSK(image, self.log, warn=self.warnings.append)
             self.phase("image triage", 13); tsk.image_triage(); self.completed.append("image triage")
             self.phase("partition analysis", 18)
             with image.open("rb") as handle: table, partitions, anomalies = inspect_partitions(handle, image.stat().st_size)
@@ -104,7 +104,8 @@ class Analyzer:
             exhausted = bool(budget.exhausted_phases) or budget.stats()["remaining"] == 0
             if exhausted:
                 stats["incomplete_phases"] = sorted(budget.exhausted_phases)
-            self.db.update_job(self.job_id, status="PARTIAL" if exhausted else "COMPLETED", phase="budget exhausted; checkpoint saved" if exhausted else "complete", progress=100, stats=stats, warnings=self.warnings)
+            partial = exhausted or bool(self.warnings)
+            self.db.update_job(self.job_id, status="PARTIAL" if partial else "COMPLETED", phase="coverage limited; checkpoint saved" if partial else "complete", progress=100, stats=stats, warnings=self.warnings)
         except InterruptedError as exc:
             stats.update({"budget": budget.stats(), "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3)})
             self.db.update_job(self.job_id, status="CANCELLED", phase="cancelled", stats=stats, error=str(exc))
@@ -182,7 +183,7 @@ class Analyzer:
             target = artifacts / f"p{part['number']}_i{item['inode']}_{safe_filename(item['name'])}"
             deleted = bool(item["deleted"])
             ok = target.exists() and target.stat().st_size > 0
-            if not ok: ok = tsk.recover(part["start_sector"], item["inode"], target, deleted)
+            if not ok: ok = tsk.recover(part["start_sector"], item["inode"], target, deleted, max_bytes=min(64 * 1024 * 1024, item["size"]))
             status = "RECOVERED" if deleted and ok else "VISIBLE" if ok else "UNRECOVERABLE"
             item["recovery_status"] = status; item["integrity_percent"] = 80 if deleted and ok else 100 if ok else 0
             if ok:
