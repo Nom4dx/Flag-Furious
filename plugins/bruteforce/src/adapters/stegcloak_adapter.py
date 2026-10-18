@@ -11,7 +11,7 @@ class StegCloakAdapter(PasswordAdapter):
   if c.get('protection_type')=='stegsnow':return run('stegsnow',['-C','-p',p,str(self.path(a))],c['limits'].timeout_seconds,secret_indexes=(2,),max_stdout=output_limit)
   return run('stegcloak',['reveal','-f',str(self.path(a)),'-p',p],c['limits'].timeout_seconds,secret_indexes=(4,),max_stdout=output_limit)
  def verify_password(self,a,p,c):
-  r=self._decode(a,p,c);return {'valid':r['exit_code']==0 and bool(r['stdout']),'reason':'decoded_text' if r['exit_code']==0 else r['status'],'audit':r}
+  r=self._decode(a,p,c);valid=r['exit_code']==0 and not r.get('output_truncated') and bool(r['stdout']);return {'valid':valid,'reason':'decoded_text' if valid else r['status'],'audit':r}
  def extract(self,a,p,c):
   r=self._decode(a,p,c)
   if r['exit_code']!=0 or r.get('output_truncated'):raise ValueError(r['status'])

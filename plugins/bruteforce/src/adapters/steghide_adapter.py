@@ -8,8 +8,17 @@ class SteghideAdapter(PasswordAdapter):
  name='steghide_adapter';supported_formats=['jpeg','bmp','wav','au'];supported_protections=['steghide']
  def can_handle(self,a,c):return self.path(a).suffix.lower() in {'.jpg','.jpeg','.bmp','.wav','.au'}
  def verify_password(self,a,p,c):
-  target=Path(c['output_dir'])/'steghide-probe.bin';r=run('steghide',['extract','-sf',str(self.path(a)),'-p',p,'-xf',str(target),'-f'],c['limits'].timeout_seconds,secret_indexes=(4,),max_file_size=c['limits'].max_output);ok=r['exit_code']==0 and not r.get('output_truncated') and target.is_file() and target.stat().st_size<=c['limits'].max_output;return {'valid':ok,'reason':'payload_extracted' if ok else r['status'],'audit':r,'probe':str(target) if ok else None}
+  target=Path(c['output_dir'])/'steghide-probe.bin'
+  try:
+   r=run('steghide',['extract','-sf',str(self.path(a)),'-p',p,'-xf',str(target),'-f'],c['limits'].timeout_seconds,secret_indexes=(4,),max_file_size=c['limits'].max_output);ok=r['exit_code']==0 and not r.get('output_truncated') and target.is_file() and target.stat().st_size<=c['limits'].max_output
+   return {'valid':ok,'reason':'payload_extracted' if ok else r['status'],'audit':r}
+  finally:target.unlink(missing_ok=True)
  def extract(self,a,p,c):
-  check=self.verify_password(a,p,c)
-  if not check['valid']:raise ValueError(check['reason'])
-  target=Path(check['probe']);return [extracted(target,c['limits'].max_output)]
+  target=Path(c['output_dir'])/'unlocked-steghide.bin'
+  r=run('steghide',['extract','-sf',str(self.path(a)),'-p',p,'-xf',str(target),'-f'],c['limits'].timeout_seconds,secret_indexes=(4,),max_file_size=c['limits'].max_output)
+  try:
+   if r['exit_code']!=0 or r.get('output_truncated') or not target.is_file():raise ValueError(r['status'])
+   return [extracted(target,c['limits'].max_output)]
+  except Exception:
+   target.unlink(missing_ok=True)
+   raise
