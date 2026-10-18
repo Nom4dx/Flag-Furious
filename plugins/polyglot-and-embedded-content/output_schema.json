@@ -62,7 +62,7 @@
       {"id": "scripts", "title": "Script and SFX", "source": "data.script_analysis.items", "type": "details", "group": "formats", "order": 130},
       {"id": "decoys", "title": "Decoys", "source": "data.decoys.items", "type": "table", "group": "evidence", "order": 140},
       {"id": "payloads", "title": "Payloads", "source": "data.payloads.items", "type": "table", "group": "evidence", "order": 150},
-      {"id": "flags", "title": "Flag candidates", "source": "flags", "type": "table", "group": "evidence", "order": 160, "fields": [{"field": "value", "label": "Valore", "format": "code"}, {"field": "classification", "label": "Classe"}, {"field": "source", "label": "Origine"}, {"field": "offset", "label": "Offset", "format": "hex"}, {"field": "decoder", "label": "Decoder"}, {"field": "confidence", "label": "Confidenza", "format": "percent"}]},
+      {"id": "flags", "title": "Flag candidates", "source": "flags", "type": "table", "group": "evidence", "order": 160, "fields": [{"field": "value", "label": "Valore", "format": "code"}, {"field": "classification", "label": "Classe"}, {"field": "source", "label": "Origine"}, {"field": "offset", "label": "Offset sorgente", "format": "hex"}, {"field": "offset_scope", "label": "Ambito offset"}, {"field": "decoded_offset", "label": "Offset decodificato", "format": "hex"}, {"field": "source_offset", "label": "Offset candidato codificato", "format": "hex"}, {"field": "artifact_sha256", "label": "SHA-256 artefatto", "format": "code"}, {"field": "decoder", "label": "Decoder"}, {"field": "confidence", "label": "Confidenza", "format": "percent"}]},
       {"id": "graph", "title": "Artifact graph", "source": "data.artifact_graph.items", "type": "visualization_list", "group": "graphs", "order": 170}
     ]
   }

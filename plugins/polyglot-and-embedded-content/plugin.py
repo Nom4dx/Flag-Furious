@@ -194,7 +194,7 @@ class Plugin(BasePlugin):
                     artifact_data = source.read(16 * 1024 * 1024)
                 if artifact_size > len(artifact_data):
                     warnings.append(f"Flag scan limitato a 16 MiB per {artifact.get('name')}")
-                flag_sources.append({"data": artifact_data, "source": artifact["name"], "artifact_sha256": artifact["sha256"], "format": artifact.get("format"), "confidence": artifact.get("confidence", .95), "chain": ["input", artifact.get("extraction_method", "carved"), artifact["name"]]})
+                flag_sources.append({"data": artifact_data, "source": artifact["name"], "artifact_id": artifact.get("id"), "artifact_sha256": artifact["sha256"], "format": artifact.get("format"), "confidence": artifact.get("confidence", .95), "chain": ["input", artifact.get("extraction_method", "carved"), artifact["name"]]})
             except OSError as exc: warnings.append(f"Flag scan artefatto {artifact.get('name')}: {exc}")
         flags = hunt_flags(flag_sources, context.get("prefixes", []))
         # Continue raw flag hunting across the granted view in bounded chunks.

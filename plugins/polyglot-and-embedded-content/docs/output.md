@@ -13,3 +13,9 @@ Le sezioni della dashboard mostrano prima identità e formati validati, poi prov
 e confini, oggetti, parser specifici, decoy, payload e flag. I dati raw sono
 disponibili soltanto su apertura del dettaglio.
 
+Gli offset dei flag hanno uno scope esplicito: `input` è relativo all'asset
+originale, `artifact` è relativo all'artefatto identificato dal suo SHA-256 e
+`decoded_payload` non presenta un offset sorgente artificiale. Per i payload
+decodificati, `decoded_offset` localizza il match nel contenuto trasformato e
+`source_offset` indica solo l'inizio del candidato codificato nell'input.
+
