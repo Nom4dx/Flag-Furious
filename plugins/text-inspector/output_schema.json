@@ -63,7 +63,37 @@
         "type": "auto",
         "group": "content",
         "order": 2,
-        "description": "Anteprima UTF-8 fino a 16 KiB; i conteggi descrivono al massimo 64 MiB e includono SHA-256 della vista analizzata."
+        "description": "Anteprima decodificata secondo BOM o UTF-8 fino a 16 KiB; misure e SHA-256 descrivono la vista entro il budget."
+      },
+      {
+        "id": "text-lines",
+        "title": "Righe e offset di byte",
+        "source": "data.lines",
+        "type": "table",
+        "group": "content",
+        "order": 3,
+        "fields": [
+          {"field": "line", "label": "Riga", "format": "number"},
+          {"field": "byte_offset", "label": "Offset byte", "format": "number"},
+          {"field": "line_bytes", "label": "Byte riga", "format": "bytes"},
+          {"field": "text", "label": "Testo", "format": "text"},
+          {"field": "truncated", "label": "Testo riga abbreviato", "format": "boolean"}
+        ]
+      },
+      {
+        "id": "invisible-characters",
+        "title": "Caratteri invisibili e di controllo",
+        "source": "data.invisible-characters",
+        "type": "table",
+        "group": "content",
+        "order": 4,
+        "fields": [
+          {"field": "codepoint", "label": "Code point", "format": "code"},
+          {"field": "name", "label": "Nome Unicode", "format": "text"},
+          {"field": "category", "label": "Categoria", "format": "code"},
+          {"field": "character_index", "label": "Indice carattere", "format": "number"},
+          {"field": "byte_offset", "label": "Offset byte", "format": "number"}
+        ]
       }
     ],
     "include_unmapped": true

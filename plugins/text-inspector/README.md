@@ -9,7 +9,11 @@ dei byte e anteprima limitata. Non interpreta il contenuto come codice né visit
 
 Le misure descrivono solo i byte visibili nel budget del job. Un input troncato viene
 marcato `partial`; la vista di contenuto restituita è limitata a 16 KiB per non
-duplicare l'intero asset nel risultato. Il conteggio righe considera CR/LF ASCII.
+duplicare l'intero asset nel risultato. Il decoder è scelto dal BOM (UTF-8/16/32),
+altrimenti usa UTF-8; le sequenze invalide sono sostituite e dichiarate. La tabella
+righe indica offset assoluti in byte nella vista e mostra al massimo 200 righe. La
+scansione di caratteri invisibili/control copre la sola anteprima, al massimo 100
+occorrenze; con sequenze invalide gli offset Unicode non vengono dichiarati.
 
 Per nuove famiglie di contenuto aggiungere un matcher positivo e una presentazione
 dichiarativa in `output_schema.json`; non allargare il matcher a tutti i file.
