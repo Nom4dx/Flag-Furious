@@ -80,13 +80,13 @@ nascodono aggiornando attese senza spiegazione.
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga candidate; TShark limitato per tempo/byte/righe; hash core riusato e `capinfos` con timeout; diagnostics producono `partial` |
 | githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; copia input limitata, export derivati max 64/budget e warning per vista parziale. Restano limiti scansione directory e fixture |
 | ext4atto | refactor | Matcher immagine/partizioni; query risultati limitate, tolta rilettura completa a ogni fase; TSK non contabilizzato è dichiarato e rende `partial` |
-| binary-static-analysis | refactor | `status=partial` ora riflette warning delle fasi e copertura incompleta; restano gate di fixture/contratto e matrice verificata formati/tool |
-| document-metadata-forensics | refactor | Matcher allineato alla validazione su file montato; input oltre byte budget ora dichiarato `partial`; restano matrice formati e gate fixture/contratto |
-| polyglot-and-embedded-content | refactor | Flag scan degli artefatti derivati bounded e parzialità esplicita; restano confini/duplicati e gate fixture/contratto |
-| seganografy | refactor | Detection del tipo artefatto limitata a 1 MiB e partial dichiarato; restano falsi positivi/tool opzionali e gate fixture/contratto |
+| binary-static-analysis | refactor | Warning di coverage; entropy/string limits e input parziale espliciti; YARA limitato a prefisso 64 MiB e disassembly max 20.000 istruzioni |
+| document-metadata-forensics | refactor | Matcher allineato; source size separata dalla vista; regex custom con timeout, cap testo e contesto configurato |
+| polyglot-and-embedded-content | refactor | Flag scan artefatti bounded e parzialità dichiarata anche per vista importata incompleta; restano confini/duplicati |
+| seganografy | refactor | Type detection artefatti limitata a 1 MiB; input parziale esplicito, restano falsi positivi/tool opzionali |
 | log-forensics | refactor | Asset inline limitato e parzialità visibile; restano schema/regole/timestamp e gate fixture/contratto |
-| encrypted-volume-forensics | refactor | Ogni warning di copertura produce `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker e gate fixture/contratto |
-| bruteforce | refactor | Matcher da 64 MiB ridotto a campione prefix/tail; PDF e Office adapter senza letture massive/ripetute; restano matrice adapter/limiti e gate fixture/contratto |
+| encrypted-volume-forensics | refactor | Ogni warning e vista importata parziale producono `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker |
+| bruteforce | refactor | Matcher bounded; inventory wordlist budgetato e righe enormi ignorate; ZIP AES senza pyzipper risulta unsupported e interrompe tentativi inutili |
 
 ### Rilievi specialistici e correzioni in corso
 

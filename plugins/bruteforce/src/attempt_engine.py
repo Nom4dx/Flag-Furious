@@ -13,6 +13,12 @@ def run(adapter,artifact,candidates,context,progress,stop_on_first=True):
             if digest in seen:continue
             seen.add(digest);progress.attempts+=1;progress.last_index=line;progress.current_wordlist=origin
             result=adapter.verify_password(artifact,password,context)
+            if result.get('reason') in {'unsupported_encryption','corrupted_artifact','not_encrypted'}:
+                failure={'candidate_hash':digest,'origin':origin,'line':line,'reason':result['reason']}
+                failures.append(failure)
+                status='not_supported' if result['reason']=='unsupported_encryption' else 'failed'
+                progress.status=status
+                return {'status':status,'attempts':progress.attempts,'successes':success,'failures':failures,'duration':time.monotonic()-started}
             if result.get('valid'):
                 success.append({'password':password,'value_hash':digest,'origin':origin,'line':line,'verification':result})
                 if stop_on_first:progress.status='success';return {'status':'success','attempts':progress.attempts,'successes':success,'failures':failures,'duration':time.monotonic()-started}

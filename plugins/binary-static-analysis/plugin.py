@@ -90,6 +90,8 @@ class Plugin(BasePlugin):
         started=time.monotonic();path=Path(asset["path"]);physical=path.stat().st_size
         budget=min(physical,int(context.get("byte_budget",physical)));output_budget=int(context.get("output_bytes",256*1024*1024))
         options=context.get("plugin_options",{}).get("binary-static-analysis",{});warnings=[];errors=[];events=[];runner=ToolRunner()
+        input_partial=bool(asset.get("partial_input")) or int(asset.get("size",physical))>physical
+        if input_partial:warnings.append(f"Input già parziale: vista montata {physical} byte su asset dichiarato {asset.get('size',physical)}")
 
         reporter.phase("Input e hash");phase=time.monotonic();identity=identify(path,asset,runner);events.append(self._event("Input e hash",phase,"completed"));reporter.log("Hash completi calcolati in streaming; originale aperto in sola lettura")
         if budget<physical:warnings.append(f"Analisi strutturale limitata a {budget} di {physical} byte")
@@ -111,7 +113,9 @@ class Plugin(BasePlugin):
         raw_analysis=analyze_raw(prefix) if not parsed else {"regions":[],"integer_candidates":[],"classification":"not_applicable"}
         events.append(self._event("Analisi strutturale",phase,"partial" if parser_error else "completed"))
 
-        reporter.phase("Stringhe ed entropia");phase=time.monotonic();strings=self._strings(path,budget);entropy=scan_entropy(path,budget);events.append(self._event("Stringhe ed entropia",phase,"completed"));reporter.log(f"{len(strings)} stringhe, entropia globale {entropy['global']}")
+        reporter.phase("Stringhe ed entropia");phase=time.monotonic();strings=self._strings(path,budget);entropy=scan_entropy(path,budget);events.append(self._event("Stringhe ed entropia",phase,"partial" if entropy.get("truncated") or len(strings)>=5000 else "completed"));reporter.log(f"{len(strings)} stringhe, entropia globale {entropy['global']}")
+        if entropy.get("truncated"):warnings.append("Entropia limitata dal byte budget o dal massimo di finestre")
+        if len(strings)>=5000:warnings.append("Estrazione stringhe fermata a 5.000 risultati")
         findings=list(parsed.get("findings",[]) if parsed else [])
         for row in strings:
             if row.get("category") in {"command_string","possible_credential","url","ip_address"}:
@@ -133,17 +137,21 @@ class Plugin(BasePlugin):
 
         reporter.phase("Disassemblaggio statico");phase=time.monotonic();instructions=[];functions={"functions":[],"blocks":[],"calls":[]};disassembly_warnings=[]
         if parsed and parsed.get("executable_regions"):
-            instructions,disassembly_warnings=disassemble(path,parsed["executable_regions"],parsed.get("architecture",""),parsed.get("bits",0),parsed.get("endian","little"),int(options.get("max_instructions",20000)))
+            instructions,disassembly_warnings=disassemble(path,parsed["executable_regions"],parsed.get("architecture",""),parsed.get("bits",0),parsed.get("endian","little"),min(20000,max(1,int(options.get("max_instructions",20000)))))
             functions=analyze_functions(instructions,parsed.get("entry_points",[]),parsed.get("symbols",[]))
         events.append(self._event("Disassemblaggio statico",phase,"completed" if instructions or not parsed else "skipped"))
 
         reporter.phase("Indicatori, YARA e flag");phase=time.monotonic();imports,import_findings=enrich_imports((parsed or {}).get("imports",[]));findings.extend(import_findings)
-        yara_matches,yara_warnings=scan_yara(path,options.get("yara_rules",[]),int(options.get("yara_timeout",20)));warnings.extend(yara_warnings)
+        yara_matches,yara_warnings=scan_yara(path,options.get("yara_rules",[]),int(options.get("yara_timeout",20)),budget);warnings.extend(yara_warnings)
         for match in yara_matches:findings.append(finding("yara_match","medium",match["confidence"],f"Regola locale {match['rule']} corrispondente",evidence=["YARA è pattern matching, non prova di comportamento"]))
         encryption,unlock_raw=detect_crypto(path,validated,entropy,asset.get("id",""));unlock_requests=requests_from(encryption,unlock_raw)
-        flags_result=global_flag_search(asset,{"prefixes":context.get("prefixes",["flag","CTF","HTB","picoCTF"]),"patterns":context.get("patterns",[]),"byte_budget":min(budget,64*1024*1024),"max_results":min(context.get("max_flags",100),500)})
+        flag_scan_budget=min(budget,64*1024*1024)
+        flags_result=global_flag_search(asset,{"prefixes":context.get("prefixes",["flag","CTF","HTB","picoCTF"]),"patterns":context.get("patterns",[]),"byte_budget":flag_scan_budget,"max_results":min(context.get("max_flags",100),500)})
         flags=[{**item,"source_file":asset.get("name",path.name),"technique":"binary_static_scan","status":"candidate","evidence":["pattern configurato trovato in dati statici"]} for item in flags_result["flags"]]
-        warnings.extend(flags_result.get("warnings",[]));events.append(self._event("Indicatori, YARA e flag",phase,"completed"))
+        warnings.extend(flags_result.get("warnings",[]))
+        if flags_result.get("status")=="partial":warnings.append("Ricerca flag parziale entro il budget consentito")
+        if flag_scan_budget<physical:warnings.append(f"Ricerca flag limitata a {flag_scan_budget} di {physical} byte")
+        events.append(self._event("Indicatori, YARA e flag",phase,"partial" if flags_result.get("status")=="partial" or yara_warnings else "completed"))
 
         structure=structure_graph(asset.get("name",path.name),physical,parsed,validated,artifacts,findings);code=code_graph((parsed or {}).get("entry_points",[]),functions,imports,instructions)
         entropy_visual={"type":"line","title":"Entropia per offset","data":[{"x":item["offset"],"y":item["entropy"],"category":item["category"]} for item in entropy["windows"]],"encoding":{"x":{"field":"x","type":"number"},"y":{"field":"y","type":"number"}},"palette":"code","options":{"interactive":True,"zoom":True,"pan":True,"tooltip":True}}
@@ -162,7 +170,7 @@ class Plugin(BasePlugin):
         sections.append(section("metrics","Metrics",910,[metrics],kind="metrics"))
         # Each warning records a coverage reduction or unavailable enrichment.
         # Keep the job state aligned with these diagnostics for downstream UI.
-        status="partial" if warnings or truncated or budget<physical or parser_error else "completed"
+        status="partial" if warnings or truncated or budget<physical or parser_error or input_partial else "completed"
         result={"plugin_id":"binary-static-analysis","status":status,"summary":f"{len(validated)} formati validati, {len(findings)} indicatori, {len(artifacts)} artefatti","confidence":max((item["confidence"] for item in validated),default=.45),"phase":"binary static analysis","findings":findings,"sections":sections,"artifacts":artifacts,"derived_assets":[],"visualizations":[entropy_visual,offset_visual,byte_visual,structure_visual,code_visual],"flags":flags,"timeline":[],"execution_events":events,"logs":runner.audit,"warnings":warnings,"errors":errors,"metrics":metrics,"unlock_requests":unlock_requests}
         report=json.dumps({**result,"artifacts":[{k:v for k,v in item.items() if k!="path"} for item in artifacts]},ensure_ascii=False,indent=2).encode()
         try:result["artifacts"].append(store.save("report","binary-static-analysis-report.json",report,{"detected_type":"json","validated":True,"confidence":1.0,"extraction_method":"plugin_report"}))

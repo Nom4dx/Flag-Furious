@@ -8,8 +8,8 @@ No rules are downloaded automatically.
 from pathlib import Path
 
 
-def scan(path:Path,rule_paths:list[str],timeout:int=20)->tuple[list[dict],list[str]]:
-    """Apply at most 64 local YARA rule files and return normalized matches."""
+def scan(path:Path,rule_paths:list[str],timeout:int=20,byte_limit:int=64*1024**2)->tuple[list[dict],list[str]]:
+    """Apply at most 64 local rules to a bounded prefix of the evidence."""
     if not rule_paths:return [],[]
     try:import yara
     except ImportError:return [],["yara-python non disponibile"]
@@ -18,14 +18,20 @@ def scan(path:Path,rule_paths:list[str],timeout:int=20)->tuple[list[dict],list[s
         candidate=Path(value)
         if candidate.is_file() and not candidate.is_symlink() and candidate.suffix in {".yar",".yara"} and candidate.stat().st_size<=1024*1024:safe.append(candidate)
     if not safe:return [],["Nessuna regola YARA locale valida o visibile nel sandbox"]
+    maximum=min(max(0,int(byte_limit)),64*1024**2)
+    try:
+        with path.open("rb") as source:data=source.read(maximum+1)
+    except OSError as exc:return [],[f"YARA input: {exc}"]
+    truncated=len(data)>maximum
+    data=data[:maximum]
     try:
         rules=yara.compile(filepaths={f"rule_{index}":str(value) for index,value in enumerate(safe)})
-        matches=rules.match(str(path),timeout=max(1,min(timeout,60)))
+        matches=rules.match(data=data,timeout=max(1,min(timeout,60)))
         rows=[]
         for match in matches[:1000]:
             offsets=[]
             for item in match.strings:
                 for instance in getattr(item,"instances",[]):offsets.append({"identifier":item.identifier,"offset":instance.offset,"length":instance.matched_length})
             rows.append({"rule":match.rule,"namespace":match.namespace,"tags":list(match.tags),"metadata":dict(match.meta),"strings":offsets[:1000],"confidence":.75,"interpretation":"pattern_match_not_behavior_proof"})
-        return rows,[]
+        return rows,["YARA limitata al prefisso consentito"] if truncated or maximum<path.stat().st_size else []
     except (yara.Error,OSError) as exc:return [],[f"YARA: {exc}"]

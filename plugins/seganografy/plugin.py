@@ -81,7 +81,8 @@ class Plugin(BasePlugin):
         hunting and graph generation. The returned object is JSON serializable.
         """
         started=time.monotonic();path=Path(asset["path"]);name=asset.get("name",path.name);limits=Limits.from_context(context);state=AnalysisState();store=ArtifactStore(Path(context["output_dir"]),limits)
-        byte_budget=min(path.stat().st_size,limits.byte_budget);analysis_cap=min(byte_budget,64*1024*1024)
+        physical_size=path.stat().st_size;declared_size=int(asset.get("size",physical_size));input_partial=bool(asset.get("partial_input")) or declared_size>physical_size
+        byte_budget=min(physical_size,limits.byte_budget);analysis_cap=min(byte_budget,64*1024*1024)
         with path.open("rb") as stream:data=stream.read(analysis_cap)
 
         identity=state.run("Hash e identificazione reale",reporter,lambda:identify(path,name,byte_budget,limits.max_entropy_scan_size,limits.timeout_per_stage,limits.max_tool_output),default={})
@@ -173,7 +174,8 @@ class Plugin(BasePlugin):
         state.visualizations=[offset_spec,graph_spec,*image_result.get("visualizations",[]),*audio_result.get("visualizations",[])]
         state.warnings.extend([*document_result.get("warnings",[]),*metadata_result.get("warnings",[]),*image_result.get("warnings",[]),*audio_result.get("warnings",[]),*video_result.get("warnings",[])])
         if scan_partial:state.warnings.append("Inventario firme limitato dal byte budget o dal numero massimo di risultati")
-        if byte_budget<path.stat().st_size:state.warnings.append(f"Vista limitata a {byte_budget} di {path.stat().st_size} byte")
+        if byte_budget<physical_size:state.warnings.append(f"Vista limitata a {byte_budget} di {physical_size} byte")
+        if input_partial:state.warnings.append(f"Input già parziale: vista montata {physical_size} byte su asset dichiarato {declared_size}")
         for candidate in image_result.get("candidates",[]):state.findings.append(finding(f"image-{len(state.findings)+1}","image_steg_candidate",f"Candidato {candidate['technique']} {candidate.get('channels','')}",confidence=candidate["confidence"],status=candidate["status"],source_file=name,source_sha256=source_sha,technique=candidate["technique"],evidence=[f"printable ratio {candidate['printable_ratio']}",f"config: bits={candidate.get('bits')} channels={candidate.get('channels')} order={candidate.get('order')} bit_order={candidate.get('bit_order')}"]))
         for candidate in audio_result.get("candidates",[]):state.findings.append(finding(f"audio-{len(state.findings)+1}","audio_steg_candidate",f"PCM bit plane canale {candidate['channel']} bit {candidate['bit']}",confidence=candidate["confidence"],status=candidate["status"],source_file=name,source_sha256=source_sha,technique=candidate["technique"]))
 
@@ -198,7 +200,7 @@ class Plugin(BasePlugin):
             section("execution_graph","Execution Graph",170,[graph_spec],visualization=graph_spec),
             section("warnings","Warnings",180,state.warnings,"partial" if state.warnings else "completed"),section("errors","Errors",190,state.errors),
         ]
-        status="partial" if state.warnings or state.errors else "completed";metrics={"duration":round(time.monotonic()-started,4),"bytes_read":analysis_cap,"bytes_hashed":identity.get("bytes_hashed",0),"signature_hits":len(hits),"validated_formats":len(formats),"findings":len(state.findings),"artifacts":len(state.artifacts),"decoder_results":len(decoded),"flags":len(state.flags),"external_tools_run":len(state.tools),"original_modified":False}
+        status="partial" if state.warnings or state.errors or input_partial else "completed";metrics={"duration":round(time.monotonic()-started,4),"bytes_read":analysis_cap,"declared_input_bytes":declared_size,"partial_input":input_partial,"bytes_hashed":identity.get("bytes_hashed",0),"signature_hits":len(hits),"validated_formats":len(formats),"findings":len(state.findings),"artifacts":len(state.artifacts),"decoder_results":len(decoded),"flags":len(state.flags),"external_tools_run":len(state.tools),"original_modified":False}
         sections.append(section("metrics","Metrics",200,metrics))
         result={"summary":f"{len(state.findings)} finding, {len(state.artifacts)} artefatti, {len(state.flags)} flag candidate","status":status,"confidence":max([x.get("confidence",0) for x in state.findings+state.flags] or [.25]),"phase":"steganography forensics","findings":state.findings,"sections":sections,"artifacts":state.artifacts,"derived_assets":[],"visualizations":state.visualizations,"flags":state.flags,"timeline":[],"execution_events":state.events,"logs":[],"warnings":state.warnings,"errors":state.errors,"metrics":metrics}
         encrypted=[member for fmt in formats for member in fmt.get("details",{}).get("encrypted",[])]

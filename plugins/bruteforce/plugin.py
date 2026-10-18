@@ -47,14 +47,18 @@ class Plugin(BasePlugin):
         p=Path(asset.get('path',''));return {'valid':p.is_file() and not p.is_symlink(),'reason':'File regolare locale richiesto'}
     def analyze(self,asset,context,reporter):
         """Inspect protection and optionally run an explicitly configured attempt."""
-        started=time.monotonic();path=Path(asset['path']);limits=Limits.from_context(context);options=context.get('plugin_options',{}).get('bruteforce',{});artifact={'id':asset.get('id',''),'path':str(path),'name':asset.get('name',path.name),'type':asset.get('type')};protection=options.get('protection_type',self._protection(path,asset.get('name',path.name)));adapter_list=select(artifact,{'protection_type':protection});project=Path(__file__).resolve().parent;needs_wordlists=bool(options.get('wordlists'));root_items=roots(project,options.get('wordlist_roots',[]),options.get('configured_roots',[])) if needs_wordlists else [];wordlists=inventory(root_items)
+        started=time.monotonic();path=Path(asset['path']);limits=Limits.from_context(context);options=context.get('plugin_options',{}).get('bruteforce',{});input_size=path.stat().st_size;declared_size=int(asset.get('size',input_size));input_partial=bool(asset.get('partial_input')) or declared_size>input_size;artifact={'id':asset.get('id',''),'path':str(path),'name':asset.get('name',path.name),'type':asset.get('type')};protection=options.get('protection_type',self._protection(path,asset.get('name',path.name)));adapter_list=select(artifact,{'protection_type':protection});project=Path(__file__).resolve().parent;needs_wordlists=bool(options.get('wordlists'));root_items=roots(project,options.get('wordlist_roots',[]),options.get('configured_roots',[])) if needs_wordlists else [];wordlists,inventory_meta=inventory(root_items,return_meta=True)
         reporter.phase('Rilevamento protezione');audit=[event('protected_artifact_inspected',artifact=artifact['name'],protection_type=protection)];status='waiting_for_user';response={'status':status,'attempts':0,'extracted_artifacts':[],'adapter':adapter_list[0].name if adapter_list else ''}
-        known=options.get('known_password');selected=self._selected(options.get('wordlists',[]),wordlists,root_items)
+        runtime_warnings=[];known=options.get('known_password')
+        if known is not None and (not isinstance(known,str) or len(known)>4096):
+            runtime_warnings.append("Password nota ignorata: formato non testuale o oltre 4.096 caratteri")
+            known=None
+        selected=self._selected(options.get('wordlists',[]),wordlists,root_items)
         if not adapter_list:status=response['status']='not_supported'
         elif known is None and not selected:status=response['status']='waiting_for_user'
         elif not options.get('confirmed',False):status=response['status']='waiting_for_user';response['reason']='confirmation_required'
         else:
-            reporter.phase('Tentativi controllati');candidates=self._candidates(known,selected);progress=Progress();attempt_context={'limits':limits,'output_dir':context['output_dir'],'protection_type':protection,'transformations':bool(options.get('transformations',False))}
+            reporter.phase('Tentativi controllati');candidates=self._candidates(known,selected,runtime_warnings);progress=Progress();attempt_context={'limits':limits,'output_dir':context['output_dir'],'protection_type':protection,'transformations':bool(options.get('transformations',False))}
             if protection.startswith('bitlocker') and known is None and selected and hasattr(adapter_list[0],'recover_wordlists'):
                 response=adapter_list[0].recover_wordlists(artifact,candidates,attempt_context)
             else:response=attempt(adapter_list[0],artifact,candidates,attempt_context,progress,bool(options.get('stop_on_first_success',True)))
@@ -66,7 +70,13 @@ class Plugin(BasePlugin):
         findings=[]
         if status not in {'success','waiting_for_user'}:findings.append({'id':'recovery-failed','type':'password_recovery_failed','severity':'info','artifact':artifact['name'],'reason':status,'attempts':response.get('attempts',0),'message':'Nessuna password trovata entro i limiti configurati' if status in {'not_found','limit_reached','timeout'} else 'Formato o adapter non disponibile','confidence':1})
         sections=[section('summary','Password Recovery Summary',10,[{'status':status,'protection_type':protection,'adapter':response.get('adapter'),'attempts':response.get('attempts',0),'password_display':response.get('password_display','')}],status),section('protected','Protected Artifact',20,[{**artifact,'path':None}]),section('adapters','Available Adapters',30,[{'name':a.name,'formats':a.supported_formats,'protections':a.supported_protections} for a in adapter_list]),section('wordlists','Wordlists',40,wordlists),section('selected','Selected Wordlists',50,[str(x) for x in selected]),section('candidates','Candidate Generation',60,[{'transformations':bool(options.get('transformations',False)),'deduplication':'sha256','streaming':True}]),section('progress','Progress',70,[{'status':status,'attempts':response.get('attempts',0),'duration':response.get('duration',0)}]),section('attempts','Attempts',80,response.get('failures',[])),section('successful','Successful Password',90,[{'password_display':'********','secret_ref':persistent.get('secret_ref'),'verified':True}] if response.get('password_verified') else []),section('unlocked','Extracted Artifacts',100,unlocked),section('errors','Errors',110,[]),section('requests','Integration Requests',120,[{'parent_plugin':options.get('source_plugin','manual'),'parent_run_id':options.get('parent_run_id'),'status':status}]),section('audit','Audit degli altri plugin',130,self._audit())]
-        result={'plugin_id':'bruteforce','status':'partial' if status in {'waiting_for_user','not_supported','not_found','timeout','limit_reached'} else 'completed','summary':self._summary(status,response.get('attempts',0)),'confidence':1 if status=='success' else .8,'phase':'password recovery','findings':findings,'sections':sections,'artifacts':unlocked,'derived_assets':[],'visualizations':[vis],'flags':[],'timeline':[],'execution_events':audit,'logs':audit,'warnings':[x['path']+' non disponibile' for x in root_items if not x['exists']],'errors':[],'metrics':{'duration':round(time.monotonic()-started,4),'attempts':response.get('attempts',0),'wordlists':len(selected),'original_modified':False}}
+        warnings=[x['path']+' non disponibile' for x in root_items if not x['exists']]
+        warnings.extend(runtime_warnings)
+        if input_partial:warnings.append(f"Input già parziale: vista montata {input_size} byte su asset dichiarato {declared_size}")
+        if inventory_meta['limited'] or inventory_meta['partial_files']:
+            warnings.append(f"Inventario wordlist parziale: {inventory_meta['bytes_hashed']} byte hashati; {inventory_meta['partial_files']} file campionati.")
+        result_status='failed' if status=='failed' else 'partial' if input_partial or runtime_warnings or inventory_meta['limited'] or inventory_meta['partial_files'] or status in {'waiting_for_user','not_supported','not_found','timeout','limit_reached'} else 'completed'
+        result={'plugin_id':'bruteforce','status':result_status,'summary':self._summary(status,response.get('attempts',0)),'confidence':1 if status=='success' else .8,'phase':'password recovery','findings':findings,'sections':sections,'artifacts':unlocked,'derived_assets':[],'visualizations':[vis],'flags':[],'timeline':[],'execution_events':audit,'logs':audit,'warnings':warnings,'errors':[],'metrics':{'duration':round(time.monotonic()-started,4),'attempts':response.get('attempts',0),'wordlists':len(selected),'wordlist_inventory_bytes_hashed':inventory_meta['bytes_hashed'],'input_bytes':input_size,'declared_input_bytes':declared_size,'partial_input':input_partial,'original_modified':False}}
         reporter.partial(result);return result
     def extract_artifacts(self,*a):return []
     def create_assets(self,*a):return []
@@ -88,9 +98,9 @@ class Plugin(BasePlugin):
         if b'-FVE-FS-' in pdf_markers:return 'bitlocker'
         return 'unknown'
     @staticmethod
-    def _candidates(known,selected):
+    def _candidates(known,selected,warning_sink=None):
         if known is not None:yield known,'known_password',1
-        yield from stream(selected)
+        yield from stream(selected,warning_sink=warning_sink)
     @staticmethod
     def _selected(requested,items,root_items):
         """Permit only inventoried regular wordlists beneath discovered roots."""

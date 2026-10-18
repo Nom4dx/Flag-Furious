@@ -71,7 +71,9 @@ class Plugin(BasePlugin):
         path = Path(asset["path"])
         reporter.phase("Input e hash")
         data, digest = self._read_and_hash(path, context["byte_budget"])
-        input_partial = bool(asset.get("partial_input")) or len(data) < path.stat().st_size
+        visible_size = path.stat().st_size
+        declared_size = int(asset.get("size", visible_size))
+        input_partial = bool(asset.get("partial_input")) or len(data) < visible_size or declared_size > len(data)
         reporter.log(f"Acquisiti {len(data)} byte in sola lettura")
         modules: list[ModuleResult] = []
         phases = [
@@ -98,7 +100,11 @@ class Plugin(BasePlugin):
             "Verifica incoerenze", lambda: find_inconsistencies(evidence, asset["name"]), reporter
         )
         flags = run_module(
-            "Ricerca flag", lambda: hunt_flags(evidence, context.get("prefixes", []), asset["name"]), reporter
+            "Ricerca flag",
+            lambda: hunt_flags(
+                evidence, context.get("prefixes", []), asset["name"], context.get("patterns", [])
+            ),
+            reporter,
         )
         modules.extend((timeline, inconsistencies, flags))
 
@@ -123,7 +129,9 @@ class Plugin(BasePlugin):
         findings = [item for module in modules for item in module.findings]
         warnings = [warning for module in modules for warning in module.warnings] + artifact_warnings
         if input_partial:
-            warnings.append(f"Input parziale: acquisiti {len(data)} byte su {path.stat().st_size}")
+            warnings.append(
+                f"Input parziale: analizzati {len(data)} byte; vista montata {visible_size}, asset dichiarato {declared_size}."
+            )
         active = [m for m in modules if m.status != "skipped"]
         failed = [
             {"module": m.name, "error": "; ".join(m.warnings), "recoverable": True}
@@ -171,6 +179,8 @@ class Plugin(BasePlugin):
             "errors": [],
             "metrics": {
                 "bytes_read": len(data),
+                "visible_input_bytes": visible_size,
+                "declared_input_bytes": declared_size,
                 "sha256": digest,
                 "modules": len(active),
                 "metadata_values": len(evidence),

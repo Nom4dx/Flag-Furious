@@ -91,6 +91,8 @@ class Plugin(BasePlugin):
         started = time.monotonic()
         path = Path(asset["path"])
         size = path.stat().st_size
+        declared_size = int(asset.get("size", size))
+        input_partial = bool(asset.get("partial_input")) or declared_size > size
         byte_budget = min(int(context.get("byte_budget", size)), size)
         output_budget = int(context.get("output_bytes", 128 * 1024 * 1024))
         warnings, errors, events = [], [], []
@@ -101,6 +103,8 @@ class Plugin(BasePlugin):
         identity = {"name": asset.get("name", path.name), "physical_size": size, "bytes_available": byte_budget, "sha256": digest, "complete_hash": hashed == size, "original_modified": False}
         if hashed < size:
             warnings.append(f"Analisi limitata a {hashed} di {size} byte dal byte budget")
+        if input_partial:
+            warnings.append(f"Input già parziale: vista {size} byte su asset dichiarato {declared_size}")
 
         reporter.phase("Inventario firme")
         phase = time.monotonic()
@@ -229,7 +233,7 @@ class Plugin(BasePlugin):
             section("flag_candidates", "Flag candidates", 160, flags),
             section("artifact_graph", "Artifact graph", 170, [graph_visualization], visualization=graph_visualization),
         ]
-        status = "partial" if warnings or scan_truncated or hashed < size else "completed"
+        status = "partial" if warnings or scan_truncated or hashed < size or input_partial else "completed"
         visualizations = [
             {"type": "offset_map", "title": "Mappa dei formati e degli offset", "data": [{"x": x["start_offset"], "y": x["length"], "start": x["start_offset"], "end": x["end_offset"], "label": x["format"], "status": "validated"} for x in validated], "encoding": {"x": {"field": "x", "type": "number"}, "y": {"field": "y", "type": "number"}}, "palette": "archive", "options": {"interactive": True, "zoom": True, "tooltip": True}},
             graph_visualization,
@@ -240,7 +244,7 @@ class Plugin(BasePlugin):
             "findings": findings, "sections": sections, "artifacts": artifacts, "derived_assets": [],
             "visualizations": visualizations, "flags": flags, "timeline": [], "execution_events": events,
             "logs": [], "warnings": warnings, "errors": errors,
-            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded)},
+            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded)},
         }
         report_data = json.dumps({k: v for k, v in result.items() if k not in {"artifacts"}}, ensure_ascii=False, indent=2).encode()
         try: result["artifacts"].append(store.save_bytes("report", "report.json", report_data, {"format": "json", "extraction_method": "plugin_report", "confidence": 1.0}))
