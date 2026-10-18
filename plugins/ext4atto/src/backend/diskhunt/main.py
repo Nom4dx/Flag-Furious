@@ -214,10 +214,15 @@ def preview_artifact(job_id: str, file_path: str):
     require_job(job_id)
     try: target = resolve_artifact(settings.data_dir / "jobs" / job_id / "artifacts", file_path)
     except ValueError as exc: raise HTTPException(404, str(exc)) from exc
-    from .artifacts import detect_mime, file_sha256
-    mime = detect_mime(target); info = {"name": target.name, "mime_type": mime, "size": target.stat().st_size, "sha256": file_sha256(target)}
+    from .artifacts import detect_mime
+    mime = detect_mime(target); artifact_root = (settings.data_dir / "jobs" / job_id / "artifacts").resolve()
+    relative = str(target.relative_to(artifact_root))
+    indexed = next((item for item in db.results(job_id, "artifact", 50000) if item.get("artifact") == relative), None)
+    info = {"name": target.name, "mime_type": mime, "size": target.stat().st_size,
+            "sha256": indexed.get("sha256") if indexed else None,
+            "hash_status": "indexed" if indexed and indexed.get("sha256") else "unavailable"}
     if mime.startswith("text/") or mime in {"application/json", "application/xml"}:
-        data = target.read_bytes()[:2 * 1024 * 1024]
+        with target.open("rb") as source: data = source.read(2 * 1024 * 1024)
         encoding = "utf-8"
         try: content = data.decode("utf-8")
         except UnicodeDecodeError: encoding = "latin-1"; content = data.decode("latin-1")
@@ -227,7 +232,7 @@ def preview_artifact(job_id: str, file_path: str):
         return {**info, "kind": "image", "dimensions": image_dimensions(target)}
     if mime == "application/pdf": return {**info, "kind": "pdf"}
     import re
-    data = target.read_bytes()[:2 * 1024 * 1024]
+    with target.open("rb") as source: data = source.read(2 * 1024 * 1024)
     strings = [match.decode("ascii", "replace") for match in re.findall(rb"[\x20-\x7e]{4,}", data)[:500]]
     return {**info, "kind": "binary", "magic_bytes": data[:32].hex(), "strings": strings, "truncated": target.stat().st_size > len(data)}
 
