@@ -1081,8 +1081,8 @@ def validate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         parser.error(f"capture not found: {args.pcap}")
     if not capture_magic(args.pcap):
         parser.error(f"input is not recognized as PCAP/PCAPNG: {args.pcap}")
-    if not shutil.which("tshark") or not shutil.which("capinfos"):
-        parser.error("HIDGrabber requires tshark and capinfos")
+    if not shutil.which("tshark"):
+        parser.error("HIDGrabber requires tshark")
     if args.timeout <= 0:
         parser.error("--timeout must be greater than zero")
     if args.force and not args.output_dir:

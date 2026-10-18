@@ -19,7 +19,7 @@ La conversione non dipende da `--flag-prefix`: il prefisso serve solamente a res
 
 - Python 3.11 o successivo;
 - TShark;
-- capinfos;
+- capinfos (facoltativo; senza il tool, alcune metadata non vengono raccolte);
 - Scapy soltanto per eseguire i test.
 
 ```bash
