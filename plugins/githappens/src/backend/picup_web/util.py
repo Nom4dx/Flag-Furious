@@ -6,11 +6,83 @@ import mimetypes
 import os
 import re
 import shutil
+import selectors
+import signal
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Iterable
 
 MAX_COMMAND_OUTPUT = 8 * 1024 * 1024
+
+
+def _capture(argv: list[str], *, cwd: Path | None, timeout: int, input_data: bytes | None,
+             stdout_limit: int, stderr_limit: int) -> tuple[bytes, bytes, int, bool, bool]:
+    """Drain child pipes while retaining only bounded output in memory."""
+    process = subprocess.Popen(
+        argv, cwd=cwd, stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
+        env={**os.environ, "LC_ALL": "C", "GIT_TERMINAL_PROMPT": "0"},
+    )
+    assert process.stdout is not None and process.stderr is not None
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+    input_offset = 0
+    if input_data is not None:
+        assert process.stdin is not None
+        if input_data:
+            selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
+        else:
+            process.stdin.close()
+    buffers = {"stdout": bytearray(), "stderr": bytearray()}
+    limits = {"stdout": max(0, stdout_limit), "stderr": max(0, stderr_limit)}
+    truncated = {"stdout": False, "stderr": False}
+    deadline = time.monotonic() + max(1, timeout)
+    timed_out = False
+    try:
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+            for key, _ in selector.select(min(remaining, 0.25)):
+                if key.data == "stdin":
+                    try:
+                        input_offset += os.write(key.fileobj.fileno(), input_data[input_offset:input_offset + 64 * 1024])
+                    except BrokenPipeError:
+                        input_offset = len(input_data)
+                    if input_offset >= len(input_data):
+                        selector.unregister(key.fileobj)
+                        key.fileobj.close()
+                    continue
+                block = os.read(key.fileobj.fileno(), 64 * 1024)
+                if not block:
+                    selector.unregister(key.fileobj)
+                    key.fileobj.close()
+                    continue
+                name = key.data
+                available = limits[name] - len(buffers[name])
+                if available > 0:
+                    buffers[name].extend(block[:available])
+                if len(block) > max(0, available):
+                    truncated[name] = True
+        if timed_out:
+            os.killpg(process.pid, signal.SIGKILL)
+        returncode = process.wait(timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        returncode = process.wait()
+        timed_out = True
+    finally:
+        selector.close()
+        for stream in (process.stdout, process.stderr, process.stdin):
+            if stream is not None and not stream.closed:
+                stream.close()
+    return bytes(buffers["stdout"]), bytes(buffers["stderr"]), returncode, timed_out, any(truncated.values())
 
 
 def sha256_file(path: Path, chunk: int = 1024 * 1024) -> str:
@@ -58,30 +130,30 @@ def mime_for(path: Path) -> str:
 def run(argv: list[str], *, cwd: Path | None = None, timeout: int = 120, input_data: bytes | None = None) -> dict[str, Any]:
     """Execute an argv-only command, capture bounded output, never invoke a shell."""
     try:
-        completed = subprocess.run(
-            argv, cwd=cwd, input=input_data, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, timeout=timeout, check=False,
-            env={**os.environ, "LC_ALL": "C", "GIT_TERMINAL_PROMPT": "0"},
+        stdout, stderr, returncode, timed_out, truncated = _capture(
+            argv, cwd=cwd, timeout=timeout, input_data=input_data,
+            stdout_limit=MAX_COMMAND_OUTPUT, stderr_limit=MAX_COMMAND_OUTPUT,
         )
         return {
-            "command": argv, "returncode": completed.returncode,
-            "stdout": completed.stdout[:MAX_COMMAND_OUTPUT].decode("utf-8", "replace"),
-            "stderr": completed.stderr[:MAX_COMMAND_OUTPUT].decode("utf-8", "replace"),
-            "ok": completed.returncode == 0,
+            "command": argv, "returncode": returncode,
+            "stdout": stdout.decode("utf-8", "replace"),
+            "stderr": stderr.decode("utf-8", "replace"),
+            "ok": returncode == 0 and not timed_out, "timed_out": timed_out, "output_truncated": truncated,
         }
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except OSError as exc:
         return {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "ok": False}
 
 
 def run_binary(argv: list[str], *, cwd: Path | None = None, timeout: int = 120, max_bytes: int = 256 * 1024 * 1024) -> tuple[bytes, dict[str, Any]]:
     try:
-        completed = subprocess.run(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   timeout=timeout, check=False,
-                                   env={**os.environ, "LC_ALL": "C", "GIT_TERMINAL_PROMPT": "0"})
-        data = completed.stdout[:max_bytes]
-        return data, {"command": argv, "returncode": completed.returncode, "stdout": f"<{len(data)} binary bytes>",
-                      "stderr": completed.stderr[:MAX_COMMAND_OUTPUT].decode("utf-8", "replace"), "ok": completed.returncode == 0}
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        data, stderr, returncode, timed_out, truncated = _capture(
+            argv, cwd=cwd, timeout=timeout, input_data=None,
+            stdout_limit=max_bytes, stderr_limit=MAX_COMMAND_OUTPUT,
+        )
+        return data, {"command": argv, "returncode": returncode, "stdout": f"<{len(data)} binary bytes>",
+                      "stderr": stderr.decode("utf-8", "replace"), "ok": returncode == 0 and not timed_out and not truncated,
+                      "timed_out": timed_out, "output_truncated": truncated}
+    except OSError as exc:
         return b"", {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "ok": False}
 
 
