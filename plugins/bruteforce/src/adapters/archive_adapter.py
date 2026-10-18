@@ -2,6 +2,7 @@
 from pathlib import Path
 from .base import PasswordAdapter
 from ..subprocess_runner import run
+from ..bounded_io import extracted
 class ArchiveAdapter(PasswordAdapter):
     name='archive_adapter';supported_formats=['7z','rar','tar','gzip'];supported_protections=['7z','rar','password']
     def can_handle(self,a,c):return self.path(a).suffix.lower() in {'.7z','.rar'}
@@ -16,5 +17,5 @@ class ArchiveAdapter(PasswordAdapter):
         out=[]
         for f in root.rglob('*'):
             if f.is_file() and not f.is_symlink() and f.resolve().is_relative_to(root.resolve()):
-                raw=f.read_bytes();out.append({'path':str(f),'name':f.name,'sha256':hashlib.sha256(raw).hexdigest(),'size':len(raw),'status':'extracted','detected_type':'binary'})
+                out.append(extracted(f,c['limits'].max_output))
         return out

@@ -2,6 +2,7 @@
 from pathlib import Path
 from .base import PasswordAdapter
 from ..subprocess_runner import run
+from ..bounded_io import extracted
 class PdfAdapter(PasswordAdapter):
  name='pdf_adapter';supported_formats=['pdf'];supported_protections=['pdf','pdf_user','pdf_owner']
  def can_handle(self,a,c):
@@ -26,6 +27,6 @@ class PdfAdapter(PasswordAdapter):
   except ImportError:
    r=run('qpdf',['--password='+p,'--decrypt',str(self.path(a)),str(target)],c['limits'].timeout_seconds,secret_indexes=(0,));
    if r['exit_code']!=0:raise ValueError(r['status'])
-  import hashlib;raw=target.read_bytes()
-  if not raw.startswith(b'%PDF-'):raise ValueError('invalid_derived_pdf')
-  return [{'path':str(target),'name':target.name,'sha256':hashlib.sha256(raw).hexdigest(),'size':len(raw),'status':'extracted','detected_type':'pdf'}]
+  with target.open('rb') as source:signature=source.read(5)
+  if not signature.startswith(b'%PDF-'):raise ValueError('invalid_derived_pdf')
+  return [extracted(target,c['limits'].max_output,'pdf')]

@@ -35,7 +35,15 @@ class ZipAdapter(PasswordAdapter):
             with self._open(self.path(a)) as z:
                 protected=[x for x in z.infolist() if x.flag_bits&1 or getattr(x,'wz_aes_version',None)]
                 if not protected:return {'valid':False,'reason':'not_encrypted'}
-                for i in protected[:3]:z.read(i,pwd=password.encode())
+                budget=c['limits'].max_output;used=0
+                for i in protected[:3]:
+                    if i.file_size>budget-used:return {'valid':False,'reason':'artifact_input_limit'}
+                    with z.open(i,pwd=password.encode()) as member:
+                        while True:
+                            chunk=member.read(min(1024*1024,budget-used+1))
+                            if not chunk:break
+                            used+=len(chunk)
+                            if used>budget:return {'valid':False,'reason':'artifact_input_limit'}
             return {'valid':True,'reason':'verified_crc'}
         except zipfile.BadZipFile as e:return {'valid':False,'reason':'corrupted_artifact','message':str(e)}
         except UnsupportedProtection as e:return {'valid':False,'reason':'unsupported_encryption','message':str(e)}
@@ -48,8 +56,18 @@ class ZipAdapter(PasswordAdapter):
                 if i.is_dir() or not member_safe(i.filename,i.external_attr>>16):continue
                 ratio=i.file_size/max(1,i.compress_size)
                 if ratio>c['limits'].max_ratio or total+i.file_size>limit:raise ValueError('archive_expansion_limit')
-                raw=z.read(i,pwd=password.encode());total+=len(raw);digest=hashlib.sha256(raw).hexdigest();target=root/f'{digest[:12]}-{Path(i.filename).name or index}';target.write_bytes(raw)
-                out.append({'path':str(target),'name':target.name,'sha256':digest,'size':len(raw),'detected_type':'binary','status':'extracted','internal_path':i.filename})
+                if i.file_size>limit-total:raise ValueError('archive_expansion_limit')
+                digest=hashlib.sha256();target=root/f'{index}-{Path(i.filename).name or "member"}';written=0
+                with z.open(i,pwd=password.encode()) as member,target.open('wb') as output:
+                    while True:
+                        chunk=member.read(min(1024*1024,limit-total-written+1))
+                        if not chunk:break
+                        written+=len(chunk)
+                        if written>limit-total:
+                            target.unlink(missing_ok=True);raise ValueError('archive_expansion_limit')
+                        output.write(chunk);digest.update(chunk)
+                total+=written
+                out.append({'path':str(target),'name':target.name,'sha256':digest.hexdigest(),'size':written,'detected_type':'binary','status':'extracted','internal_path':i.filename})
         return out
 
 
