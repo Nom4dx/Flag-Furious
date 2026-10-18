@@ -6,14 +6,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from .cases import CaseStore
+from .cases import MAX_CASE_WARNINGS, CaseStore
 from .extract import extract_recursive
 from .scanner import ScanConfig, generated_regexes, scan_stream
 from .util import hashes, iter_files, mime_for, sha256_file
 from .modules import cache, git_forensics, history, legacy, reference_diff, slack, virtual
 
 Progress = Callable[[str, int], None]
-MAX_CASE_WARNINGS = 100
 
 
 def _record_warnings(manifest: dict[str, Any], phase: str, warnings: list[str] | tuple[str, ...]) -> None:

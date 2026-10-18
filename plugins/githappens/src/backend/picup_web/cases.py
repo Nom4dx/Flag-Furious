@@ -14,6 +14,7 @@ from .util import inside, json_dump, mime_for, safe_name, sha256_file
 
 OUTPUT_DIRS = ("files", "images", "objects", "qcow", "legacy", "git", "slack", "cache", "history", "diff", "timeline", "flag_candidates", "logs")
 MAX_CASE_FINDINGS = 50_000
+MAX_CASE_WARNINGS = 100
 
 
 class CaseStore:
@@ -137,10 +138,14 @@ class CaseStore:
         self._finding_omitted[case_id] = omitted
         coverage.update(stored=len(manifest["findings"]), omitted=omitted, complete=omitted == 0)
         if omitted and not any("finding storage limit" in item.lower() for item in manifest["warnings"]):
-            message = f"Finding storage limit reached ({MAX_CASE_FINDINGS}); {omitted} findings omitted so far."
-            if len(manifest["warnings"]) < 100:
-                manifest["warnings"].append(message)
             warning_coverage = manifest.setdefault("warning_coverage", {"stored": len(manifest["warnings"]), "omitted": 0, "complete": True})
+            if not warning_coverage.get("finding_limit_notice_recorded"):
+                message = f"Finding storage limit reached ({MAX_CASE_FINDINGS}); omitted count is in finding_coverage."
+                if len(manifest["warnings"]) < MAX_CASE_WARNINGS:
+                    manifest["warnings"].append(message)
+                else:
+                    warning_coverage["omitted"] = int(warning_coverage.get("omitted", 0)) + 1
+                    warning_coverage["finding_limit_notice_recorded"] = True
             warning_coverage.update(stored=len(manifest["warnings"]), complete=warning_coverage.get("omitted", 0) == 0)
     def release_case_cache(self, case_id: str) -> None:
         """Drop temporary deduplication state after a case run finishes."""
