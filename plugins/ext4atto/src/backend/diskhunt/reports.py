@@ -3,9 +3,35 @@ import csv
 import html
 import io
 import json
+import os
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any
+
+MAX_REPORT_ZIP_BYTES = 64 * 1024 * 1024
+MAX_REPORT_ZIP_ENTRIES = 50_000
+
+
+class ReportArchiveLimitError(ValueError):
+    """Raised when a report archive exceeds its export budget."""
+
+
+class _BoundedSpool:
+    def __init__(self, limit: int):
+        self.file = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b")
+        self.limit = limit
+
+    def write(self, data: bytes) -> int:
+        if self.file.tell() + len(data) > self.limit:
+            raise ReportArchiveLimitError("report_archive_size_limit")
+        return self.file.write(data)
+
+    def __getattr__(self, name: str):
+        return getattr(self.file, name)
+
+    def close(self):
+        self.file.close()
 
 
 def bundle(job: dict[str, Any], sections: dict[str, list[dict]], logs: list[dict]) -> dict[str, Any]:
@@ -43,10 +69,39 @@ def render(report: dict[str, Any], fmt: str) -> tuple[bytes, str, str]:
 
 
 def create_artifact_zip(report: dict, artifacts: Path) -> bytes:
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("report.json", json.dumps(report, indent=2, ensure_ascii=False))
-        if artifacts.exists():
-            for path in artifacts.rglob("*"):
-                if path.is_file(): archive.write(path, f"artifacts/{path.relative_to(artifacts)}")
-    return output.getvalue()
+    output = _BoundedSpool(MAX_REPORT_ZIP_BYTES)
+    root = artifacts.resolve()
+    try:
+        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+            with archive.open("report.json", "w") as report_file:
+                encoder = json.JSONEncoder(indent=2, ensure_ascii=False)
+                report_bytes = 0
+                for chunk in encoder.iterencode(report):
+                    encoded = chunk.encode("utf-8")
+                    report_bytes += len(encoded)
+                    if report_bytes > MAX_REPORT_ZIP_BYTES:
+                        raise ReportArchiveLimitError("report_archive_size_limit")
+                    report_file.write(encoded)
+            count = 1
+            if artifacts.exists():
+                for path in artifacts.rglob("*"):
+                    if path.is_symlink() or not path.is_file():
+                        continue
+                    resolved = path.resolve()
+                    if not resolved.is_relative_to(root):
+                        continue
+                    count += 1
+                    if count > MAX_REPORT_ZIP_ENTRIES:
+                        raise ReportArchiveLimitError("report_archive_entry_limit")
+                    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                    descriptor = os.open(resolved, flags)
+                    with os.fdopen(descriptor, "rb") as source, archive.open(
+                            f"artifacts/{resolved.relative_to(root)}", "w") as member:
+                        while block := source.read(1024 * 1024):
+                            member.write(block)
+        output.seek(0)
+        return output.read(MAX_REPORT_ZIP_BYTES + 1)
+    except zipfile.LargeZipFile as error:
+        raise ReportArchiveLimitError("report_archive_size_limit") from error
+    finally:
+        output.close()

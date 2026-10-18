@@ -17,7 +17,7 @@ from .analyzer import Analyzer
 from .config import settings
 from .db import Database
 from .models import AnalysisOptions
-from .reports import bundle, create_artifact_zip, render
+from .reports import ReportArchiveLimitError, bundle, create_artifact_zip, render
 from .security import resolve_artifact, safe_filename
 
 settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -268,7 +268,12 @@ def make_report(job_id: str):
 @app.get("/api/jobs/{job_id}/report")
 def report(job_id: str, format: str = Query("json", pattern="^(json|csv|markdown|html|zip)$")):
     data = make_report(job_id)
-    if format == "zip": return Response(create_artifact_zip(data, settings.data_dir / "jobs" / job_id / "artifacts"), media_type="application/zip", headers={"Content-Disposition": 'attachment; filename="diskhunt-artifacts.zip"'})
+    if format == "zip":
+        try:
+            payload = create_artifact_zip(data, settings.data_dir / "jobs" / job_id / "artifacts")
+        except ReportArchiveLimitError as exc:
+            raise HTTPException(413, "Report ZIP exceeds export limits") from exc
+        return Response(payload, media_type="application/zip", headers={"Content-Disposition": 'attachment; filename="diskhunt-artifacts.zip"'})
     body, media, name = render(data, format)
     return Response(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 

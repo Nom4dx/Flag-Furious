@@ -28,6 +28,9 @@ La scansione di flag sugli artefatti catalogati legge blocchi da 1 MiB, fino a
 conteggio finding e stato `complete`, `partial` o `skipped_size_limit`; scansioni
 limitate aggiungono un warning al job, la tabella Markdown mostra la copertura e
 `GET /api/jobs/{id}/artifacts?scan_status=partial` filtra gli artefatti incompleti.
+L'export ZIP del caso usa uno spool che passa su disco oltre 8 MiB e rifiuta
+archivi oltre 64 MiB o 50.000 voci (HTTP 413); symlink e percorsi fuori dalla root
+degli artefatti non vengono inclusi.
 
 Il triage globale riserva budget ai plugin selezionati. Le letture investigative
 native rispettano il budget ricevuto; hashing e letture interne di TSK, come nel
