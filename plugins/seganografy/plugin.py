@@ -116,7 +116,9 @@ class Plugin(BasePlugin):
         video_result={"applicable":False,"frames":[],"artifacts":[],"tools":[],"warnings":[]}
         if detected&VIDEO_FORMATS or identity.get("declared_mime","").startswith("video/"):
             options=context.get("plugin_options",{}).get("seganografy",{})
-            video_result=state.run("Steganografia video",reporter,lambda:video_steg.analyze(path,Path(context["output_dir"])/"video-work",limits.max_video_frames,limits.timeout_per_stage,limits.max_tool_output,options.get("video_modes")),default=video_result)
+            pending_media_bytes=sum(len(item.get("data",b"")) for result in (image_result,audio_result) for item in result.get("artifacts",[]) if isinstance(item.get("data"),bytes))
+            video_budget=max(0,limits.output_budget-store.written-pending_media_bytes)
+            video_result=state.run("Steganografia video",reporter,lambda:video_steg.analyze(path,Path(context["output_dir"])/"video-work",limits.max_video_frames,limits.timeout_per_stage,limits.max_tool_output,options.get("video_modes"),video_budget,limits.max_single_artifact_size),default=video_result)
 
         document_result=state.run("Documenti e contenuti nascosti",reporter,lambda:document_steg.analyze(data,detected,name),default={"items":[],"findings":[],"embedded":[],"warnings":[]})
         for raw in document_result.get("findings",[]):state.findings.append(self._normalize_finding(raw,name,source_sha,len(state.findings)+1))
@@ -166,6 +168,10 @@ class Plugin(BasePlugin):
         state.flags=hunt(flag_sources,context.get("prefixes",[]),context.get("patterns",[]),context.get("max_flags",256))
 
         state.tools.extend(inspect_file(path,limits.timeout_per_stage,limits.max_tool_output));state.tools.extend(metadata_result.get("tools",[]));state.tools.extend(image_result.get("tools",[]));state.tools.extend(video_result.get("tools",[]))
+        for tool in state.tools:
+            if tool.get("timed_out") or tool.get("stdout_truncated") or tool.get("stderr_truncated"):
+                label=tool.get("tool",(tool.get("command") or ["external tool"])[0])
+                state.warnings.append(f"{label}: output/tempo limitato; copertura parziale")
         if detected:
             state.tools.extend(steg_detectors(path,next(iter(detected)),limits.timeout_per_stage,limits.max_tool_output,context.get("plugin_options",{}).get("seganografy",{}).get("password")))
         tool_inventory=[{"tool":tool,"available":bool(locate(tool)),"status":"detected" if locate(tool) else "not_applicable"} for tool in sorted(ALLOWLIST)]

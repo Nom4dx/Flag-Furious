@@ -83,7 +83,7 @@ nascodono aggiornando attese senza spiegazione.
 | binary-static-analysis | refactor | Warning di coverage; entropy/string limits e input parziale espliciti; YARA limitato a prefisso 64 MiB e disassembly max 20.000 istruzioni |
 | document-metadata-forensics | refactor | Matcher allineato; source size separata dalla vista; regex custom con timeout, cap testo e contesto configurato |
 | polyglot-and-embedded-content | refactor | Flag scan artefatti bounded e parzialità dichiarata anche per vista importata incompleta; decoder gzip/zlib con max output reale, totale 32 MiB e 2.000 tentativi; cap dichiarati in metriche e warning; restano confini/duplicati e fixture |
-| seganografy | refactor | Type detection artefatti limitata a 1 MiB; input parziale esplicito, restano falsi positivi/tool opzionali |
+| seganografy | refactor | Type detection artefatti limitata a 1 MiB; zTXt e decoder gzip/zlib capped con stato parziale; subprocess stdout/stderr streaming bounded; video frames/audio con byte/artifact cap e output budget condiviso; timeout/troncamento propagati a warning/partial. Restano falso positivi, coverage per formato e fixture |
 | log-forensics | refactor | Directory/file e contenitori compressi letti entro budget con espansione limitata; output eventi/decoder clamp; identity riusa hash core; inline partial visibile; revisione statica aggiornata |
 | encrypted-volume-forensics | refactor | Ogni warning e vista importata parziale producono `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker |
 | bruteforce | refactor | Matcher bounded; inventory wordlist budgetato e righe enormi ignorate; ZIP AES senza pyzipper risulta unsupported e interrompe tentativi inutili |

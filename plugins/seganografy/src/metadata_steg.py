@@ -23,12 +23,18 @@ def analyze(path: Path, data: bytes, formats: list[dict], timeout: int, output_l
                 kind=chunk["type"]
                 if kind not in {"tEXt","zTXt","iTXt","eXIf","iCCP"}:continue
                 relative=chunk["offset"]+8;raw=data[relative:relative+min(chunk["length"],1024*1024)]
-                decoded=raw
+                decoded=raw;decompression_status=None
                 if kind=="zTXt" and b"\0" in raw:
                     key,compressed=raw.split(b"\0",1)
-                    try:decoded=key+b"="+zlib.decompress(compressed[1:])[:1024*1024]
+                    try:
+                        decoder=zlib.decompressobj()
+                        payload=decoder.decompress(compressed[1:],1024*1024+1)
+                        partial=len(payload)>1024*1024 or bool(decoder.unconsumed_tail) or not decoder.eof
+                        decoded=key+b"="+payload[:1024*1024]
+                        decompression_status="partial" if partial else "complete"
+                        if partial:warnings.append(f"zTXt @{relative}: decompressione limitata a 1 MiB")
                     except zlib.error as exc:warnings.append(f"zTXt @{relative}: {exc}")
-                items.append({"type":"metadata","namespace":"PNG","field":kind,"raw_value":raw[:256].hex(),"normalized_value":decoded[:4096].decode("utf-8","replace"),"offset":relative,"length":chunk["length"],"confidence":.96})
+                items.append({"type":"metadata","namespace":"PNG","field":kind,"raw_value":raw[:256].hex(),"normalized_value":decoded[:4096].decode("utf-8","replace"),"offset":relative,"length":chunk["length"],"decompression_status":decompression_status,"confidence":.96})
         if fmt["format"]=="jpeg":
             for segment in fmt.get("details",{}).get("segments",[]):
                 marker=segment["marker"]
