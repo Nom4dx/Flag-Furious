@@ -60,7 +60,7 @@ destinazioni e SHA-256 in [`docs/source-inventory.json`](docs/source-inventory.j
 | HIDGrabber | Plugin che esegue il decoder USB HID originale e registra gli output | tshark, capinfos |
 | pic-up | Plugin che esegue il triage e il carving originali attraverso la loro configurazione CLI | tshark per catture; altri tool dichiarati nel manifest |
 | Text Inspector | Esempio generale per testo, JSON, hex e URL testuali; distribuzione byte via JSON | Nessuna aggiuntiva |
-| Archive Extractor | Estrazione ZIP con verifica CRC, rifiuto traversal/symlink e budget cumulativo | Nessuna aggiuntiva |
+| Archive Extractor | Estrazione ZIP con verifica CRC, rifiuto traversal/symlink e budget cumulativo; input troncati esplicitati | Nessuna aggiuntiva |
 | Document Metadata Forensics | Metadata e struttura passiva di documenti, immagini, PDF, Office/OLE/RTF, timeline e payload | ExifTool, pdfinfo, pdftotext e olevba opzionali |
 | Polyglot & Embedded Content | Firme streaming, validator strutturali, confini, polyglot/SFX, carving, ZIP sicuri, decoy, payload e grafo di estrazione | 7z e unrar opzionali; nessuna dipendenza obbligatoria |
 

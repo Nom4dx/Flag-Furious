@@ -66,6 +66,19 @@ class Plugin(BasePlugin):
         tool.configure_automatic_actions(args)
         reporter.phase("Triage file, stream e carving")
         report = asdict(tool.analyze(args))
+        file_info = report.get("file", {})
+        analyzed_sha256 = file_info.get("sha256")
+        analyzed_size = file_info.get("size")
+        file_info.update(
+            {
+                "path": asset.get("name", file_info.get("path")),
+                "sha256": asset.get("hashes", {}).get("sha256", analyzed_sha256),
+                "size": asset.get("size", analyzed_size),
+                "analyzed_sha256": analyzed_sha256,
+                "analyzed_bytes": asset.get("visible_bytes", analyzed_size),
+                "partial_input": bool(asset.get("partial_input")),
+            }
+        )
         flags = [
             {
                 "value": item.get("value"),
@@ -77,17 +90,27 @@ class Plugin(BasePlugin):
             for item in report.get("matches", [])
             if item.get("kind") == "flag" and item.get("value")
         ]
+        warnings = list(report.get("diagnostics", []))
+        incomplete_markers = ("unavailable", "limited to", "capped at", "truncated", "could not", "not found")
+        partial = bool(asset.get("partial_input")) or any(
+            any(marker in str(message).casefold() for marker in incomplete_markers)
+            for message in warnings
+        )
         artifacts = [
             {"path": str(p), "name": p.name, "method": "pic-up extraction"}
             for p in output.rglob("*")
             if p.is_file() and not p.is_symlink()
         ]
         return {
-            "summary": "Analisi pic-up completata",
+            "summary": "Analisi pic-up completata" + (" con coverage parziale" if partial else ""),
+            "status": "partial" if partial else "completed",
             "confidence": 0.85,
             "sections": [{"id": "analysis", "data": report}],
             "artifacts": artifacts,
             "flags": flags,
-            "findings": flags,
-            "warnings": report.get("warnings", []),
+            "findings": [*report.get("findings", []), *flags],
+            "warnings": warnings + (
+                ["Input troncato dal byte budget: i risultati coprono solo i byte visibili."]
+                if asset.get("partial_input") else []
+            ),
         }

@@ -73,7 +73,7 @@ nascodono aggiornando attese senza spiegazione.
 
 | Plugin | Stato | Commit/nota |
 | --- | --- | --- |
-| archive-extractor | refactor | Matcher ZIP corretto per input matcher limitato; cifratura resa parziale. Restano budget/validazione da rifare |
+| archive-extractor | refactor | Matcher ZIP corretto; AES/ZipCrypto distinti, cifratura e vista incompleta parziali; inventario limitato a 10.000 membri. Restano validatori e fixture |
 | text-inspector | refactor | Preview limitata a 16 KiB e conteggi marcati parziali; restano offset e decodifica dichiarata |
 | pic-up | refactor | Matcher limitato a stream, immagini e archivi; candidate convertite in finding/flag; accetta tutti i prefissi |
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate al risultato; restano provenance frame-level e limiti dichiarati |

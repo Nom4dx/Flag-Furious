@@ -21,29 +21,50 @@ class Plugin(BasePlugin):
         args.flag_prefix = context.get("prefixes") or None
         reporter.phase("Decodifica report USB HID")
         result = tool.analyze(args)
-        flags = [
+        file_info = result.get("file", {})
+        analyzed_sha256 = file_info.get("sha256")
+        analyzed_size = file_info.get("size")
+        file_info.update(
             {
-                "value": item["value"],
-                "source": item.get("source"),
-                "method": "HID decode: " + item.get("chain", "plain text"),
-                "confidence": 0.9 if item.get("chain") in (None, "plain") else 0.75,
-                "classification": "candidate",
+                "path": asset.get("name", file_info.get("path")),
+                "sha256": asset.get("hashes", {}).get("sha256", analyzed_sha256),
+                "size": asset.get("size", analyzed_size),
+                "analyzed_sha256": analyzed_sha256,
+                "analyzed_bytes": asset.get("visible_bytes", analyzed_size),
+                "partial_input": bool(asset.get("partial_input")),
             }
-            for item in result.get("matches", [])
-            if item.get("kind") == "flag" and item.get("value")
-        ]
+        )
+        flags = []
+        for item in result.get("matches", []):
+            if item.get("kind") != "flag" or not item.get("value"):
+                continue
+            source = item.get("source", "")
+            layered = "): " in source
+            flags.append(
+                {
+                    "value": item["value"],
+                    "source": source,
+                    "method": "HID decoded layer" if layered else "HID keyboard layout",
+                    "confidence": 0.75 if layered else 0.9,
+                    "classification": "candidate",
+                }
+            )
         artifacts = [
             {"path": str(p), "name": p.name, "method": "HIDGrabber"}
             for p in output.rglob("*")
             if p.is_file() and not p.is_symlink()
         ]
         return {
-            "summary": "Decodifica HID completata",
+            "summary": "Decodifica HID completata" + (" su vista parziale" if asset.get("partial_input") else ""),
+            "status": "partial" if asset.get("partial_input") else "completed",
             "confidence": 0.9,
             "sections": [{"id": "analysis", "data": result}],
             "artifacts": artifacts,
             "flags": flags,
             "findings": flags,
-            "warnings": result.get("diagnostics", []),
+            "warnings": result.get("diagnostics", []) + (
+                ["PCAP troncato dal byte budget: i risultati coprono solo i byte visibili."]
+                if asset.get("partial_input") else []
+            ),
             "metrics": result.get("inventory", {}),
         }

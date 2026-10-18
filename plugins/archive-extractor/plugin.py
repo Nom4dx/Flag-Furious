@@ -4,6 +4,9 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from app.core.plugin import BasePlugin
 
+MAX_INVENTORY_MEMBERS = 10_000
+MAX_UNLOCK_REQUESTS = 256
+
 
 def _protection_type(member):
     """Distinguish WinZip AES extra field from traditional ZipCrypto."""
@@ -20,6 +23,13 @@ def _protection_type(member):
             return "zip_aes"
         cursor = end
     return "zipcrypto"
+
+
+def _bounded_text(value, limit=512):
+    """Bound untrusted ZIP names by UTF-8 bytes before placing them in JSON."""
+    return value.replace("\x00", "�").encode("utf-8", errors="replace")[:limit].decode(
+        "utf-8", errors="ignore"
+    )
 
 
 class Plugin(BasePlugin):
@@ -45,6 +55,7 @@ class Plugin(BasePlugin):
         rows = []
         warnings = []
         unlock_requests = []
+        omitted_unlock_requests = 0
         if asset.get("partial_input"):
             warnings.append(
                 f"Vista parziale: {asset.get('visible_bytes', 0)} di {asset.get('size', 0)} byte; "
@@ -63,25 +74,37 @@ class Plugin(BasePlugin):
             }
         with archive:
             for index, member in enumerate(archive.infolist()):
+                if index >= MAX_INVENTORY_MEMBERS:
+                    warnings.append(f"Limite inventario: primi {MAX_INVENTORY_MEMBERS} membri")
+                    break
                 if member.is_dir():
                     continue
                 if member.flag_bits & 1:
                     protection = _protection_type(member)
-                    unlock_requests.append(unlock_request(asset.get("id", ""), protection, "archive-extractor", ["zip_adapter"], internal_path=member.filename))
-                    rows.append({"name": member.filename, "size": member.file_size, "status": "encrypted"})
-                    warnings.append("Membro cifrato; l'estrazione richiede una credenziale: " + member.filename)
+                    if len(unlock_requests) < MAX_UNLOCK_REQUESTS:
+                        unlock_requests.append(
+                            unlock_request(
+                                asset.get("id", ""), protection, "archive-extractor", ["zip_adapter"],
+                                internal_path=member.filename,
+                            )
+                        )
+                    else:
+                        omitted_unlock_requests += 1
+                    rows.append({"name": _bounded_text(member.filename), "size": member.file_size, "status": "encrypted"})
+                    warnings.append("Membro cifrato; l'estrazione richiede una credenziale: " + _bounded_text(member.filename, 256))
                     continue
                 if len(derived) >= 64:
                     warnings.append("Limite 64 membri estratti")
                     break
                 name = PurePosixPath(member.filename.replace("\\", "/"))
                 if name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16):
-                    warnings.append("Membro non sicuro ignorato: " + member.filename)
+                    warnings.append("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
                     continue
                 if member.file_size > remaining or member.file_size > 16 * 1024**2:
-                    warnings.append("Budget estrazione: " + member.filename)
+                    warnings.append("Budget estrazione: " + _bounded_text(member.filename, 256))
                     continue
-                target = output / f"{index}-{name.name}"
+                leaf = _bounded_text(name.name, 180) or "member"
+                target = output / f"{index}-{leaf}"
                 try:
                     written = 0
                     with archive.open(member) as source, target.open("xb") as destination:
@@ -101,7 +124,7 @@ class Plugin(BasePlugin):
                     )
                     rows.append(
                         {
-                            "name": member.filename,
+                            "name": _bounded_text(member.filename),
                             "size": written,
                             "crc": f"{member.CRC:08x}",
                             "offset": member.header_offset,
@@ -111,6 +134,10 @@ class Plugin(BasePlugin):
                 except (ValueError, RuntimeError, zipfile.BadZipFile) as exc:
                     target.unlink(missing_ok=True)
                     warnings.append(str(exc))
+        if omitted_unlock_requests:
+            warnings.append(
+                f"Richieste di sblocco omesse per limite: {omitted_unlock_requests}"
+            )
         return {
             "summary": f"{len(derived)} file estratti",
             "confidence": 1,
