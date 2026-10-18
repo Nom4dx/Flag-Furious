@@ -12,12 +12,12 @@ from diskhunt.scanner import DEFAULT_PREFIXES
 from diskhunt.source import prepare_image, COMPRESSED_SUFFIXES
 
 
-def prepare_for_hub(source, workdir):
+def prepare_for_hub(source, workdir, max_output_bytes=512 * 1024**2):
     # The hub already owns an immutable evidence copy. Raw images need neither
     # another copy nor chmod (which is forbidden on the read-only input mount).
     if source.suffix.lower() not in COMPRESSED_SUFFIXES | {".001", ".vhd", ".vmdk", ".qcow2", ".e01"}:
         return source, "raw disk image (hub read-only evidence)"
-    return prepare_image(source, workdir)
+    return prepare_image(source, workdir, max_output_bytes)
 
 
 RESULT_LIMITS = {
@@ -106,7 +106,9 @@ class Plugin(BasePlugin):
         options = AnalysisOptions(prefixes=prefixes, mode=context.get("mode", "balanced"))
         options.budgets.total = max(512, context["byte_budget"])
         db.create_job("analysis", asset["name"], str(source), options.model_dump())
-        with patch("diskhunt.analyzer.prepare_image", prepare_for_hub):
+        def bounded_prepare(source_path, workdir_path):
+            return prepare_for_hub(source_path, workdir_path, options.budgets.total)
+        with patch("diskhunt.analyzer.prepare_image", bounded_prepare):
             Analyzer(db, "analysis", Event()).run()
         job = db.get_job("analysis")
         rows_with_limits = {
