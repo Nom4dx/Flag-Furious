@@ -11,6 +11,7 @@ MAX_CENTRAL_DIRECTORY_BYTES = 4 * 1024**2
 MAX_UNLOCK_REQUESTS = 256
 MAX_MEMBER_BYTES = 16 * 1024**2
 MAX_COMPRESSION_RATIO = 1_000
+MAX_WARNINGS = 100
 
 
 def _protection_type(member):
@@ -59,10 +60,18 @@ class Plugin(BasePlugin):
         derived = []
         rows = []
         warnings = []
+        omitted_warnings = 0
         unlock_requests = []
         omitted_unlock_requests = 0
+
+        def warn(message):
+            nonlocal omitted_warnings
+            if len(warnings) < MAX_WARNINGS:
+                warnings.append(message)
+            else:
+                omitted_warnings += 1
         if asset.get("partial_input"):
-            warnings.append(
+            warn(
                 f"Vista parziale: {asset.get('visible_bytes', 0)} di {asset.get('size', 0)} byte; "
                 "l'indice ZIP potrebbe trovarsi oltre il limite di lettura."
             )
@@ -73,7 +82,7 @@ class Plugin(BasePlugin):
                 raise zipfile.BadZipFile("EOCD non trovato")
             central_directory_bytes = int(end_record[zipfile._ECD_SIZE])
             if central_directory_bytes > MAX_CENTRAL_DIRECTORY_BYTES:
-                warnings.append(
+                warn(
                     f"Indice ZIP oltre budget: {central_directory_bytes} byte, "
                     f"limite {MAX_CENTRAL_DIRECTORY_BYTES}"
                 )
@@ -86,7 +95,7 @@ class Plugin(BasePlugin):
                 }
         except (OSError, EOFError, zipfile.BadZipFile, zipfile.LargeZipFile,
                 IndexError, TypeError, ValueError, struct.error, OverflowError) as exc:
-            warnings.append(f"Indice ZIP non leggibile nella vista disponibile: {str(exc)[:240]}")
+            warn(f"Indice ZIP non leggibile nella vista disponibile: {str(exc)[:240]}")
             return {
                 "summary": "Firma ZIP candidata; indice non validato",
                 "confidence": 0.35,
@@ -97,7 +106,7 @@ class Plugin(BasePlugin):
         try:
             archive = zipfile.ZipFile(asset["path"])
         except (OSError, EOFError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
-            warnings.append(f"Indice ZIP non leggibile nella vista disponibile: {exc}")
+            warn(f"Indice ZIP non leggibile nella vista disponibile: {str(exc)[:240]}")
             return {
                 "summary": "Firma ZIP candidata; indice non validato",
                 "confidence": 0.35,
@@ -108,9 +117,20 @@ class Plugin(BasePlugin):
         with archive:
             for index, member in enumerate(archive.infolist()):
                 if index >= MAX_INVENTORY_MEMBERS:
-                    warnings.append(f"Limite inventario: primi {MAX_INVENTORY_MEMBERS} membri")
+                    warn(f"Limite inventario: primi {MAX_INVENTORY_MEMBERS} membri")
                     break
+                row = {
+                    "source_asset_id": asset.get("id"),
+                    "name": _bounded_text(member.filename),
+                    "size": member.file_size,
+                    "compressed_size": member.compress_size,
+                    "crc": f"{member.CRC:08x}",
+                    "offset": member.header_offset,
+                    "status": "pending",
+                }
+                rows.append(row)
                 if member.is_dir():
+                    row["status"] = "directory"
                     continue
                 if member.flag_bits & 1:
                     protection = _protection_type(member)
@@ -123,22 +143,27 @@ class Plugin(BasePlugin):
                         )
                     else:
                         omitted_unlock_requests += 1
-                    rows.append({"name": _bounded_text(member.filename), "size": member.file_size, "status": "encrypted"})
-                    warnings.append("Membro cifrato; l'estrazione richiede una credenziale: " + _bounded_text(member.filename, 256))
+                    row["status"] = "encrypted"
+                    warn("Membro cifrato; l'estrazione richiede una credenziale: " + _bounded_text(member.filename, 256))
                     continue
                 if len(derived) >= 64:
-                    warnings.append("Limite 64 membri estratti")
+                    row["status"] = "skipped_limit"
+                    warn("Limite 64 membri estratti")
                     break
                 name = PurePosixPath(member.filename.replace("\\", "/"))
                 if name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16):
-                    warnings.append("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
+                    row["status"] = "rejected_unsafe_path"
+                    warn("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
                     continue
                 ratio = member.file_size / max(member.compress_size, 1)
+                row["compression_ratio"] = round(ratio, 2)
                 if member.file_size > remaining or member.file_size > MAX_MEMBER_BYTES:
-                    warnings.append("Budget estrazione: " + _bounded_text(member.filename, 256))
+                    row["status"] = "skipped_budget"
+                    warn("Budget estrazione: " + _bounded_text(member.filename, 256))
                     continue
                 if ratio > MAX_COMPRESSION_RATIO:
-                    warnings.append(
+                    row["status"] = "skipped_ratio"
+                    warn(
                         f"Rapporto di compressione {ratio:.1f}:1 oltre il limite {MAX_COMPRESSION_RATIO}: "
                         + _bounded_text(member.filename, 256)
                     )
@@ -169,25 +194,22 @@ class Plugin(BasePlugin):
                             "sha256": digest.hexdigest(),
                         }
                     )
-                    rows.append(
-                        {
-                            "name": _bounded_text(member.filename),
-                            "size": written,
-                            "crc": f"{member.CRC:08x}",
-                            "offset": member.header_offset,
-                            "compressed_size": member.compress_size,
-                            "compression_ratio": round(ratio, 2),
-                            "sha256": digest.hexdigest(),
-                        }
-                    )
+                    row.update(size=written, status="extracted", sha256=digest.hexdigest())
                     reporter.phase("Estratto " + _bounded_text(member.filename, 256))
                 except (ValueError, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error, zipfile.BadZipFile) as exc:
                     target.unlink(missing_ok=True)
-                    warnings.append(f"Estrazione fallita per {_bounded_text(member.filename, 256)}: {str(exc)[:240]}")
+                    row.update(status="failed", error=str(exc)[:240])
+                    warn(f"Estrazione fallita per {_bounded_text(member.filename, 256)}: {str(exc)[:240]}")
         if omitted_unlock_requests:
-            warnings.append(
+            warn(
                 f"Richieste di sblocco omesse per limite: {omitted_unlock_requests}"
             )
+        if omitted_warnings:
+            summary = f"Altri warning omessi dopo {MAX_WARNINGS}: {omitted_warnings}"
+            if len(warnings) >= MAX_WARNINGS:
+                warnings[-1] = summary
+            else:
+                warnings.append(summary)
         return {
             "summary": f"{len(derived)} file estratti",
             "confidence": 1,

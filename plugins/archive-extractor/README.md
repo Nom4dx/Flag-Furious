@@ -10,6 +10,11 @@ l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere visib
 il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
 di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
 
-Il numero massimo di righe di inventario e i limiti per rapporto di espansione sono
-ancora in audit; l'inventario si ferma a 10.000 membri. Consultare il
-[programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i limiti aperti.
+L'inventario si ferma a 10.000 membri e distingue estratti, cifrati, directory,
+rifiutati e non estratti per limite o errore. Ogni riga include l'ID della fonte,
+l'offset del local header, dimensioni dichiarate e CRC dell'indice; gli estratti
+aggiungono SHA-256 dopo la verifica CRC. I warning sono limitati a 100 voci più
+un riepilogo delle omissioni. Il parser preflight limita l'indice centrale a 4 MiB;
+gli archivi ZIP64 sono supportati solo quando rientrano in questo limite. Consultare
+il [programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i gate
+ancora aperti.
