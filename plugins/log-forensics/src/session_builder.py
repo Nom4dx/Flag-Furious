@@ -1,7 +1,7 @@
 """Session reconstruction from explicit IDs and stable entity tuples."""
 from collections import defaultdict
 from datetime import datetime
-def build(events:list[dict],gap_seconds:int=1800)->list[dict]:
+def build(events:list[dict],gap_seconds:int=1800,return_meta:bool=False):
     """Group HTTP, SSH, DNS, cloud and flow events with a bounded inactivity gap."""
     groups=defaultdict(list)
     for item in events:
@@ -15,7 +15,8 @@ def build(events:list[dict],gap_seconds:int=1800)->list[dict]:
             if chunk and previous and current and (current-previous).total_seconds()>gap_seconds:sessions.append(_session(key,chunk));chunk=[]
             chunk.append(row);previous=current or previous
         if chunk:sessions.append(_session(key,chunk))
-    return sessions[:10000]
+    meta={"total_sessions":len(sessions),"returned_sessions":min(len(sessions),10000),"truncated":len(sessions)>10000}
+    return (sessions[:10000],meta) if return_meta else sessions[:10000]
 def _dt(value):
     try:return datetime.fromisoformat(value.replace('Z','+00:00')) if value else None
     except ValueError:return None
