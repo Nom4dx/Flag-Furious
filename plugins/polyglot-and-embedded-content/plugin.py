@@ -176,7 +176,12 @@ class Plugin(BasePlugin):
         reporter.log("Ricerca raw e decoded con provenienza e limiti di espansione")
         raw_limit = min(byte_budget, 16 * 1024 * 1024)
         with path.open("rb") as stream: raw = stream.read(raw_limit)
-        decoded = decode_payloads(raw)
+        decoded, decoder_metrics = decode_payloads(raw, return_meta=True)
+        if decoder_metrics["truncated"]:
+            warnings.append(
+                f"Payload decoder bounded: {decoder_metrics['attempts']} tentativi, "
+                f"{decoder_metrics['decoded_bytes']} byte decodificati; alcune candidate escluse"
+            )
         decoded.extend(xor_candidates(raw, context.get("prefixes", [])))
         flag_sources = [{"data": raw, "source": asset.get("name", path.name), "format": validated[0]["format"] if validated else "unknown", "confidence": validated[0]["confidence"] if validated else .35, "base_offset": 0, "chain": ["input"]}]
         for payload in decoded:
@@ -244,7 +249,7 @@ class Plugin(BasePlugin):
             "findings": findings, "sections": sections, "artifacts": artifacts, "derived_assets": [],
             "visualizations": visualizations, "flags": flags, "timeline": [], "execution_events": events,
             "logs": [], "warnings": warnings, "errors": errors,
-            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded)},
+            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded), "payload_decoder": decoder_metrics},
         }
         report_data = json.dumps({k: v for k, v in result.items() if k not in {"artifacts"}}, ensure_ascii=False, indent=2).encode()
         try: result["artifacts"].append(store.save_bytes("report", "report.json", report_data, {"format": "json", "extraction_method": "plugin_report", "confidence": 1.0}))

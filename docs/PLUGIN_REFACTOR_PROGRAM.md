@@ -82,7 +82,7 @@ nascodono aggiornando attese senza spiegazione.
 | ext4atto | refactor | Matcher immagine/partizioni; query risultati limitate, anteprima legge 2 MiB e riusa hash indicizzati; stdout/stderr TSK bounded, recupero inode e blocchi capped, 7z/PDF estratti per-member su output limitato, espansione ricorsiva con timeout globale, avvisi propagati a `PARTIAL`. TSK resta non contabilizzato nel byte budget del core; fixture/runtime ancora aperti |
 | binary-static-analysis | refactor | Warning di coverage; entropy/string limits e input parziale espliciti; YARA limitato a prefisso 64 MiB e disassembly max 20.000 istruzioni |
 | document-metadata-forensics | refactor | Matcher allineato; source size separata dalla vista; regex custom con timeout, cap testo e contesto configurato |
-| polyglot-and-embedded-content | refactor | Flag scan artefatti bounded e parzialità dichiarata anche per vista importata incompleta; restano confini/duplicati |
+| polyglot-and-embedded-content | refactor | Flag scan artefatti bounded e parzialità dichiarata anche per vista importata incompleta; decoder gzip/zlib con max output reale, totale 32 MiB e 2.000 tentativi; cap dichiarati in metriche e warning; restano confini/duplicati e fixture |
 | seganografy | refactor | Type detection artefatti limitata a 1 MiB; input parziale esplicito, restano falsi positivi/tool opzionali |
 | log-forensics | refactor | Directory/file e contenitori compressi letti entro budget con espansione limitata; output eventi/decoder clamp; identity riusa hash core; inline partial visibile; revisione statica aggiornata |
 | encrypted-volume-forensics | refactor | Ogni warning e vista importata parziale producono `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker |
