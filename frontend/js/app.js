@@ -409,8 +409,25 @@ function compactFinding(item, pluginId) {
   const confidence = confidencePercent(item.confidence);
   const sourceId = item.source_asset_id || item.asset_id || item.artifact_id || item.parent_asset_id;
   const source = sourceId ? assetName(sourceId) : item.source || item.artifact || item.path;
-  const offset = item.offset ?? item.byte_offset ?? item.source_offset ?? item.absolute_offset;
-  const location = offset !== undefined && offset !== null ? ` · offset ${offset}` :
+  const showOffset = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? `0x${value.toString(16)}`
+    : String(value);
+  const offset = item.offset ?? item.byte_offset ?? item.absolute_offset;
+  const scope = {
+    input: "offset input",
+    artifact: "offset artefatto",
+    decoded_payload: "offset payload decodificato",
+    disk: "offset disco",
+    absolute: "offset assoluto",
+  }[item.offset_scope] || "offset";
+  const locations = [];
+  if (item.decoded_offset !== undefined && item.decoded_offset !== null)
+    locations.push(`offset payload decodificato ${showOffset(item.decoded_offset)}`);
+  else if (offset !== undefined && offset !== null)
+    locations.push(`${scope} ${showOffset(offset)}`);
+  if (item.source_offset !== undefined && item.source_offset !== null)
+    locations.push(`${item.source_offset_scope === "encoded_candidate" ? "candidato codificato" : "offset sorgente"} ${showOffset(item.source_offset)}`);
+  const location = locations.length ? ` · ${locations.join(" · ")}` :
     item.line !== undefined && item.line !== null ? ` · riga ${item.line}` : "";
   if (severity) row.append(text("span", severity, `finding-severity severity-${severity}`));
   row.append(

@@ -72,6 +72,10 @@ universale di acquisizione certificata, mobile, cloud o live response.
   espongono ordinamento accessibile con priorità iniziale per gravità/confidenza.
   I valori di confidenza frazionari (0–1) e percentuali (0–100) sono normalizzati
   sulla stessa scala per ordinamento e filtro; i valori mancanti restano sconosciuti.
+- L'overview dei finding mostra gli offset in esadecimale e conserva lo scope
+  dichiarato (`input`, `artifact`, `disk`, `decoded_payload`); per payload
+  trasformati la posizione decodificata e quella del candidato codificato sono
+  mostrate separatamente.
 - L'indice di ricerca delle tabelle serializzava ogni record intero all'apertura.
   Ora si costruisce solo al primo filtro e usa valori scalari dei campi mostrati,
   limitati a 2 KiB per campo, così i payload raw non gonfiano inutilmente memoria
