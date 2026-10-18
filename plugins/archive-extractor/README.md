@@ -16,7 +16,9 @@ non forniscono una ragione statica, così gli SFX possono essere riconosciuti da
 coda senza accettare firme ZIP casuali.
 WinZip AES genera una richiesta solo se metodo 99 ed extra field AES sono
 coerenti; header AES malformati o discordanti restano inventariati come
-cifratura non supportata, senza inviare una richiesta ZipCrypto errata.
+cifratura non supportata, senza inviare una richiesta ZipCrypto errata. I flag
+ZIP di strong encryption o central directory cifrata non vengono assimilati a
+ZipCrypto e non generano richieste a un adapter incompatibile.
 La sicurezza dei percorsi viene valutata prima dello stato directory/cifrato:
 traversal POSIX, drive/percorsi assoluti Windows e symlink sono rifiutati e non
 generano richieste di sblocco.

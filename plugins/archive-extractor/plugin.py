@@ -16,6 +16,7 @@ MAX_WARNINGS = 100
 
 def _protection_type(member):
     """Return a verified ZIP encryption type or an explicit unknown state."""
+    flags = int(member.flag_bits)
     extra = member.extra
     cursor = 0
     aes_seen = False
@@ -43,6 +44,10 @@ def _protection_type(member):
         cursor = end
     if aes_seen or member.compress_type == 99:
         return "zip_aes" if aes_seen and aes_valid and member.compress_type == 99 else "zip_unknown"
+    # PKWARE marks strong encryption (bit 6) and encrypted central directories
+    # (bit 13) separately from the traditional ZipCrypto scheme.
+    if flags & (0x40 | 0x2000):
+        return "zip_unknown"
     return "zipcrypto"
 
 
