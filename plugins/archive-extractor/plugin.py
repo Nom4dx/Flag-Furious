@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from app.core.plugin import BasePlugin
 
 MAX_INVENTORY_MEMBERS = 10_000
+MAX_CENTRAL_DIRECTORY_BYTES = 4 * 1024**2
 MAX_UNLOCK_REQUESTS = 256
 MAX_MEMBER_BYTES = 16 * 1024**2
 MAX_COMPRESSION_RATIO = 1_000
@@ -65,6 +66,34 @@ class Plugin(BasePlugin):
                 f"Vista parziale: {asset.get('visible_bytes', 0)} di {asset.get('size', 0)} byte; "
                 "l'indice ZIP potrebbe trovarsi oltre il limite di lettura."
             )
+        try:
+            with Path(asset["path"]).open("rb") as source:
+                end_record = zipfile._EndRecData(source)
+            if end_record is None:
+                raise zipfile.BadZipFile("EOCD non trovato")
+            central_directory_bytes = int(end_record[zipfile._ECD_SIZE])
+            if central_directory_bytes > MAX_CENTRAL_DIRECTORY_BYTES:
+                warnings.append(
+                    f"Indice ZIP oltre budget: {central_directory_bytes} byte, "
+                    f"limite {MAX_CENTRAL_DIRECTORY_BYTES}"
+                )
+                return {
+                    "summary": "Firma ZIP candidata; indice oltre il budget",
+                    "confidence": 0.35,
+                    "sections": [{"id": "inventory", "data": rows}],
+                    "warnings": warnings,
+                    "status": "partial",
+                }
+        except (OSError, EOFError, zipfile.BadZipFile, zipfile.LargeZipFile,
+                IndexError, TypeError, ValueError, struct.error, OverflowError) as exc:
+            warnings.append(f"Indice ZIP non leggibile nella vista disponibile: {str(exc)[:240]}")
+            return {
+                "summary": "Firma ZIP candidata; indice non validato",
+                "confidence": 0.35,
+                "sections": [{"id": "inventory", "data": rows}],
+                "warnings": warnings,
+                "status": "partial",
+            }
         try:
             archive = zipfile.ZipFile(asset["path"])
         except (OSError, EOFError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:

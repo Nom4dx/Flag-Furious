@@ -74,7 +74,7 @@ nascodono aggiornando attese senza spiegazione.
 
 | Plugin | Stato | Commit/nota |
 | --- | --- | --- |
-| archive-extractor | refactor | Matcher ZIP corretto; AES/ZipCrypto distinti; inventario 10.000; membri max 16 MiB e ratio 1.000:1; CRC, SHA-256 e offset nei derivati. Restano validatori e fixture |
+| archive-extractor | refactor | Matcher ZIP corretto; preflight EOCD/Zip64 limita l'indice centrale a 4 MiB prima del parsing; AES/ZipCrypto distinti; inventario 10.000; membri max 16 MiB e ratio 1.000:1; CRC, SHA-256 e offset nei derivati. Restano validatori e fixture |
 | text-inspector | refactor | Preview UTF-8 16 KiB, serializzazione inline progressiva, conteggi/hash su max 64 MiB e copertura parziale; restano offset e decodifica dichiarata |
 | pic-up | refactor | Matcher limitato a stream, immagini e archivi; scanner TShark/capinfos/file/OCR bounded per output e timeout, massimo 100.000 righe per query; export inventariati/hashati entro 10.000 file/64 MiB e scan contenuti export entro budget; artefatti da comandi interrotti marcati incompleti/esclusi, warning rendono `partial`. Restano fixture, limiti globali delle liste/stream e accounting subprocess |
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga candidate; TShark limitato per tempo/byte/righe e terminato per gruppo processo; hash core riusato; `capinfos` e `file` usano runner bounded per tempo/output; diagnostics producono `partial` |
