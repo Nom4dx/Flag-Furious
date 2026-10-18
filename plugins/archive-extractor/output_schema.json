@@ -61,6 +61,11 @@
             "format": "text"
           },
           {
+            "field": "protection_type",
+            "label": "Cifratura",
+            "format": "text"
+          },
+          {
             "field": "size",
             "label": "Dimensione",
             "format": "bytes"

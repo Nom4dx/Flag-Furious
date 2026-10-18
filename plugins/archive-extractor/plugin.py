@@ -15,19 +15,34 @@ MAX_WARNINGS = 100
 
 
 def _protection_type(member):
-    """Distinguish WinZip AES extra field from traditional ZipCrypto."""
+    """Return a verified ZIP encryption type or an explicit unknown state."""
     extra = member.extra
     cursor = 0
+    aes_seen = False
+    aes_valid = False
     while cursor + 4 <= len(extra):
         field_id, size = struct.unpack_from("<HH", extra, cursor)
         cursor += 4
         end = cursor + size
+        if field_id == 0x9901:
+            aes_seen = True
+            if end <= len(extra) and size == 7:
+                version = int.from_bytes(extra[cursor:cursor + 2], "little")
+                strength = extra[cursor + 4]
+                method = int.from_bytes(extra[cursor + 5:cursor + 7], "little")
+                aes_valid = (
+                    extra[cursor + 2:cursor + 4] == b"AE"
+                    and version in {1, 2}
+                    and strength in {1, 2, 3}
+                    and method != 99
+                )
+            else:
+                return "zip_unknown"
         if end > len(extra):
             break
-        # WinZip AES: vendor ID "AE", strength byte, actual compression method.
-        if field_id == 0x9901 and size >= 7 and extra[cursor + 2:cursor + 4] == b"AE":
-            return "zip_aes"
         cursor = end
+    if aes_seen or member.compress_type == 99:
+        return "zip_aes" if aes_seen and aes_valid and member.compress_type == 99 else "zip_unknown"
     return "zipcrypto"
 
 
@@ -138,6 +153,11 @@ class Plugin(BasePlugin):
                     continue
                 if member.flag_bits & 1:
                     protection = _protection_type(member)
+                    row["protection_type"] = protection
+                    if protection == "zip_unknown":
+                        row["status"] = "unsupported_encryption"
+                        warn("Metadati di cifratura ZIP incoerenti; nessuna richiesta credenziale: " + _bounded_text(member.filename, 256))
+                        continue
                     if len(unlock_requests) < MAX_UNLOCK_REQUESTS:
                         unlock_requests.append(
                             unlock_request(
@@ -189,7 +209,7 @@ class Plugin(BasePlugin):
                     derived.append(
                         {
                             "path": str(target),
-                            "name": name.name,
+                            "name": _bounded_text(name.name, 180) or "member",
                             "method": "ZIP extraction with CRC verification",
                             "source_asset_id": asset.get("id"),
                             "source_member": _bounded_text(member.filename),

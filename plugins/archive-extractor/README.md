@@ -9,6 +9,9 @@ Le firme nel prefisso sono soltanto candidate: l'indice ZIP viene validato duran
 l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere visibile e
 il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
 di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
+WinZip AES genera una richiesta solo se metodo 99 ed extra field AES sono
+coerenti; header AES malformati o discordanti restano inventariati come
+cifratura non supportata, senza inviare una richiesta ZipCrypto errata.
 
 L'inventario si ferma a 10.000 membri e distingue estratti, cifrati, directory,
 rifiutati e non estratti per limite o errore; il tetto di 64 derivati non interrompe
