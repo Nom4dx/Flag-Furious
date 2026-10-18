@@ -12,6 +12,9 @@ di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
 WinZip AES genera una richiesta solo se metodo 99 ed extra field AES sono
 coerenti; header AES malformati o discordanti restano inventariati come
 cifratura non supportata, senza inviare una richiesta ZipCrypto errata.
+La sicurezza dei percorsi viene valutata prima dello stato directory/cifrato:
+traversal POSIX, drive/percorsi assoluti Windows e symlink sono rifiutati e non
+generano richieste di sblocco.
 
 L'inventario si ferma a 10.000 membri e distingue estratti, cifrati, directory,
 rifiutati e non estratti per limite o errore; il tetto di 64 derivati non interrompe

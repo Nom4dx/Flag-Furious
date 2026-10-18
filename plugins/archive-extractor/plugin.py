@@ -3,7 +3,7 @@ import struct
 import zipfile
 import hashlib
 import zlib
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from app.core.plugin import BasePlugin
 
 MAX_INVENTORY_MEMBERS = 10_000
@@ -148,6 +148,19 @@ class Plugin(BasePlugin):
                     "status": "pending",
                 }
                 rows.append(row)
+                name = PurePosixPath(member.filename.replace("\\", "/"))
+                windows_name = PureWindowsPath(member.filename)
+                unsafe = (
+                    name.is_absolute()
+                    or windows_name.is_absolute()
+                    or bool(windows_name.drive)
+                    or ".." in name.parts
+                    or stat.S_ISLNK(member.external_attr >> 16)
+                )
+                if unsafe:
+                    row["status"] = "rejected_unsafe_path"
+                    warn("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
+                    continue
                 if member.is_dir():
                     row["status"] = "directory"
                     continue
@@ -169,11 +182,6 @@ class Plugin(BasePlugin):
                         omitted_unlock_requests += 1
                     row["status"] = "encrypted"
                     warn("Membro cifrato; l'estrazione richiede una credenziale: " + _bounded_text(member.filename, 256))
-                    continue
-                name = PurePosixPath(member.filename.replace("\\", "/"))
-                if name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16):
-                    row["status"] = "rejected_unsafe_path"
-                    warn("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
                     continue
                 ratio = member.file_size / max(member.compress_size, 1)
                 row["compression_ratio"] = round(ratio, 2)
