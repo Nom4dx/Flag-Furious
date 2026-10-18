@@ -21,6 +21,9 @@ nel report sono riepilogati entro 2.000 righe con stato, byte raccolti e preview
 `command_coverage` conta quelli omessi e lo stdout grezzo non viene duplicato. Senza
 la CLI Git, il fallback marca sempre `partial`, perché non può esaminare refs, storia,
 oggetti packed o linee rimosse.
+I nomi dei percorsi correnti sono letti una volta dal tree principale; i percorsi
+storici modificati vengono acquisiti con un solo comando `git log`, evitando un
+subprocesso `ls-tree` per ogni commit.
 Le anteprime degli artefatti testuali leggono al massimo 2 MiB e mostrano una nota
 esplicita quando il contenuto supera tale limite.
 

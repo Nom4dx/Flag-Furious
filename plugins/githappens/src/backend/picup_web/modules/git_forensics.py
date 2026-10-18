@@ -287,17 +287,38 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
                 result["recovered"].append({"path": str(target), "blob": item["id"], "status": item.get("status", "historical")})
         for commit in commits[:10_000]:
             result["findings"].extend(scan_bytes(commit["message"].encode(), source=str(git_dir), path=f"commit:{commit['id']}", module="git", config=config, method="commit-message"))
-            tree = _git(git_dir, ["ls-tree", "-r", "--full-tree", commit["id"]], timeout=120)
-            record_command(tree, f"Git tree inventory {commit['id']}", failure_is_gap=True)
+        head_record = _git(git_dir, ["rev-parse", "HEAD"])
+        record_command(head_record, "Git HEAD resolution", failure_is_gap=True)
+        head_lines = head_record["stdout"].strip().splitlines()
+        head_commit = head_lines[0] if head_record["ok"] and head_lines else None
+        if head_commit and OID_RE.fullmatch(head_commit):
+            # Inspect the current tree once, then all historical changed paths in one
+            # bounded process instead of spawning one `ls-tree` process per commit.
+            tree = _git(git_dir, ["ls-tree", "-r", "--full-tree", head_commit], timeout=120)
+            record_command(tree, f"Git tree inventory {head_commit}", failure_is_gap=True)
             tree_lines = tree["stdout"].splitlines()
-            if len(tree_lines) > 100_000:
-                warn(f"Tree {commit['id']} capped at 100,000 entries.")
+            if len(tree_lines) >= 100_000:
+                warn(f"Tree {head_commit} reached the 100,000-entry inventory cap.")
             for line in tree_lines[:100_000]:
                 match = re.match(r"(\d+) (\w+) ([0-9a-f]{40,64})\t(.*)", line)
-                if not match:
-                    continue
-                path = match.group(4)
-                result["findings"].extend(scan_bytes(path.encode(), source=str(git_dir), path=path, module="git", config=config, method="git-path"))
+                if match:
+                    path = match.group(4)
+                    result["findings"].extend(scan_bytes(path.encode(), source=str(git_dir), path=path, module="git", config=config, method="git-path"))
+        history_paths = _git(
+            git_dir,
+            ["log", "--all", "--reflog", "--format=commit:%H", "--name-only", "--no-renames"],
+            timeout=300,
+        )
+        record_command(history_paths, "Git historical path inventory", failure_is_gap=True)
+        current_commit = None
+        for line in history_paths["stdout"].splitlines():
+            if line.startswith("commit:"):
+                current_commit = line[7:]
+            elif line and current_commit:
+                result["findings"].extend(
+                    scan_bytes(line.encode(), source=str(git_dir), path=f"commit:{current_commit}:{line}",
+                               module="git", config=config, method="git-history-path")
+                )
         # Generic, evidence-backed reconstruction: only when a commit explicitly
         # instructs that a literal phrase must be wrapped in the configured flag format.
         for commit in commits[:10_000]:
