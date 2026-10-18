@@ -55,6 +55,10 @@ def hub_flags(rows):
             "offset": (
                 row["absolute_offset"]
                 if isinstance(row.get("absolute_offset"), int) and row["absolute_offset"] >= 0
+                else row["artifact_offset"]
+                if row.get("source_offset_scope") == "artifact"
+                and isinstance(row.get("artifact_offset"), int)
+                and row["artifact_offset"] >= 0
                 else None
             ),
             "offset_scope": row.get("source_offset_scope") or (
@@ -62,6 +66,7 @@ def hub_flags(rows):
                 if isinstance(row.get("absolute_offset"), int) and row["absolute_offset"] >= 0
                 else None
             ),
+            "source": row.get("file_source") or row.get("source"),
         }
         for row in rows
     ]

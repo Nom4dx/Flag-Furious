@@ -24,8 +24,10 @@ filesystem e l'offset assoluto quando il parser li conosce. Sono mantenuti anche
 risultati `recovered` e il catalogo entro i limiti dichiarati; le omissioni sono
 segnalate. Le flag trovate dentro un artefatto usano `artifact_offset` relativo al
 contenuto recuperato e `offset_scope="artifact"`; non sono convertite in offset
-assoluti del disco senza una mappatura verificabile. I log del risultato hub
-conservano gli ultimi 1.000 record e limitano
+assoluti del disco senza una mappatura verificabile. Il risultato hub riporta
+l'offset dell'artefatto come `offset` con scope `artifact` e il percorso relativo
+in `source`, così il match resta navigabile nella dashboard. I log conservano gli
+ultimi 1.000 record e limitano
 messaggio, comando e output grezzo a 512, 1.024 e 4.096 caratteri. Conteggio e
 troncamento sono dichiarati nelle metriche e nelle righe; l'endpoint locale dei log
 supporta `limit` e `offset`. I prefissi predefiniti includono quelli del tool
