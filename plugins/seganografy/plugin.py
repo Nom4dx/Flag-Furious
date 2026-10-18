@@ -103,6 +103,13 @@ class Plugin(BasePlugin):
         if text_applicable:
             text_result=state.run("Steganografia testuale",reporter,lambda:text_steg.analyze(text_value,name),default={"applicable":False})
             text_result["applicable"]=True
+            if text_result.get("truncated"):
+                text_result["status"]="partial"
+                state.warnings.append("Euristiche testuali limitate per mantenere bounded linee, parole e match strutturati; omissioni nelle metriche della sezione.")
+                for event in reversed(state.events):
+                    if event.get("phase")=="Steganografia testuale":
+                        event["status"]="partial"
+                        break
             unicode_result=state.run("Unicode e ordine visuale",reporter,lambda:unicode_steg.analyze(text_value,name,source_sha),default={"applicable":False});unicode_result["applicable"]=True
             if unicode_result.get("truncated"):
                 state.warnings.append("Inventario Unicode o viste derivate limitati; coverage dettagliata nelle metriche della sezione.")
@@ -211,7 +218,7 @@ class Plugin(BasePlugin):
         sections=[
             section("file_identity","File Identity",10,[identity]),
             section("detection_summary","Detection Summary",20,[{"validated_formats":formats,"signature_count":len(hits),"rejected_count":len(rejected),"text_applicable":text_applicable,"image_applicable":image_result.get("applicable",False),"audio_applicable":audio_result.get("applicable",False),"video_applicable":video_result.get("applicable",False)}]),
-            section("text_steganography","Text Steganography",30,self._public(text_result),"partial" if text_applicable and text_heuristics_truncated else "completed"),
+            section("text_steganography","Text Steganography",30,self._public(text_result),"partial" if text_applicable and (text_heuristics_truncated or text_result.get("truncated")) else "completed"),
             section("unicode_inventory","Unicode Inventory",40,self._public(unicode_result),"partial" if unicode_result.get("truncated") or (text_applicable and text_heuristics_truncated) else "completed"),
             section("whitespace_analysis","Whitespace Analysis",50,self._public(whitespace_result),"partial" if text_applicable and text_heuristics_truncated else "completed"),
             section("image_steganography","Image Steganography",60,self._public(image_result)),
@@ -227,7 +234,7 @@ class Plugin(BasePlugin):
             section("execution_graph","Execution Graph",170,[graph_spec],visualization=graph_spec),
             section("warnings","Warnings",180,state.warnings,"partial" if state.warnings else "completed"),section("errors","Errors",190,state.errors),
         ]
-        status="partial" if state.warnings or state.errors or input_partial else "completed";metrics={"duration":round(time.monotonic()-started,4),"bytes_read":len(data),"memory_analysis_limit":64*1024*1024,"text_heuristic_limit":TEXT_HEURISTIC_BYTES,"text_heuristic_bytes":len(text_data),"text_heuristics_truncated":text_heuristics_truncated,"granted_byte_budget":byte_budget,"physical_size":physical_size,"declared_input_bytes":declared_size,"partial_input":input_partial,"analysis_view_truncated":analysis_view_truncated,"bytes_hashed":identity.get("bytes_hashed",0),"signature_hits":len(hits),"validated_formats":len(formats),"findings":len(state.findings),"artifacts":len(state.artifacts),"decoder_results":len(decoded),"flags":len(state.flags),"external_tools_run":len(state.tools),"original_modified":False}
+        status="partial" if state.warnings or state.errors or input_partial else "completed";metrics={"duration":round(time.monotonic()-started,4),"bytes_read":len(data),"memory_analysis_limit":64*1024*1024,"text_heuristic_limit":TEXT_HEURISTIC_BYTES,"text_heuristic_bytes":len(text_data),"text_heuristics_truncated":text_heuristics_truncated,"text_heuristic_coverage":text_result.get("coverage",{}),"granted_byte_budget":byte_budget,"physical_size":physical_size,"declared_input_bytes":declared_size,"partial_input":input_partial,"analysis_view_truncated":analysis_view_truncated,"bytes_hashed":identity.get("bytes_hashed",0),"signature_hits":len(hits),"validated_formats":len(formats),"findings":len(state.findings),"artifacts":len(state.artifacts),"decoder_results":len(decoded),"flags":len(state.flags),"external_tools_run":len(state.tools),"original_modified":False}
         sections.append(section("metrics","Metrics",200,metrics))
         result={"summary":f"{len(state.findings)} finding, {len(state.artifacts)} artefatti, {len(state.flags)} flag candidate","status":status,"confidence":max([x.get("confidence",0) for x in state.findings+state.flags] or [.25]),"phase":"steganography forensics","findings":state.findings,"sections":sections,"artifacts":state.artifacts,"derived_assets":[],"visualizations":state.visualizations,"flags":state.flags,"timeline":[],"execution_events":state.events,"logs":[],"warnings":state.warnings,"errors":state.errors,"metrics":metrics}
         encrypted=[member for fmt in formats for member in fmt.get("details",{}).get("encrypted",[])]
