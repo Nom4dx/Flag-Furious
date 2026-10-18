@@ -51,6 +51,8 @@ allow-listed, `shell=False`, bounded e isolati dal core.
 Anche gli asset inline testuali/JSON rispettano `byte_budget`: vengono codificati
 a frammenti, la vista troncata è segnalata come `partial` e i byte non vengono
 duplicati in una serializzazione completa prima del parsing.
+Gli hash del core vengono riusati quando disponibili; altrimenti il calcolo locale
+si ferma al byte budget e identifica esplicitamente hash/prefisso incompleto.
 
 ## Dipendenze e tool
 

@@ -70,7 +70,8 @@ class Plugin(BasePlugin):
             path=Path(asset['path'])
             if path.is_file():
                 visible_size=path.stat().st_size;declared_size=int(asset.get('size',visible_size));input_partial=input_partial or declared_size>visible_size
-                identities.append(identify(path,asset))
+                identity=identify(path,asset,budget);identities.append(identity)
+                if not identity.get('hash_complete',True):warnings.append(f"{path.name}: hash calcolato solo su {identity['bytes_hashed']} byte entro il byte budget")
             sources,initial_artifacts,read_warnings,bytes_read=collect(path,budget,store,max_files=min(1024,max(1,int(options.get('max_files',256)))));artifacts.extend(initial_artifacts);warnings.extend(read_warnings)
         else:
             content=asset.get('content');raw,inline_truncated=_bounded_inline_bytes(content,budget);sources=[(asset.get('name','inline.log'),raw,None)];bytes_read=len(raw);identities=[{"asset_id":asset.get('id'),"name":asset.get('name','inline.log'),"visible_bytes":len(raw),"visible_sha256":hashlib.sha256(raw).hexdigest(),"representation":"inline_utf8" if isinstance(content,(str,bytes)) else "inline_compact_json","partial_input":inline_truncated or bool(asset.get('partial_input')),"type":asset.get('type'),"original_modified":False}]
