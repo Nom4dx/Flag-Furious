@@ -80,8 +80,9 @@ explicitly by the case options.
 The filesystem walk uses a deque and stops as soon as `max_files` is reached.
 Its capped entry inventory, skipped oversized files, extraction count and
 cumulative output budget are reported as coverage warnings. Repeated file
-contents are stored once, with up to 100 distinct source path/inode records
-retained on the artifact and an omission count beyond that.
+contents are stored once under full SHA-256 artifact IDs and filenames, with up
+to 100 distinct source path/inode records retained on the artifact and an
+omission count beyond that. Registered decrypted files use the same dedup path.
 
 ## Output and artifacts
 

@@ -15,21 +15,23 @@ from .security import contained,safe_name
 class ArtifactStore:
     """Write immutable derived bytes with SHA-256 deduplication."""
     def __init__(self,root:Path,budget:int):self.root=Path(root)/"encrypted-volume-forensics";self.root.mkdir(parents=True,exist_ok=True);self.budget=budget;self.used=0;self.by_hash={}
+    def _merge_provenance(self,digest:str,metadata:dict|None)->dict:
+        existing=self.by_hash[digest];provenance=dict(metadata or {})
+        if provenance:
+            occurrences=existing.setdefault("source_occurrences",[])
+            if provenance not in occurrences:
+                if len(occurrences)<100:occurrences.append(provenance)
+                else:existing["provenance_occurrences_omitted"]=existing.get("provenance_occurrences_omitted",0)+1
+        return {**existing,"deduplicated":True}
     def save(self,category:str,name:str,data:bytes,metadata:dict|None=None)->dict:
         digest=hashlib.sha256(data).hexdigest()
         provenance=dict(metadata or {})
         if digest in self.by_hash:
-            existing=self.by_hash[digest]
-            if provenance:
-                occurrences=existing.setdefault("source_occurrences",[])
-                if provenance not in occurrences:
-                    if len(occurrences)<100:occurrences.append(provenance)
-                    else:existing["provenance_occurrences_omitted"]=existing.get("provenance_occurrences_omitted",0)+1
-            return {**existing,"deduplicated":True}
+            return self._merge_provenance(digest,provenance)
         if self.used+len(data)>self.budget:raise ValueError("output byte budget exceeded")
         folder=contained(self.root,self.root/safe_name(category,"raw"));folder.mkdir(parents=True,exist_ok=True)
-        target=contained(folder,folder/f"{digest[:12]}-{safe_name(name)}");target.write_bytes(data);target.chmod(0o400);self.used+=len(data)
-        row={"artifact_id":f"artifact-{digest[:16]}","name":target.name,"path":str(target),"sha256":digest,"size":len(data),"status":"extracted","writable":False,**provenance}
+        target=contained(folder,folder/f"{digest}-{safe_name(name)}");target.write_bytes(data);target.chmod(0o400);self.used+=len(data)
+        row={"artifact_id":f"artifact-{digest}","name":target.name,"path":str(target),"sha256":digest,"size":len(data),"status":"extracted","writable":False,**provenance}
         if provenance:row["source_occurrences"]=[provenance]
         self.by_hash[digest]=row;return row
     def register_file(self,category:str,name:str,path:Path,metadata:dict|None=None)->dict:
@@ -39,11 +41,19 @@ class ArtifactStore:
         digest=hashlib.sha256()
         with path.open("rb") as source:
             while block:=source.read(8*1024*1024):digest.update(block)
-        value=digest.hexdigest();target_dir=contained(self.root,self.root/safe_name(category));target_dir.mkdir(parents=True,exist_ok=True)
-        target=contained(target_dir,target_dir/f"{value[:12]}-{safe_name(name)}")
+        value=digest.hexdigest()
+        if value in self.by_hash:
+            existing=self._merge_provenance(value,metadata)
+            if path.resolve()!=Path(existing["path"]).resolve():path.unlink(missing_ok=True)
+            return existing
+        target_dir=contained(self.root,self.root/safe_name(category));target_dir.mkdir(parents=True,exist_ok=True)
+        target=contained(target_dir,target_dir/f"{value}-{safe_name(name)}")
         if path.resolve()!=target: path.replace(target)
         target.chmod(0o400);self.used+=size
-        row={"artifact_id":f"artifact-{value[:16]}","name":target.name,"path":str(target),"sha256":value,"size":size,"status":"extracted","writable":False,**(metadata or {})};self.by_hash[value]=row;return row
+        provenance=dict(metadata or {})
+        row={"artifact_id":f"artifact-{value}","name":target.name,"path":str(target),"sha256":value,"size":size,"status":"extracted","writable":False,**provenance}
+        if provenance:row["source_occurrences"]=[provenance]
+        self.by_hash[value]=row;return row
 
 
 def extract_interesting(volume_path:Path,store:ArtifactStore,options:dict)->dict:
