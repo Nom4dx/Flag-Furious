@@ -11,6 +11,7 @@ import json
 import os
 import re
 import selectors
+import signal
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
+from app.core.bounded_process import run_bounded
 
 sys.dont_write_bytecode = True
 
@@ -162,25 +164,22 @@ def capture_info(path: Path, *, hash_file: bool = True) -> dict[str, Any]:
         "size": path.stat().st_size,
         "sha256": sha256_file(path) if hash_file else None,
     }
-    try:
-        result = subprocess.run(
-            ["capinfos", "-M", str(path)], capture_output=True, text=True,
-            errors="replace", check=False, timeout=10,
-        )
-    except subprocess.TimeoutExpired:
+    result = run_bounded(["capinfos", "-M", str(path)], timeout=10,
+                         max_stdout=256 * 1024, max_stderr=64 * 1024)
+    if result["timed_out"]:
         info.setdefault("diagnostics", []).append("capinfos ha superato il timeout di 10 secondi")
-        result = None
-    except OSError as exc:
-        info.setdefault("diagnostics", []).append(f"capinfos non disponibile: {str(exc)[:200]}")
-        result = None
+    elif result["truncated"]:
+        info.setdefault("diagnostics", []).append("capinfos ha superato il limite di output")
+    elif result["returncode"] != 0:
+        info.setdefault("diagnostics", []).append("capinfos non disponibile o ha rifiutato il capture")
     wanted = {
         "File type": "format", "File encapsulation": "encapsulation",
         "Number of packets": "packets", "Capture duration": "duration",
         "First packet time": "first_packet", "Last packet time": "last_packet",
         "Strict time order": "strict_time_order",
     }
-    if result:
-        for line in result.stdout.splitlines():
+    if result["returncode"] == 0 and not result["truncated"] and not result["timed_out"]:
+        for line in result["stdout"].decode("utf-8", "replace").splitlines():
             if ":" not in line:
                 continue
             name, value = (part.strip() for part in line.split(":", 1))
@@ -208,7 +207,7 @@ class Tshark:
         for name in names:
             command.extend(("-e", name))
         try:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
         except OSError as error:
             raise RuntimeError(f"TShark non avviabile: {error}") from error
         rows = []
@@ -272,11 +271,13 @@ class Tshark:
                     self.stop_reason = "line limit or row limit"
         finally:
             if process.poll() is None:
-                process.terminate()
+                try: os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError: pass
                 try:
                     process.wait(timeout=1)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    try: os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError: pass
                     process.wait()
             elif process.poll() not in (0, None) and not self.truncated:
                 raise RuntimeError("TShark failed")
@@ -725,8 +726,10 @@ def find_matches(
 def file_type(path: Path) -> str:
     if not shutil.which("file"):
         return "unknown"
-    result = subprocess.run(["file", "-b", str(path)], capture_output=True, text=True, errors="replace", check=False)
-    return result.stdout.strip() or "unknown"
+    result = run_bounded(["file", "-b", str(path)], timeout=5, max_stdout=4096, max_stderr=4096)
+    if result["returncode"] != 0 or result["truncated"] or result["timed_out"]:
+        return "unknown"
+    return result["stdout"].decode("utf-8", "replace").strip() or "unknown"
 
 
 def write_reports_csv(path: Path, reports: Sequence[HIDReport]) -> None:
