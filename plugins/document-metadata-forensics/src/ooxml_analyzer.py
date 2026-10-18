@@ -6,13 +6,36 @@ import io
 import re
 import stat
 import zipfile
+import zlib
 from pathlib import PurePosixPath
 from xml.etree import ElementTree
 
+from .container_bounds import (
+    MAX_CENTRAL_DIRECTORY_BYTES,
+    MAX_CENTRAL_DIRECTORY_ENTRIES,
+    central_directory_info,
+)
 from .reporting import ModuleResult
 
 
 PROPERTY_FILES = {"docProps/core.xml", "docProps/app.xml", "docProps/custom.xml", "meta.xml"}
+MAX_MEMBER_BYTES = 16 * 1024**2
+MAX_TOTAL_MEMBER_BYTES = 64 * 1024**2
+
+
+def _read_member_bounded(archive: zipfile.ZipFile, member: zipfile.ZipInfo,
+                         limit: int, counter: list[int]) -> bytes:
+    """Read a ZIP member incrementally and reject actual expansion beyond limit."""
+    content = bytearray()
+    with archive.open(member) as source:
+        while True:
+            block = source.read(min(64 * 1024, limit - len(content) + 1))
+            if not block:
+                return bytes(content)
+            content.extend(block)
+            counter[0] += len(block)
+            if len(content) > limit:
+                raise ValueError("expanded_member_limit")
 
 
 def analyze_ooxml(data: bytes, source: str) -> ModuleResult:
@@ -27,6 +50,18 @@ def analyze_ooxml(data: bytes, source: str) -> ModuleResult:
     result = ModuleResult("office", status="skipped")
     if not data.startswith(b"PK"):
         return result
+    directory = central_directory_info(data)
+    if directory and (
+        directory[0] > MAX_CENTRAL_DIRECTORY_BYTES
+        or directory[1] > MAX_CENTRAL_DIRECTORY_ENTRIES
+    ):
+        result.status = "partial"
+        result.warnings.append(
+            f"Indice ZIP oltre budget: {directory[0]} byte/{directory[1]} voci; "
+            f"limiti {MAX_CENTRAL_DIRECTORY_BYTES} byte/{MAX_CENTRAL_DIRECTORY_ENTRIES} voci"
+        )
+        result.metrics.update({"central_directory_bytes": directory[0], "central_directory_entries": directory[1]})
+        return result
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
@@ -35,23 +70,42 @@ def analyze_ooxml(data: bytes, source: str) -> ModuleResult:
     result.status = "completed"
     total = 0
     with archive:
-        members = archive.infolist()[:5000]
+        inventory = archive.infolist()
+        members = inventory[:5000]
+        if len(inventory) > len(members):
+            result.warnings.append("Inventario container limitato ai primi 5.000 membri")
+            result.status = "partial"
         names = {m.filename for m in members}
         family = "OOXML" if "[Content_Types].xml" in names else "ODF" if "META-INF/manifest.xml" in names else "EPUB" if "META-INF/container.xml" in names else "ZIP document"
         result.items.append({"type": "container", "family": family, "members": len(members), "source": source})
         for member in members:
             name = PurePosixPath(member.filename.replace("\\", "/"))
             unsafe = name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16)
-            if unsafe or member.is_dir() or member.file_size > 16 * 1024**2:
+            if unsafe or member.is_dir():
                 if unsafe:
                     result.warnings.append(f"Membro non sicuro ignorato: {member.filename}")
                 continue
-            total += member.file_size
-            if total > 64 * 1024**2:
+            if member.file_size > MAX_MEMBER_BYTES:
+                result.warnings.append(f"Membro oltre limite dichiarato ignorato: {member.filename}")
+                result.status = "partial"
+                continue
+            remaining = MAX_TOTAL_MEMBER_BYTES - total
+            if remaining <= 0:
                 result.warnings.append("Budget container 64 MiB raggiunto")
                 result.status = "partial"
                 break
-            raw = archive.read(member)
+            member_limit = min(MAX_MEMBER_BYTES, remaining)
+            consumed = [0]
+            try:
+                raw = _read_member_bounded(archive, member, member_limit, consumed)
+            except (ValueError, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error, zipfile.BadZipFile) as exc:
+                total += consumed[0]
+                result.warnings.append(f"Lettura limitata/fallita per {member.filename}: {str(exc)[:240]}")
+                result.status = "partial"
+                if total >= MAX_TOTAL_MEMBER_BYTES:
+                    break
+                continue
+            total += consumed[0]
             lower_name = member.filename.lower()
             if member.filename in PROPERTY_FILES or lower_name.endswith(("comments.xml", "commentauthors.xml")):
                 _parse_xml_properties(raw, source, member.filename, result)

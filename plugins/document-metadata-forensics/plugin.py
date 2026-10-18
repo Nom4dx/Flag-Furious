@@ -74,6 +74,7 @@ class Plugin(BasePlugin):
         visible_size = path.stat().st_size
         declared_size = int(asset.get("size", visible_size))
         input_partial = bool(asset.get("partial_input")) or len(data) < visible_size or declared_size > len(data)
+        hash_complete = not input_partial and len(data) == visible_size
         reporter.log(f"Acquisiti {len(data)} byte in sola lettura")
         modules: list[ModuleResult] = []
         phases = [
@@ -181,7 +182,10 @@ class Plugin(BasePlugin):
                 "bytes_read": len(data),
                 "visible_input_bytes": visible_size,
                 "declared_input_bytes": declared_size,
-                "sha256": digest,
+                "sha256": digest if hash_complete else None,
+                "sha256_view": digest,
+                "hash_complete": hash_complete,
+                "hash_scope": "entire_input" if hash_complete else "visible_prefix",
                 "modules": len(active),
                 "metadata_values": len(evidence),
                 "partial_input": input_partial,

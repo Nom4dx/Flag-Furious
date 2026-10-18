@@ -11,6 +11,11 @@ import json
 import zipfile
 from pathlib import Path
 
+from .container_bounds import (
+    MAX_CENTRAL_DIRECTORY_BYTES,
+    MAX_CENTRAL_DIRECTORY_ENTRIES,
+    central_directory_info,
+)
 from .reporting import ModuleResult
 
 
@@ -52,19 +57,29 @@ def identify(data: bytes, name: str = "asset") -> ModuleResult:
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
     if data.startswith(b"PK"):
-        try:
-            with zipfile.ZipFile(io.BytesIO(data)) as archive:
-                names = set(archive.namelist()[:2000])
-            kind = "zip"
-            if "[Content_Types].xml" in names:
-                kind = "ooxml"
-            elif "META-INF/manifest.xml" in names:
-                kind = "odf"
-            elif "META-INF/container.xml" in names and "mimetype" in names:
-                kind = "epub"
-            matches.append({"format": kind, "mime": "application/zip", "offset": 0, "evidence": "container inventory"})
-        except zipfile.BadZipFile as exc:
-            result.warnings.append(f"Contenitore ZIP non valido: {exc}")
+        directory = central_directory_info(data)
+        if directory and (
+            directory[0] > MAX_CENTRAL_DIRECTORY_BYTES
+            or directory[1] > MAX_CENTRAL_DIRECTORY_ENTRIES
+        ):
+            result.warnings.append(
+                f"Indice ZIP oltre budget: {directory[0]} byte/{directory[1]} voci; "
+                f"limiti {MAX_CENTRAL_DIRECTORY_BYTES} byte/{MAX_CENTRAL_DIRECTORY_ENTRIES} voci"
+            )
+        else:
+            try:
+                with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                    names = {item.filename for item in archive.filelist[:2000]}
+                kind = "zip"
+                if "[Content_Types].xml" in names:
+                    kind = "ooxml"
+                elif "META-INF/manifest.xml" in names:
+                    kind = "odf"
+                elif "META-INF/container.xml" in names and "mimetype" in names:
+                    kind = "epub"
+                matches.append({"format": kind, "mime": "application/zip", "offset": 0, "evidence": "container inventory"})
+            except zipfile.BadZipFile as exc:
+                result.warnings.append(f"Contenitore ZIP non valido: {exc}")
     suffix = Path(name).suffix.lower().lstrip(".")
     detected = {item["format"] for item in matches}
     compatible_suffixes = {"jpg": "jpeg", "jpeg": "jpeg", "tif": "tiff", "docx": "ooxml", "xlsx": "ooxml", "pptx": "ooxml"}
@@ -72,7 +87,11 @@ def identify(data: bytes, name: str = "asset") -> ModuleResult:
     result.items = matches or [{"format": "unknown", "mime": "application/octet-stream", "evidence": "no known signature", "offset": None}]
     if suffix and detected and expected not in detected and not ({"zip", "ooxml", "odf", "epub"} & detected and suffix in {"zip", "docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"}):
         result.findings.append({"type": "format_inconsistency", "severity": "medium", "title": "Estensione incoerente", "description": f"Estensione .{suffix}, formati rilevati: {', '.join(sorted(detected))}", "source": name, "offset": 0, "confidence": 0.9})
-    result.metrics = {"bytes_examined": len(data), "formats": len(matches)}
+    result.metrics = {
+        "bytes_examined": len(data), "formats": len(matches),
+        "central_directory_bytes": directory[0] if data.startswith(b"PK") and directory else 0,
+        "central_directory_entries": directory[1] if data.startswith(b"PK") and directory else 0,
+    }
     return result
 
 
