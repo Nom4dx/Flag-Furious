@@ -44,16 +44,11 @@ class Plugin(BasePlugin):
         Input: hub asset/context. Output: score and reasons. Raises only for an
         unreadable path. Security: bounded read-only access; no full-file scan.
         """
-        if asset.get("path"):
-            return bounded_match(asset["path"], asset.get("name", "asset"))
-        content = asset.get("content")
-        if isinstance(content, (dict, list)):
-            return {"compatible": True, "score": 0.85, "reasons": ["Asset strutturato"]}
-        return {
-            "compatible": asset.get("type") in {"text", "json", "structured"},
-            "score": 0.65,
-            "reasons": ["Documento testuale"],
-        }
+        # Validation and analyze require a mounted file. Do not advertise
+        # compatibility for in-memory content that this plugin cannot consume.
+        if not asset.get("path"):
+            return {"compatible": False, "score": 0, "reasons": ["È richiesto un file montato in sola lettura"]}
+        return bounded_match(asset["path"], asset.get("name", "asset"))
 
     def validate(self, asset, context):
         """Verify a readable non-directory asset within the granted view.
@@ -76,6 +71,7 @@ class Plugin(BasePlugin):
         path = Path(asset["path"])
         reporter.phase("Input e hash")
         data, digest = self._read_and_hash(path, context["byte_budget"])
+        input_partial = bool(asset.get("partial_input")) or len(data) < path.stat().st_size
         reporter.log(f"Acquisiti {len(data)} byte in sola lettura")
         modules: list[ModuleResult] = []
         phases = [
@@ -126,13 +122,15 @@ class Plugin(BasePlugin):
 
         findings = [item for module in modules for item in module.findings]
         warnings = [warning for module in modules for warning in module.warnings] + artifact_warnings
+        if input_partial:
+            warnings.append(f"Input parziale: acquisiti {len(data)} byte su {path.stat().st_size}")
         active = [m for m in modules if m.status != "skipped"]
         failed = [
             {"module": m.name, "error": "; ".join(m.warnings), "recoverable": True}
             for m in active
             if m.status == "partial"
         ]
-        status = "partial" if warnings or failed or asset.get("partial_input") else "completed"
+        status = "partial" if warnings or failed or input_partial else "completed"
         sections = [
             {
                 "id": _section_id(module.name),
@@ -176,7 +174,7 @@ class Plugin(BasePlugin):
                 "sha256": digest,
                 "modules": len(active),
                 "metadata_values": len(evidence),
-                "partial_input": bool(asset.get("partial_input")),
+                "partial_input": input_partial,
             },
         }
         reporter.phase("Generazione report")
