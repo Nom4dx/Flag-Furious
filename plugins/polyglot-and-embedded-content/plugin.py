@@ -173,11 +173,14 @@ class Plugin(BasePlugin):
                 warnings.append(recovery["warning"])
 
         reporter.phase("Payload e flag")
+        phase = time.monotonic()
         reporter.log("Ricerca raw e decoded con provenienza e limiti di espansione")
         raw_limit = min(byte_budget, 16 * 1024 * 1024)
+        flag_phase_partial = byte_budget < size
         with path.open("rb") as stream: raw = stream.read(raw_limit)
         decoded, decoder_metrics = decode_payloads(raw, return_meta=True)
         if decoder_metrics["truncated"]:
+            flag_phase_partial = True
             warnings.append(
                 f"Payload decoder bounded: {decoder_metrics['attempts']} tentativi, "
                 f"{decoder_metrics['decoded_bytes']} byte decodificati; alcune candidate escluse"
@@ -193,9 +196,12 @@ class Plugin(BasePlugin):
                 with artifact_path.open("rb") as source:
                     artifact_data = source.read(16 * 1024 * 1024)
                 if artifact_size > len(artifact_data):
+                    flag_phase_partial = True
                     warnings.append(f"Flag scan limitato a 16 MiB per {artifact.get('name')}")
                 flag_sources.append({"data": artifact_data, "source": artifact["name"], "artifact_id": artifact.get("id"), "artifact_sha256": artifact["sha256"], "format": artifact.get("format"), "confidence": artifact.get("confidence", .95), "chain": ["input", artifact.get("extraction_method", "carved"), artifact["name"]]})
-            except OSError as exc: warnings.append(f"Flag scan artefatto {artifact.get('name')}: {exc}")
+            except OSError as exc:
+                flag_phase_partial = True
+                warnings.append(f"Flag scan artefatto {artifact.get('name')}: {exc}")
         flags = hunt_flags(flag_sources, context.get("prefixes", []))
         # Continue raw flag hunting across the granted view in bounded chunks.
         # A short overlap preserves flags split on a block boundary without
@@ -209,6 +215,11 @@ class Plugin(BasePlugin):
                 if not block: break
                 flags.extend(hunt_flags([{"data": overlap + block, "source": asset.get("name", path.name), "format": validated[0]["format"] if validated else "unknown", "confidence": validated[0]["confidence"] if validated else .35, "base_offset": offset - len(overlap), "chain": ["input"]}], context.get("prefixes", []), 256 - len(flags)))
                 overlap = block[-1024:]; offset += len(block)
+        flag_limit_reached = len(flags) >= 256
+        if flag_limit_reached:
+            flag_phase_partial = True
+            warnings.append("Limite di 256 flag candidate raggiunto; altri riscontri possono essere omessi.")
+        events.append(self._event("Payload e flag", phase, "partial" if flag_phase_partial else "completed"))
         unique_flags = {}
         for flag in flags:
             unique_flags[(flag["value"], flag.get("source"), flag.get("offset"), flag.get("decoder"))] = flag
@@ -235,7 +246,7 @@ class Plugin(BasePlugin):
             section("script_analysis", "Script and SFX analysis", 130, structural["script"] + structural["sfx"]),
             section("decoys", "Decoys", 140, decoys),
             section("payloads", "Payloads", 150, [{k: v for k, v in x.items() if k != "decoded"} for x in decoded]),
-            section("flag_candidates", "Flag candidates", 160, flags),
+            section("flag_candidates", "Flag candidates", 160, flags, "partial" if flag_limit_reached else "completed"),
             section("artifact_graph", "Artifact graph", 170, [graph_visualization], visualization=graph_visualization),
         ]
         status = "partial" if warnings or scan_truncated or hashed < size or input_partial else "completed"
@@ -249,7 +260,7 @@ class Plugin(BasePlugin):
             "findings": findings, "sections": sections, "artifacts": artifacts, "derived_assets": [],
             "visualizations": visualizations, "flags": flags, "timeline": [], "execution_events": events,
             "logs": [], "warnings": warnings, "errors": errors,
-            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded), "payload_decoder": decoder_metrics},
+            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded), "payload_decoder": decoder_metrics, "flag_candidates_limit": 256, "flag_candidates_limit_reached": flag_limit_reached},
         }
         report_data = json.dumps({k: v for k, v in result.items() if k not in {"artifacts"}}, ensure_ascii=False, indent=2).encode()
         try: result["artifacts"].append(store.save_bytes("report", "report.json", report_data, {"format": "json", "extraction_method": "plugin_report", "confidence": 1.0}))

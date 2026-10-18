@@ -86,6 +86,9 @@ decoder, offset, contesto e catena completa.
 La ricerca flag sugli artefatti derivati legge al massimo 16 MiB per artefatto;
 se l'artefatto è più grande, il report espone la riduzione di copertura e passa a
 `partial`.
+La ricerca limita inoltre l'output a 256 candidate: al raggiungimento del cap,
+sezione, evento di fase e stato generale dichiarano la possibile omissione di
+riscontri ulteriori.
 
 ## Test
 
