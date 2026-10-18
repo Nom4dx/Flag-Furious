@@ -87,6 +87,22 @@ nascodono aggiornando attese senza spiegazione.
 | encrypted-volume-forensics | audit | 6 file test; audit BitLocker/provenienza chiavi da svolgere |
 | bruteforce | audit | 5 file test; audit adapters/budget/segreti da svolgere |
 
+### Rilievi specialistici in attesa di permessi scrittura
+
+Audit statico read-only del 2026-10-18. Queste correzioni non sono state
+applicate: le directory dei plugin risultano `root:root`, mentre il workspace è
+eseguito dall'utente `nomad` senza sudo non interattivo. Ripristinare ownership
+del checkout prima di attuare ciascun rilievo e aggiungere le fixture previste.
+
+| Plugin | Rilievo | Priorità |
+| --- | --- | --- |
+| `binary-static-analysis` | `status` ignora gli avvisi accumulati da parser, YARA, carving e archivi e può mostrare `completed` con copertura ridotta | Alta |
+| `log-forensics` | Asset inline viene serializzato interamente in memoria in `analyze`; il `byte_budget` non limita questa sorgente, a differenza dei file/directory | Alta |
+| `polyglot-and-embedded-content` | Scansione di un artefatto derivato usa `read_bytes()` prima di tagliare a 16 MiB, quindi può caricare l'intero artefatto in memoria | Alta |
+| `seganografy` | Lettura completa di ogni artefatto estratto per rilevarne il tipo, senza applicare il byte budget; possibile picco di memoria | Alta |
+| `encrypted-volume-forensics` | `status` considera solo `prepare_warnings`, `truncated` e metadata mancanti, ignorando warning di estrazione hash, filesystem e flag | Alta |
+| `bruteforce` | Matcher legge fino a 64 MiB a ogni valutazione; rilevamento protezione può leggere altri 8 MiB, costo elevato durante il routing | Media |
+
 ## Registro moduli futuri
 
 Nessun nuovo plugin deve essere implementato prima del gate A3. I moduli candidati e
