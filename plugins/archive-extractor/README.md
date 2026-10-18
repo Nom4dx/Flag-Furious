@@ -22,8 +22,9 @@ rifiutati e non estratti per limite o errore; il tetto di 64 derivati non interr
 l'inventario dei membri successivi. Ogni riga include l'ID della fonte,
 l'offset del local header, dimensioni dichiarate e CRC dell'indice; gli estratti
 aggiungono SHA-256 dopo la verifica CRC. I warning sono limitati a 100 voci più
-un riepilogo delle omissioni. I membri falliti o con CRC errato vengono eliminati
-senza consumare il budget cumulativo dei derivati validi. Il parser preflight limita
+un riepilogo delle omissioni. I parziali creati dal tentativo fallito o con CRC
+errato vengono eliminati senza consumare il budget cumulativo dei derivati validi;
+un file preesistente con lo stesso nome non viene rimosso. Il parser preflight limita
 l'indice centrale a 4 MiB;
 gli archivi ZIP64 sono supportati solo quando rientrano in questo limite. Consultare
 il [programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i gate

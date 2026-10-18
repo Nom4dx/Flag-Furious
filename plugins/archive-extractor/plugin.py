@@ -225,16 +225,19 @@ class Plugin(BasePlugin):
                 member_name = _name_metadata(member.filename)
                 target = output / f"{index}-{leaf}"
                 member_budget = remaining
+                created_target = False
                 try:
                     written = 0
                     digest = hashlib.sha256()
-                    with archive.open(member) as source, target.open("xb") as destination:
-                        while block := source.read(min(65536, member_budget - written + 1)):
-                            written += len(block)
-                            if written > member_budget:
-                                raise ValueError("Budget estrazione esaurito")
-                            destination.write(block)
-                            digest.update(block)
+                    with archive.open(member) as source:
+                        with target.open("xb") as destination:
+                            created_target = True
+                            while block := source.read(min(65536, member_budget - written + 1)):
+                                written += len(block)
+                                if written > member_budget:
+                                    raise ValueError("Budget estrazione esaurito")
+                                destination.write(block)
+                                digest.update(block)
                     remaining -= written
                     derived.append(
                         {
@@ -254,7 +257,8 @@ class Plugin(BasePlugin):
                     row.update(size=written, status="extracted", sha256=digest.hexdigest())
                     reporter.phase("Estratto " + _bounded_text(member.filename, 256))
                 except (ValueError, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error, zipfile.BadZipFile) as exc:
-                    target.unlink(missing_ok=True)
+                    if created_target:
+                        target.unlink(missing_ok=True)
                     # Failed/CRC-invalid members are deleted, so their bytes do
                     # not consume the cumulative budget available to later files.
                     remaining = member_budget
