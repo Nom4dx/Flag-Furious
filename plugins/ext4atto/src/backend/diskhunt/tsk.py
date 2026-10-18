@@ -22,7 +22,9 @@ class TSK:
     def _execute(self, command: str, args: list[str], tail: list[str]) -> tuple[int, str]:
         binary = shutil.which(command)
         if not binary:
-            self.logger("WARNING", f"TSK command unavailable: {command}")
+            message = f"TSK command unavailable: {command}"
+            self.warn(message)
+            self.logger("WARNING", message)
             return 127, ""
         argv = [binary, *args, str(self.image), *tail]
         printable = " ".join(argv)
@@ -43,6 +45,8 @@ class TSK:
             self.warn(f"{command}: timeout dopo {self.timeout}s; risultati parziali")
             self.logger("ERROR", f"command timed out after {self.timeout}s", printable, stderr)
             return 124, ""
+        if proc["returncode"] != 0:
+            self.warn(f"{command}: comando terminato con codice {proc['returncode']}; risultati incompleti.")
         if proc["stderr_truncated"]:
             self.warn(f"{command}: stderr limitato")
         else:
@@ -144,13 +148,15 @@ class TSK:
             self.warn(f"blkls {mode}: dump limitato a {limit} byte")
         if proc["stderr_truncated"]:
             self.warn(f"blkls {mode}: stderr limitato")
+        if proc["returncode"] != 0:
+            self.warn(f"blkls {mode}: codice di uscita {proc['returncode']}; dump incompleto")
         if not target.exists():
-            return False, proc["truncated"] or proc["timed_out"]
+            return False, proc["truncated"] or proc["timed_out"] or proc["returncode"] != 0
         self.output_bytes += target.stat().st_size
         self.logger("INFO" if proc["returncode"] == 0 and not proc["timed_out"] else "WARNING",
                     f"blkls {mode} produced {target.stat().st_size} bytes", " ".join(argv),
                     proc["stderr"].decode("utf-8", "replace"))
-        return target.stat().st_size > 0, proc["truncated"] or proc["timed_out"]
+        return target.stat().st_size > 0, proc["truncated"] or proc["timed_out"] or proc["returncode"] != 0
 
     def search_strings(self, patterns) -> list[dict] | None:
         """Stream srch_strings output, retaining matching evidence without buffering all strings."""
@@ -166,6 +172,8 @@ class TSK:
         self.output_bytes += len(proc["stdout"])
         if proc["truncated"] or proc["timed_out"]:
             self.warn("srch_strings: output o tempo limitato; ricerca parziale")
+        if proc["returncode"] != 0:
+            self.warn(f"srch_strings: codice di uscita {proc['returncode']}; ricerca incompleta.")
         for line in proc["stdout"].decode("utf-8", "replace").splitlines():
             match = re.match(r"\s*(\d+)\s+(.*)", line.rstrip("\n"))
             if not match: continue

@@ -14,12 +14,32 @@ from .security import safe_filename
 from .source import prepare_image
 from .tsk import TSK
 
+MAX_ANALYSIS_WARNINGS = 100
+MAX_WARNING_DEDUP_KEYS = 2_000
+
 
 class Analyzer:
     PHASES = ["hashing", "image preparation", "image triage", "partition analysis", "filesystem analysis", "file enumeration", "artifact recovery", "filesystem residue", "recursive extraction", "flag search", "carving", "report checkpoint"]
 
     def __init__(self, db: Database, job_id: str, cancel: Event):
         self.db = db; self.job_id = job_id; self.cancel = cancel; self.completed: list[str] = []; self.warnings: list[str] = []
+        self.warning_keys: set[str] = set(); self.warnings_omitted = 0
+
+    def warn(self, message: str) -> None:
+        if message in self.warning_keys:
+            return
+        if len(self.warning_keys) < MAX_WARNING_DEDUP_KEYS:
+            self.warning_keys.add(message)
+        if len(self.warnings) < MAX_ANALYSIS_WARNINGS:
+            self.warnings.append(message)
+        else:
+            self.warnings_omitted += 1
+
+    def warning_coverage(self) -> dict[str, int | bool]:
+        return {
+            "stored": len(self.warnings), "omitted": self.warnings_omitted,
+            "complete": self.warnings_omitted == 0,
+        }
 
     def log(self, level, message, command=None, raw_output=None):
         self.db.log(self.job_id, level, message, command, raw_output)
@@ -50,12 +70,13 @@ class Analyzer:
             self.db.update_job(self.job_id, image_path=str(image)); self.completed.append("image preparation")
             patterns = compile_flag_patterns(options.prefix, options.prefix_is_regex, options.prefixes)
             catalog = ArtifactCatalog(self.db, self.job_id, workdir / "artifacts", patterns)
-            tsk = TSK(image, self.log, warn=self.warnings.append,
+            tsk = TSK(image, self.log, warn=self.warn,
                       max_output_total=min(512 * 1024 * 1024, b.total))
             self.phase("image triage", 13); tsk.image_triage(); self.completed.append("image triage")
             self.phase("partition analysis", 18)
             with image.open("rb") as handle: table, partitions, anomalies = inspect_partitions(handle, image.stat().st_size)
-            stats["partition_table"] = table; self.warnings.extend(anomalies)
+            stats["partition_table"] = table
+            for message in anomalies: self.warn(message)
             self.completed.append("partition analysis")
             self.phase("filesystem analysis", 28); self._filesystem_details(image, partitions, budget, b.max_request)
             for part in partitions: self.db.add_result(self.job_id, "partition", part)
@@ -67,7 +88,8 @@ class Analyzer:
             self.phase("filesystem residue", 56); recovered.extend(self._filesystem_residue(tsk, partitions, workdir, catalog)); self.completed.append("filesystem residue")
             self.phase("recursive extraction", 62); extractor = RecursiveExtractor(catalog, workdir / "artifacts" / "extracted")
             for record in recovered: extractor.expand(record)
-            self.warnings.extend(extractor.warnings); self.completed.append("recursive extraction")
+            for message in extractor.warnings: self.warn(message)
+            self.completed.append("recursive extraction")
             self.phase("flag search", 70)
             reported = 0
             def report_bytes(count):
@@ -98,13 +120,14 @@ class Analyzer:
                 self.db.add_result(self.job_id, "carved", item)
                 target = workdir / "artifacts" / "carved" / item["name"]
                 if target.exists(): catalog.register(target, name_original=item["name"], original_path="unallocated/raw", method="magic-byte carving", status=item["status"], confidence=item["confidence"], partition=item.get("partition"), absolute_offset=item["absolute_offset"])
-            self.warnings.extend(catalog.coverage_warnings)
+            for message in catalog.coverage_warnings: self.warn(message)
             if catalog.coverage_warnings_omitted:
-                self.warnings.append(f"Artifact flag scan warnings omitted: {catalog.coverage_warnings_omitted} additional artifacts.")
+                self.warn(f"Artifact flag scan warnings omitted: {catalog.coverage_warnings_omitted} additional artifacts.")
             if "carving" not in budget.exhausted_phases: self.completed.append("carving")
             self.phase("report checkpoint", 96); self.completed.append("report checkpoint")
             stats.update({"budget": budget.stats(), "tsk_output_bytes": tsk.output_bytes, "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3),
                           "partitions": len(partitions), "flags": len(self.db.results(self.job_id, "flag")), "files": len(self.db.results(self.job_id, "file")), "deleted": len(self.db.results(self.job_id, "deleted")), "artifacts": len(self.db.results(self.job_id, "artifact"))})
+            stats["warning_coverage"] = self.warning_coverage()
             exhausted = bool(budget.exhausted_phases) or budget.stats()["remaining"] == 0
             if exhausted:
                 stats["incomplete_phases"] = sorted(budget.exhausted_phases)
@@ -112,10 +135,12 @@ class Analyzer:
             self.db.update_job(self.job_id, status="PARTIAL" if partial else "COMPLETED", phase="coverage limited; checkpoint saved" if partial else "complete", progress=100, stats=stats, warnings=self.warnings)
         except InterruptedError as exc:
             stats.update({"budget": budget.stats(), "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3)})
+            stats["warning_coverage"] = self.warning_coverage()
             self.db.update_job(self.job_id, status="CANCELLED", phase="cancelled", stats=stats, error=str(exc))
         except Exception as exc:
             self.log("ERROR", f"analysis failed: {type(exc).__name__}: {exc}")
             stats.update({"budget": budget.stats(), "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3)})
+            stats["warning_coverage"] = self.warning_coverage()
             self.db.update_job(self.job_id, status="FAILED", phase="failed", stats=stats, error=f"{type(exc).__name__}: {exc}")
 
     def _hash(self, path: Path):
@@ -154,7 +179,7 @@ class Analyzer:
                         sb = budget.read(handle, part["offset_byte"] + 1024, 1024, "metadata", max_request); detail = parse_ext_superblock(sb)
                     else: continue
                     part["filesystem"] = detail["type"]; self.db.add_result(self.job_id, "filesystem", {"partition": part["number"], **detail})
-                except (ValueError, BudgetExhausted) as exc: self.warnings.append(f"partition {part['number']}: {exc}")
+                except (ValueError, BudgetExhausted) as exc: self.warn(f"partition {part['number']}: {exc}")
 
     def _enumerate(self, tsk, partitions, workdir, options):
         for part in partitions:
@@ -175,12 +200,12 @@ class Analyzer:
         recovered = []; seen = set(); total = 0; max_total = 512 * 1024 * 1024; max_files = 1000
         for item in files:
             if len(recovered) >= max_files:
-                self.warnings.append(f"artifact recovery stopped at the {max_files}-file safety limit"); break
+                self.warn(f"artifact recovery stopped at the {max_files}-file safety limit"); break
             if item["type"].startswith(("d/", "V/")) or item["size"] <= 0 or item["size"] > 64 * 1024 * 1024: continue
             key = (item["partition"], item["inode"])
             if key in seen: continue
             if total + item["size"] > max_total:
-                self.warnings.append("artifact recovery stopped at the 512 MB safety limit"); break
+                self.warn("artifact recovery stopped at the 512 MB safety limit"); break
             seen.add(key)
             part = next((p for p in partitions if p["number"] == item["partition"]), None)
             if not part: continue

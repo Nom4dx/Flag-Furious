@@ -140,6 +140,11 @@ class Plugin(BasePlugin):
         groups = {kind: value[0] for kind, value in rows_with_limits.items()}
         truncated_kinds = [kind for kind, value in rows_with_limits.items() if value[1]]
         warnings = list(job["warnings"])
+        warning_coverage = job.get("stats", {}).get("warning_coverage", {})
+        if warning_coverage.get("omitted", 0):
+            warnings.append(
+                f"{warning_coverage['omitted']} warning aggiuntivi omessi; vedere metriche.warning_coverage."
+            )
         if truncated_kinds:
             warnings.append("Inventario risultati limitato per payload/memoria: " + ", ".join(truncated_kinds))
         warnings.append("Letture degli strumenti TSK non sono contabilizzate dal byte budget del core.")

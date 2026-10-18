@@ -78,6 +78,19 @@
         ]
       },
       {
+        "id": "disk-warning-coverage",
+        "title": "Copertura warning",
+        "source": "metrics.warning_coverage",
+        "type": "details",
+        "group": "overview",
+        "order": 20,
+        "fields": [
+          {"field": "stored", "label": "Warning conservati", "format": "number"},
+          {"field": "omitted", "label": "Warning omessi", "format": "number"},
+          {"field": "complete", "label": "Copertura completa", "format": "boolean"}
+        ]
+      },
+      {
         "id": "partitions",
         "title": "Partizioni",
         "source": "data.inventory",
