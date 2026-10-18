@@ -147,6 +147,7 @@ function renderSection(parent, section, result) {
     partial: "Copertura parziale",
     failed: "Sezione non disponibile",
     skipped: "Non analizzata",
+    cancelled: "Interrotta",
   }[section.status];
   if (sectionStatus) {
     const status = text("span", sectionStatus, "section-status section-status-" + section.status);
@@ -154,6 +155,7 @@ function renderSection(parent, section, result) {
       partial: palette.secondary,
       failed: palette.critical,
       skipped: palette.muted,
+      cancelled: palette.muted,
     }[section.status]);
     status.setAttribute("role", "status");
     heading.append(status);
@@ -382,7 +384,9 @@ function dashboardHeader(host, pluginId, results, hasEvidence) {
         ? "Il plugin non ha prodotto dati utili e ha segnalato un errore. Il dettaglio tecnico è disponibile in Problemi e Log."
         : status === "partial"
           ? "Il plugin ha completato soltanto una parte dell’analisi e non ha prodotto dati utili. Il dettaglio è disponibile in Problemi e Log."
-          : "Il plugin ha completato l’analisi senza produrre finding, flag, artefatti o dati utili per questo caso."),
+          : status === "cancelled"
+            ? "L’analisi è stata interrotta. I risultati raccolti prima dell’annullamento restano consultabili."
+            : "Il plugin ha completato l’analisi senza produrre finding, flag, artefatti o dati utili per questo caso."),
     );
     host.append(none);
     return counts;
@@ -744,11 +748,13 @@ function renderSummary(job, results, graph) {
   const lead = text("section", undefined, `summary-lead status-${status}`);
   lead.append(
     text("span", status, "summary-status mono"),
-    text("h2", status === "partial" ? "Analisi completata con risultati parziali" : status === "completed" ? "Analisi completata" : status === "failed" ? "Analisi non completata" : "Analisi in corso"),
+    text("h2", status === "partial" ? "Analisi completata con risultati parziali" : status === "completed" ? "Analisi completata" : status === "failed" ? "Analisi non completata" : status === "cancelled" ? "Analisi annullata" : "Analisi in corso"),
     text("p", status === "partial"
       ? `${issues.length || "Alcuni"} avvisi o errori hanno limitato una parte dell’analisi. I risultati prodotti restano consultabili.`
       : status === "completed"
         ? "Tutti i moduli previsti hanno terminato. Consulta prima flag e finding, poi gli strumenti diagnostici."
+        : status === "cancelled"
+          ? "L’esecuzione è stata interrotta su richiesta. I risultati già raccolti e la loro provenienza restano consultabili."
         : "I risultati vengono aggiornati senza spostare la posizione di lettura."),
   );
   const metrics = text("dl", undefined, "summary-metrics");
@@ -1129,7 +1135,13 @@ function renderPluginRuns(graph, results) {
     }
     const meta = text(
       "p",
-      resultFacts.join(" · ") || (status === "completed" ? "Nessun riscontro" : "In elaborazione"),
+      resultFacts.join(" · ") || ({
+        completed: "Nessun riscontro",
+        partial: "Nessun riscontro · copertura parziale",
+        failed: "Errore durante l’analisi",
+        cancelled: "Interrotto su richiesta",
+        skipped: "Non analizzato",
+      }[status] || "In elaborazione"),
       "plugin-result-facts",
     );
     const sections = text("div", undefined, "plugin-section-links");

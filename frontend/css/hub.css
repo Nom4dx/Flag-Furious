@@ -1955,7 +1955,7 @@ body.analysis-page .flag-item {
 .workflow-node[data-status="failed"]::after { content: "×"; position: absolute; right: 7px; bottom: 4px; }
 
 .section-status { display: inline-flex; align-items: center; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: .75rem; font-weight: 650; }
-.section-status-partial, .section-status-failed, .section-status-skipped { color: var(--section-status-color); }
+.section-status-partial, .section-status-failed, .section-status-skipped, .section-status-cancelled { color: var(--section-status-color); }
 @keyframes workflow-running { 50% { opacity: .58; } }
 .workflow-node-heading span { display: block; font: 8px Plex,monospace; letter-spacing: 1px; opacity: .58; }
 .workflow-node-heading strong { display: block; margin-top: 4px; font-size: 12px; line-height: 1.25; overflow-wrap: anywhere; }

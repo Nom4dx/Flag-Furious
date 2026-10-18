@@ -22,6 +22,10 @@ prima di promuovere una fase; ogni plugin che non può essere testato nell'ambie
 disponibile resta esplicitamente `refactor`, con motivazione. Le regressioni non si
 nascodono aggiornando attese senza spiegazione.
 
+La dashboard distingue gli stati terminali `partial`, `failed`, `cancelled` e
+`skipped` anche sulle singole sezioni; un plugin senza finding non va mostrato come
+ancora in elaborazione quando il risultato è già terminale.
+
 ## Gruppo A — Adapter e analisi generalista
 
 | Ordine | Plugin | Obiettivo del rifacimento |
