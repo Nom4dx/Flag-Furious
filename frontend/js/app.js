@@ -448,14 +448,17 @@ function compactFinding(item, pluginId) {
     decoded_payload: "offset payload decodificato",
     disk: "offset disco",
     absolute: "offset assoluto",
+    archive_member: "offset nel membro archivio",
   }[item.offset_scope] || "offset";
   const locations = [];
+  if (item.internal_offset !== undefined && item.internal_offset !== null)
+    locations.push(`${item.internal_offset_unit === "unicode_codepoint" ? "indice Unicode nel membro" : "offset interno"}${item.internal_path ? ` ${item.internal_path}` : ""}: ${item.internal_offset}`);
   if (item.decoded_offset !== undefined && item.decoded_offset !== null)
     locations.push(`offset payload decodificato ${showOffset(item.decoded_offset)}`);
   else if (offset !== undefined && offset !== null)
     locations.push(`${scope} ${showOffset(offset)}`);
   if (item.source_offset !== undefined && item.source_offset !== null)
-    locations.push(`${item.source_offset_scope === "encoded_candidate" ? "candidato codificato" : "offset sorgente"} ${showOffset(item.source_offset)}`);
+    locations.push(`${item.source_offset_role === "archive_member_header" ? "header membro archivio" : item.source_offset_scope === "encoded_candidate" ? "candidato codificato" : "offset sorgente"} ${showOffset(item.source_offset)}`);
   const location = locations.length ? ` · ${locations.join(" · ")}` :
     item.line !== undefined && item.line !== null ? ` · riga ${item.line}` : "";
   if (severity) row.append(text("span", severity, `finding-severity severity-${severity}`));

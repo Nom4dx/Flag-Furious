@@ -31,6 +31,12 @@ limita le righe sospette e mixed-script a 10.000, i simboli
 decodificati a 100.000 e le viste derivate a 100.000 codepoint; le omissioni
 sono conteggiate e rendono parziale la sezione e l'analisi.
 
+Gli offset dei finding indicano sempre il relativo spazio: HTML e dati PDF/RTF
+usano byte dell'input; per OOXML il parser riporta separatamente l'indice
+Unicode nel testo decompresso del membro e l'offset in byte dell'header ZIP.
+L'indice interno non viene convertito in un byte offset del file, perché la
+compressione non fornisce una corrispondenza lineare.
+
 ## Estensione
 
 Per aggiungere un decoder, implementare una funzione pura e limitata in `src/decoders.py`, registrarla in `decode_candidates` e aggiungere una fixture con falso positivo. Per una tecnica, creare un modulo `analyze(...)` che restituisca candidate/finding/artifact con tecnica, prova e confidence, quindi collegarlo a una fase in `plugin.py`. Non elevare mai un indicatore statistico a certezza.

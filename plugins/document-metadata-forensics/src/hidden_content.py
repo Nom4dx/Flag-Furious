@@ -32,7 +32,7 @@ def analyze_hidden(data: bytes, source: str) -> ModuleResult:
             for marker in ("\u200b".encode(), "\u200c".encode())
             if (offset := text_view.find(marker)) >= 0
         ]
-        result.items.append({"type": "hidden_payload", "encoding": "zero-width U+200B/U+200C", "raw_value": bits, "normalized_value": decoded.decode("utf-8", "replace"), "source": source, "offset": min(marker_offsets, default=0), "offset_scope": "source_bytes", "size": len(bits), "parser": "zero-width", "decoder": "binary", "confidence": 0.98})
+        result.items.append({"type": "hidden_payload", "encoding": "zero-width U+200B/U+200C", "raw_value": bits, "normalized_value": decoded.decode("utf-8", "replace"), "source": source, "offset": min(marker_offsets, default=0), "offset_scope": "input", "size": len(bits), "parser": "zero-width", "decoder": "binary", "confidence": 0.98})
     for signature, name in ((b"PK\x03\x04", "ZIP"), (b"%PDF-", "PDF"), (b"\xff\xd8\xff", "JPEG")):
         offsets = [m.start() for m in re.finditer(re.escape(signature), data)][:1000]
         for offset in offsets[1:] if data.startswith(signature) else offsets:

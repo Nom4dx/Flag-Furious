@@ -29,7 +29,7 @@ def analyze(data: bytes, detected_formats: set[str], source_file: str, max_membe
             "pdf_active_content":r"/(?:JavaScript|JS|Launch|OpenAction)\b",
         }
         for kind,pattern in patterns.items():
-            for match in re.finditer(pattern,text):findings.append({"type":kind,"offset":match.start(),"length":match.end()-match.start(),"confidence":.82 if kind!="pdf_off_page_text" else .62,"status":"detected","evidence":["token PDF statico"]})
+            for match in re.finditer(pattern,text):findings.append({"type":kind,"offset":match.start(),"offset_scope":"input","length":match.end()-match.start(),"confidence":.82 if kind!="pdf_off_page_text" else .62,"status":"detected","evidence":["token PDF statico"]})
         items.append({"type":"pdf_structure","eof_count":data.count(b"%%EOF"),"objects":len(re.findall(rb"\d+\s+\d+\s+obj\b",data)),"streams":data.count(b"stream"),"source_file":source_file})
     is_zip=data.startswith((b"PK\x03\x04",b"PK\x05\x06"))
     if is_zip:
@@ -53,12 +53,13 @@ def analyze(data: bytes, detected_formats: set[str], source_file: str, max_membe
                         "office_external_relation":r'(?i)TargetMode="External"',
                     }
                     for kind,pattern in indicators.items():
-                        for match in re.finditer(pattern,text):findings.append({"type":kind,"internal_path":info.filename,"offset":info.header_offset+match.start(),"length":len(match.group()),"confidence":.9 if "external" not in kind else .75,"status":"detected","evidence":["XML interno al container"]})
-                    if any(x in lower for x in ("embeddings/","vbaproject","media/")):embedded.append({"internal_path":info.filename,"offset":info.header_offset,"size":info.file_size,"status":"detected","active":lower.endswith(("vbaProject.bin".lower(),".js",".exe"))})
+                        for match in re.finditer(pattern,text):findings.append({"type":kind,"internal_path":info.filename,"offset":None,"offset_scope":"archive_member","internal_offset":match.start(),"internal_offset_unit":"unicode_codepoint","source_offset":info.header_offset,"source_offset_scope":"input","source_offset_role":"archive_member_header","length":len(match.group()),"confidence":.9 if "external" not in kind else .75,"status":"detected","evidence":["XML interno al container"]})
+                    if any(x in lower for x in ("embeddings/","vbaproject","media/")):embedded.append({"internal_path":info.filename,"offset":info.header_offset,"offset_scope":"input","size":info.file_size,"status":"detected","active":lower.endswith(("vbaProject.bin".lower(),".js",".exe"))})
         except zipfile.BadZipFile as exc:warnings.append(f"Container documento non valido: {exc}")
     decoded=data.decode("utf-8","replace")
     if decoded.lstrip().lower().startswith(("<html","<!doctype html")):
-        for match in re.finditer(r"(?is)(?:<!--(.*?)-->|<(?:[^>]+)(?:hidden|display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|opacity\s*:\s*0)[^>]*>(.*?)</[^>]+>)",decoded):findings.append({"type":"html_hidden_content","offset":match.start(),"length":match.end()-match.start(),"text":next((x for x in match.groups() if x),"")[:4096],"confidence":.82,"status":"detected"})
+        html_pattern=rb"(?is)(?:<!--(.*?)-->|<(?:[^>]+)(?:hidden|display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|opacity\s*:\s*0)[^>]*>(.*?)</[^>]+>)"
+        for match in re.finditer(html_pattern,data):findings.append({"type":"html_hidden_content","offset":match.start(),"offset_scope":"input","length":match.end()-match.start(),"text":next((x.decode("utf-8","replace") for x in match.groups() if x),"")[:4096],"confidence":.82,"status":"detected"})
     if data.startswith(b"{\\rtf"):
-        for match in re.finditer(rb"\\v\b.*?(?:\\v0|})",data,re.S):findings.append({"type":"rtf_hidden_text","offset":match.start(),"length":len(match.group()),"confidence":.9,"status":"detected"})
+        for match in re.finditer(rb"\\v\b.*?(?:\\v0|})",data,re.S):findings.append({"type":"rtf_hidden_text","offset":match.start(),"offset_scope":"input","length":len(match.group()),"confidence":.9,"status":"detected"})
     return {"items":items,"findings":findings,"embedded":embedded,"warnings":warnings}
