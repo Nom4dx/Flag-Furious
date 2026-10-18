@@ -36,6 +36,13 @@ from .src.tool_adapters import ToolRunner
 from .src.volume_detector import detect as detect_volumes
 
 
+def _bounded_int(value,default,minimum,maximum):
+    """Normalize an untrusted runtime option to a documented resource range."""
+    try:number=int(value)
+    except (TypeError,ValueError):number=default
+    return max(minimum,min(number,maximum))
+
+
 class Plugin(BasePlugin):
     """Analyze local encrypted volumes, especially BitLocker, without mutation.
 
@@ -66,10 +73,11 @@ class Plugin(BasePlugin):
         Parser failures become warnings and preserve successful modules. Secrets
         exist only in local variables and are never added to the returned JSON.
         """
-        started=time.monotonic();source=Path(asset["path"]);size=source.stat().st_size;declared_size=int(asset.get("size",size));input_partial=bool(asset.get("partial_input")) or declared_size>size
+        started=time.monotonic();source=Path(asset["path"]);size=source.stat().st_size;declared_size=max(0,_bounded_int(asset.get("size",size),size,0,2**63-1));input_partial=bool(asset.get("partial_input")) or declared_size>size
         options=context.get("plugin_options",{}).get("encrypted-volume-forensics",{})
-        byte_budget=min(size,int(context.get("byte_budget",size)));output_budget=int(context.get("output_bytes",512*1024*1024))
-        workspace=min(int(options.get("workspace_bytes",2*1024*1024*1024)),4*1024*1024*1024)
+        byte_budget=min(size,_bounded_int(context.get("byte_budget",size),size,0,1024*1024*1024))
+        output_budget=_bounded_int(context.get("output_bytes",512*1024*1024),512*1024*1024,0,512*1024*1024)
+        workspace=_bounded_int(options.get("workspace_bytes",2*1024*1024*1024),2*1024*1024*1024,0,4*1024*1024*1024)
         runner=ToolRunner();warnings=[];errors=[];events=[];findings=[];artifacts=[];unlock_rows=[];filesystem_rows=[];deleted=[];ads=[]
         output=Path(context["output_dir"]);store=ArtifactStore(output,output_budget)
 
@@ -84,7 +92,7 @@ class Plugin(BasePlugin):
             reporter.phase("Ricerca FVEK in memoria");phase=time.monotonic();analysis_path=source
             image_info={"source_container":"memory_dump","analysis_path_is_original":True,"size":size,"source_size":size,"read_only":True}
             prepare_warnings=[];partitions=[];partition_result={"scheme":"memory","anomalies":[]};volumes=[];truncated=byte_budget<size
-            candidates,memory_warnings=scan_memory_fvek(source,byte_budget,int(options.get("max_fvek_candidates",32)));warnings.extend(memory_warnings)
+            candidates,memory_warnings=scan_memory_fvek(source,byte_budget,_bounded_int(options.get("max_fvek_candidates",32),32,1,128));warnings.extend(memory_warnings)
             for index,row in enumerate(candidates,1):
                 payload=row.pop("payload")
                 stored=store.save("memory-keys",f"memory-fvek-{index:02d}.fvek",payload,{"kind":"bitlocker_fvek","detected_type":"Dislocker FVEK key","source_offset":row["source_offset"],"extraction_method":row["layout"],"validated":False,"status":"candidate_requires_volume_validation"})
@@ -134,7 +142,8 @@ class Plugin(BasePlugin):
         if attempts and volumes:
           for candidate,candidate_method in attempts:
             volume=volumes[0];target=output/"encrypted-volume-forensics"/"temporary"/f"unlocked-volume-{len(unlock_rows)}.raw"
-            attempt=unlock(analysis_path,volume,candidate,candidate_method,target,runner,min(output_budget-store.used,int(options.get("max_unlocked_bytes",output_budget))),str(options.get("unlock_engine","libbde")))
+            max_unlocked=min(output_budget-store.used,_bounded_int(options.get("max_unlocked_bytes",output_budget),output_budget,0,512*1024*1024))
+            attempt=unlock(analysis_path,volume,candidate,candidate_method,target,runner,max_unlocked,str(options.get("unlock_engine","libbde")))
             secret=None;attempt={**attempt,"volume_id":volume["id"],"credential_type":candidate_method,"password_display":"********"};unlock_rows.append(attempt)
             if attempt["status"]=="success":
                 unlocked=store.register_file("unlocked","unlocked-volume.raw",Path(attempt["path"]),{"kind":"decrypted_volume","detected_type":"filesystem image","parent_artifact_id":volume["id"],"extraction_method":attempt["method"],"password_verified":True,"writable":False})
@@ -155,7 +164,7 @@ class Plugin(BasePlugin):
             if row.get("kind") in {"password_hash"}:continue
             child={"id":row["artifact_id"],"name":row["name"],"type":"file","path":row["path"]};child_flags,child_warnings=hunt_flags(child,context,row["artifact_id"],row.get("parent_artifact_id"));flags.extend(child_flags);warnings.extend(child_warnings)
         unique={(row.get("value"),row.get("source_artifact"),row.get("offset")):row for row in flags};flags=list(unique.values())
-        events.append(event("Flag hunting",phase));reporter.log(f"{len(flags)} candidate con provenance")
+        events.append(event("Flag hunting",phase,"partial" if flag_warnings else "completed"));reporter.log(f"{len(flags)} candidate con provenance")
 
         graph=build_graph(asset,image_info,partitions,volumes,copies,protectors,hash_artifacts,unlock_rows,filesystem_rows,artifacts,flags)
         graph_visual={"type":"graph","title":"Encrypted Volume Structure","data":graph,"palette":"volume","options":{"interactive":True,"zoom":True,"pan":True,"tooltip":True}}

@@ -76,6 +76,9 @@ Sleuth Kit. Missing tools produce warnings and preserve metadata-only results.
 Any coverage warning from hash extraction, filesystem recovery or flag scanning
 keeps the result `partial`. Hash extraction is reported as `skipped` when disabled
 explicitly by the case options.
+Runtime scan, output and workspace budgets are clamped to documented ceilings;
+malformed values fall back to defaults, while a zero byte budget produces a
+partial scan instead of an unbounded read.
 
 The filesystem walk uses a deque and stops as soon as `max_files` is reached.
 Its capped entry inventory, skipped oversized files, extraction count and
