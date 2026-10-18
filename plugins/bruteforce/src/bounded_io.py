@@ -2,6 +2,55 @@
 import hashlib
 
 
+class BoundedWriter:
+    """Seekable file wrapper that rejects writes beyond a byte ceiling."""
+    def __init__(self, stream, limit):
+        self._stream = stream
+        self._limit = max(0, int(limit))
+
+    def write(self, data):
+        if self._stream.tell() + len(data) > self._limit:
+            raise ValueError('derived_output_limit')
+        return self._stream.write(data)
+
+    def seek(self, offset, whence=0):
+        current = self._stream.tell()
+        if whence == 0:
+            target = offset
+        elif whence == 1:
+            target = current + offset
+        elif whence == 2:
+            self._stream.seek(0, 2)
+            target = self._stream.tell() + offset
+            self._stream.seek(current)
+        else:
+            raise ValueError('invalid_seek_origin')
+        if target < 0 or target > self._limit:
+            raise ValueError('derived_output_limit')
+        return self._stream.seek(target)
+
+    def tell(self):
+        return self._stream.tell()
+
+    def flush(self):
+        return self._stream.flush()
+
+    def truncate(self, size=None):
+        target = self.tell() if size is None else size
+        if target < 0 or target > self._limit:
+            raise ValueError('derived_output_limit')
+        return self._stream.truncate(target)
+
+    def fileno(self):
+        return self._stream.fileno()
+
+    def writable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+
 def digest_file(path, limit):
     """Hash a regular output file without reading it all into memory.
 

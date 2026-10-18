@@ -2,7 +2,7 @@
 from pathlib import Path
 from .base import PasswordAdapter
 from ..subprocess_runner import run
-from ..bounded_io import extracted
+from ..bounded_io import BoundedWriter, extracted
 class PdfAdapter(PasswordAdapter):
  name='pdf_adapter';supported_formats=['pdf'];supported_protections=['pdf','pdf_user','pdf_owner']
  def can_handle(self,a,c):
@@ -23,10 +23,13 @@ class PdfAdapter(PasswordAdapter):
   target=Path(c['output_dir'])/'unlocked.pdf';
   try:
    import pikepdf
-   with pikepdf.open(self.path(a),password=p) as pdf:pdf.save(target)
+   with pikepdf.open(self.path(a),password=p) as pdf, target.open('xb+') as out:pdf.save(BoundedWriter(out,c['limits'].max_output))
   except ImportError:
    r=run('qpdf',['--password='+p,'--decrypt',str(self.path(a)),str(target)],c['limits'].timeout_seconds,secret_indexes=(0,),max_file_size=c['limits'].max_output);
    if r['exit_code']!=0:raise ValueError(r['status'])
+  except Exception:
+   target.unlink(missing_ok=True)
+   raise
   with target.open('rb') as source:signature=source.read(5)
   if not signature.startswith(b'%PDF-'):raise ValueError('invalid_derived_pdf')
   return [extracted(target,c['limits'].max_output,'pdf')]

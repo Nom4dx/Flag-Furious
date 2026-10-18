@@ -2,7 +2,7 @@
 import hashlib
 from pathlib import Path
 from .base import PasswordAdapter
-from ..bounded_io import extracted
+from ..bounded_io import BoundedWriter, extracted
 class OfficeAdapter(PasswordAdapter):
  name='office_adapter';supported_formats=['docx','xlsx','pptx','ole'];supported_protections=['office','office_agile','office_standard']
  def can_handle(self,a,c):
@@ -20,7 +20,12 @@ class OfficeAdapter(PasswordAdapter):
   import msoffcrypto
   target=Path(c['output_dir'])/('unlocked'+self.path(a).suffix)
   if self.path(a).stat().st_size>c['limits'].max_output:raise ValueError('artifact_input_limit')
-  with self.path(a).open('rb') as f, target.open('wb') as out:o=msoffcrypto.OfficeFile(f);o.load_key(password=p,verify_password=True);o.decrypt(out)
+  try:
+   with self.path(a).open('rb') as f, target.open('xb+') as out:
+    o=msoffcrypto.OfficeFile(f);o.load_key(password=p,verify_password=True);o.decrypt(BoundedWriter(out,c['limits'].max_output))
+  except Exception:
+   target.unlink(missing_ok=True)
+   raise
   with target.open('rb') as source:signature=source.read(8)
   if not signature.startswith((b'PK\x03\x04',b'\xd0\xcf\x11\xe0')):raise ValueError('invalid_derived_office')
   return [extracted(target,c['limits'].max_output,'office')]
