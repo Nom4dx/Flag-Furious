@@ -326,7 +326,7 @@ class Tshark:
                                  max_stdout=min(MAX_COMMAND_OUTPUT, remaining))
         except OSError as error:
             raise RuntimeError(f"Unable to start TShark: {error}") from error
-        self.output_bytes += len(result.stdout.encode("utf-8", errors="replace"))
+        self.output_bytes += result.stdout_bytes
         if result.output_truncated:
             self._warn("TShark output cap reached; parsed records are partial")
         if result.stderr_truncated:
@@ -366,7 +366,7 @@ class Tshark:
             return self._field_catalog
         if result.output_truncated or result.stderr_truncated or result.timed_out:
             self._warn("TShark field catalog incomplete or capped; using requested fields")
-        self.output_bytes += len(result.stdout.encode("utf-8", errors="replace"))
+        self.output_bytes += result.stdout_bytes
         catalog: set[str] = set()
         if result.returncode == 0:
             for line in result.stdout.splitlines():

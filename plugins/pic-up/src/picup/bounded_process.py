@@ -66,4 +66,6 @@ def run_bounded(argv: list[str], *, timeout: int = 120,
     result.output_truncated = truncated["stdout"]
     result.stderr_truncated = truncated["stderr"]
     result.timed_out = timed_out
+    result.stdout_bytes = len(outputs["stdout"])
+    result.stderr_bytes = len(outputs["stderr"])
     return result
