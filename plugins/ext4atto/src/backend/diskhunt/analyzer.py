@@ -98,6 +98,9 @@ class Analyzer:
                 self.db.add_result(self.job_id, "carved", item)
                 target = workdir / "artifacts" / "carved" / item["name"]
                 if target.exists(): catalog.register(target, name_original=item["name"], original_path="unallocated/raw", method="magic-byte carving", status=item["status"], confidence=item["confidence"], partition=item.get("partition"), absolute_offset=item["absolute_offset"])
+            self.warnings.extend(catalog.coverage_warnings)
+            if catalog.coverage_warnings_omitted:
+                self.warnings.append(f"Artifact flag scan warnings omitted: {catalog.coverage_warnings_omitted} additional artifacts.")
             if "carving" not in budget.exhausted_phases: self.completed.append("carving")
             self.phase("report checkpoint", 96); self.completed.append("report checkpoint")
             stats.update({"budget": budget.stats(), "tsk_output_bytes": tsk.output_bytes, "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3),

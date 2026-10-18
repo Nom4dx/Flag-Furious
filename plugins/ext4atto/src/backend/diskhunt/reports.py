@@ -19,6 +19,15 @@ def render(report: dict[str, Any], fmt: str) -> tuple[bytes, str, str]:
         for key, value in job.get("stats", {}).get("hashes", {}).items(): lines.append(f"- {key.upper()}: `{value}`")
         lines += ["", "## Flag candidates", ""]
         for flag in report.get("flags", []): lines.append(f"- `{flag['candidate']}` — confidence {flag['confidence']}%, offset {flag['absolute_offset']}")
+        lines += ["", "## Recovered artifacts and scan coverage", "",
+                  "| Artifact | MIME | Size | SHA-256 | Flag scan | Findings |",
+                  "| --- | --- | ---: | --- | --- | ---: |"]
+        for item in report.get("artifacts", []):
+            name = str(item.get("name_original", item.get("artifact", ""))).replace("|", "\\|").replace("\n", " ")
+            lines.append("| {} | {} | {} | `{}` | {} ({} bytes) | {} |".format(
+                name, item.get("mime_type", "unknown"), item.get("size", 0),
+                item.get("sha256", ""), item.get("flag_scan_status", "not recorded"),
+                item.get("flag_scan_bytes", 0), item.get("flag_scan_findings", 0)))
         lines += ["", "## Partitions", "", "```json", json.dumps(report.get("partitions", []), indent=2), "```"]
         return "\n".join(lines).encode(), "text/markdown", "report.md"
     if fmt == "csv":

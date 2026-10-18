@@ -2,12 +2,15 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import shutil
-import subprocess
 import struct
 from pathlib import Path
 from typing import Any
+from .bounded_process import run_bounded
 from .db import Database
-from .scanner import scan_bytes
+from .scanner import scan_file
+
+FLAG_SCAN_LIMIT = 64 * 1024 * 1024
+FLAG_FINDING_LIMIT = 10_000
 
 
 MAGIC_MIME = [
@@ -29,10 +32,12 @@ def detect_mime(path: Path) -> str:
             return mime
     binary = shutil.which("file")
     if binary:
-        try:
-            result = subprocess.run([binary, "--brief", "--mime-type", "--", str(path)], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0 and result.stdout.strip(): return result.stdout.strip()
-        except subprocess.TimeoutExpired: pass
+        result = run_bounded([binary, "--brief", "--mime-type", "--", str(path)],
+                             timeout=10, max_stdout=4096, max_stderr=4096)
+        if result["returncode"] == 0 and not result["timed_out"] and not result["truncated"]:
+            detected = result["stdout"].decode("utf-8", "replace").strip()
+            if detected:
+                return detected
     return mimetypes.guess_type(path.name)[0] or "application/octet-stream"
 
 
@@ -65,25 +70,41 @@ def image_dimensions(path: Path) -> dict[str, int] | None:
 class ArtifactCatalog:
     def __init__(self, db: Database, job_id: str, artifact_root: Path, patterns):
         self.db = db; self.job_id = job_id; self.root = artifact_root.resolve(); self.patterns = patterns
+        self.coverage_warnings = []
+        self.coverage_warnings_omitted = 0
 
     def register(self, path: Path, **origin: Any) -> dict[str, Any]:
         path = path.resolve()
         if self.root not in path.parents: raise ValueError("artifact is outside case root")
         relative = str(path.relative_to(self.root)); mime = detect_mime(path); size = path.stat().st_size
+        flags = []
+        if size <= FLAG_SCAN_LIMIT:
+            scan_method = "carving" if "carv" in str(origin.get("method", "")).lower() or origin.get("status") == "CARVED" else "inode"
+            flags, scanned, scan_partial = scan_file(
+                path, self.patterns, source=relative, method=scan_method,
+                max_bytes=FLAG_SCAN_LIMIT, max_results=FLAG_FINDING_LIMIT)
+            scan_status = "partial" if scan_partial else "complete"
+        else:
+            scanned, scan_status = 0, "skipped_size_limit"
+        if scan_status != "complete":
+            warning = f"Artifact flag scan {scan_status}: {relative} ({scanned}/{size} bytes, {len(flags)} findings)."
+            if len(self.coverage_warnings) < 100:
+                self.coverage_warnings.append(warning)
+            else:
+                self.coverage_warnings_omitted += 1
         record = {
             "name_original": origin.pop("name_original", path.name), "name_generated": path.name,
             "original_path": origin.pop("original_path", ""), "artifact": relative,
             "mime_type": mime, "size": size, "sha256": file_sha256(path),
+            "flag_scan_status": scan_status, "flag_scan_bytes": scanned,
+            "flag_scan_findings": len(flags),
             "method": origin.pop("method", "filesystem"), "status": origin.pop("status", "VISIBLE"),
             "confidence": origin.pop("confidence", 95), **origin,
         }
         self.db.add_result(self.job_id, "artifact", record)
-        scan_method = "carving" if record["status"] == "CARVED" else "inode"
-        if size <= 64 * 1024 * 1024:
-            data = path.read_bytes()
-            for flag in scan_bytes(data, 0, self.patterns, source=relative, method=scan_method):
-                flag.update({"absolute_offset": -1, "partition_offset": -1, "file_source": relative,
-                             "inode": record.get("inode"), "partition": record.get("partition"),
-                             "filesystem": record.get("filesystem", "unknown")})
-                self.db.add_result(self.job_id, "flag", flag)
+        for flag in flags:
+            flag.update({"absolute_offset": -1, "partition_offset": -1, "file_source": relative,
+                         "inode": record.get("inode"), "partition": record.get("partition"),
+                         "filesystem": record.get("filesystem", "unknown")})
+            self.db.add_result(self.job_id, "flag", flag)
         return record

@@ -23,6 +23,11 @@ provenienza e offset. Sono mantenuti anche i risultati `recovered`, il catalogo
 completo e i log originali. I prefissi predefiniti includono quelli del tool
 originale, compresi `FLAG{` e `SRDNLEN{`; un elenco personalizzato li sostituisce.
 Sono riconosciuti anche input gzip/xz/zstd e superblock ext senza estensione nota.
+La scansione di flag sugli artefatti catalogati legge blocchi da 1 MiB, fino a
+64 MiB e 10.000 finding per file. L'API e i report registrano byte esaminati,
+conteggio finding e stato `complete`, `partial` o `skipped_size_limit`; scansioni
+limitate aggiungono un warning al job, la tabella Markdown mostra la copertura e
+`GET /api/jobs/{id}/artifacts?scan_status=partial` filtra gli artefatti incompleti.
 
 Il triage globale riserva budget ai plugin selezionati. Le letture investigative
 native rispettano il budget ricevuto; hashing e letture interne di TSK, come nel

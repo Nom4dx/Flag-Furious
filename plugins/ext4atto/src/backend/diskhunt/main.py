@@ -201,11 +201,12 @@ def logs(job_id: str): require_job(job_id); return {"items": db.logs(job_id)}
 
 
 @app.get("/api/jobs/{job_id}/artifacts")
-def artifacts(job_id: str, limit: int = Query(500, le=5000), offset: int = 0, q: str | None = None, mime: str | None = None, status: str | None = None):
+def artifacts(job_id: str, limit: int = Query(500, le=5000), offset: int = 0, q: str | None = None, mime: str | None = None, status: str | None = None, scan_status: str | None = None):
     require_job(job_id); items = db.results(job_id, "artifact", 50000)
     if q: items = [x for x in items if q.lower() in (x.get("original_path", "") + x.get("name_original", "")).lower()]
     if mime: items = [x for x in items if x.get("mime_type", "").startswith(mime)]
     if status: items = [x for x in items if x.get("status") == status]
+    if scan_status: items = [x for x in items if x.get("flag_scan_status") == scan_status]
     return {"items": items[offset:offset+limit], "total": len(items), "limit": limit, "offset": offset}
 
 

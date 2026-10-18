@@ -1,5 +1,6 @@
 from __future__ import annotations
 import codecs
+import itertools
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,7 +32,7 @@ def score_candidate(value: bytes, method: str, exact: bool, complete: bool) -> t
     return min(score, 100), reasons
 
 
-def scan_bytes(data: bytes, absolute_base: int, patterns: list[tuple[str, re.Pattern[bytes]]], *, partition: dict | None = None, source: str = "raw", method: str = "raw") -> list[dict]:
+def scan_bytes(data: bytes, absolute_base: int, patterns: list[tuple[str, re.Pattern[bytes]]], *, partition: dict | None = None, source: str = "raw", method: str = "raw", max_results: int | None = None, min_end_offset: int | None = None) -> list[dict]:
     found = []
     variants = [(data, 1, "ASCII/UTF-8")]
     # Removing UTF-16 NUL bytes preserves an approximate offset mapping.
@@ -41,7 +42,12 @@ def scan_bytes(data: bytes, absolute_base: int, patterns: list[tuple[str, re.Pat
     for view, scale, encoding in variants:
         for prefix, pattern in patterns:
             for match in pattern.finditer(view):
+                if max_results is not None and len(found) >= max_results:
+                    return found
                 raw = match.group(0); offset = absolute_base + match.start() * scale
+                end_offset = absolute_base + (match.end() * scale)
+                if min_end_offset is not None and end_offset <= min_end_offset:
+                    continue
                 key = (offset, raw)
                 if key in seen: continue
                 seen.add(key)
@@ -57,13 +63,17 @@ def scan_bytes(data: bytes, absolute_base: int, patterns: list[tuple[str, re.Pat
                     "method": f"{method}:{encoding}", "context_before": before, "context_after": after,
                     "confidence": confidence, "confidence_reasons": reasons, "status": "CANDIDATE"})
     # Generic CTF ASCII-art recovery: join printable characters represented as `( x )`.
-    tokens = list(re.finditer(rb"\(\s([\x20-\x7e])\s\)", data))
+    token_matches = re.finditer(rb"\(\s([\x20-\x7e])\s\)", data)
+    tokens = list(itertools.islice(token_matches, max(0, max_results * 32))) if max_results is not None else list(token_matches)
     if len(tokens) >= 4:
         reconstructed = b"".join(token.group(1) for token in tokens)
         for prefix, pattern in patterns:
             for match in pattern.finditer(reconstructed):
                 first = tokens[match.start()] if match.start() < len(tokens) else tokens[0]
                 raw = match.group(0); offset = absolute_base + first.start()
+                last = tokens[match.end() - 1] if match.end() else first
+                if min_end_offset is not None and absolute_base + last.end() <= min_end_offset:
+                    continue
                 confidence, reasons = score_candidate(raw, "raw", True, raw.endswith(b"}"))
                 found.append({"candidate": raw.decode("utf-8", "replace"), "prefix": prefix,
                     "absolute_offset": offset, "partition_offset": offset - (partition["offset_byte"] if partition else 0),
@@ -74,6 +84,49 @@ def scan_bytes(data: bytes, absolute_base: int, patterns: list[tuple[str, re.Pat
                     "confidence_reasons": reasons + ["heuristic ASCII-art reconstruction"],
                     "status": "CANDIDATA — RICOSTRUZIONE PARZIALE"})
     return found
+
+
+def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[bytes]]], *, source: str,
+              method: str, max_bytes: int, max_results: int = 10_000,
+              chunk_size: int = 1024 * 1024) -> tuple[list[dict], int, bool]:
+    """Scan a file incrementally with bounded overlap, bytes and findings."""
+    results = []
+    seen = set()
+    scanned = 0
+    overlap = 4096
+    tail = b""
+    truncated = False
+    with path.open("rb") as handle:
+        while scanned < max_bytes:
+            block = handle.read(min(chunk_size, max_bytes - scanned))
+            if not block:
+                break
+            base = scanned
+            combined = (tail + block) if scanned else block
+            absolute_base = base - len(tail) if scanned else 0
+            found = scan_bytes(combined, absolute_base, patterns, source=source,
+                               method=method, max_results=max_results - len(results) + 1,
+                               min_end_offset=base if scanned else None)
+            for item in found:
+                key = (item["absolute_offset"], item["candidate"], item["method"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                results.append(item)
+                if len(results) > max_results:
+                    results.pop()
+                    truncated = True
+                    break
+            scanned += len(block)
+            if truncated:
+                break
+            if len(results) >= max_results:
+                truncated = path.stat().st_size > scanned
+                break
+            tail = combined[-overlap:]
+    if path.stat().st_size > scanned:
+        truncated = True
+    return results, scanned, truncated
 
 
 def scan_ranges(path: Path, ranges: Iterable[tuple[int, int, dict | None, str]], patterns, budget: ByteBudget, max_request: int, on_chunk: Callable[[int], None] | None = None) -> list[dict]:
