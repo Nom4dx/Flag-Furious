@@ -5,7 +5,7 @@ def run(adapter,artifact,candidates,context,progress,stop_on_first=True):
     """Try streamed candidates, deduplicate by hash and return rich terminal status."""
     limits=context['limits'];started=time.monotonic();seen=set();failures=[];success=[];progress.start()
     for raw,origin,line in candidates:
-        for password in variants(raw,context.get('transformations',False)):
+        for password in variants(raw,context.get('transformations',False),context.get('transformation_year')):
             if not progress.checkpoint():return {'status':'cancelled','attempts':progress.attempts,'successes':success,'failures':failures,'duration':time.monotonic()-started}
             if progress.attempts>=limits.max_attempts:return {'status':'limit_reached','attempts':progress.attempts,'successes':success,'failures':failures,'duration':time.monotonic()-started}
             if time.monotonic()-started>=limits.timeout_seconds:return {'status':'timeout','attempts':progress.attempts,'successes':success,'failures':failures,'duration':time.monotonic()-started}

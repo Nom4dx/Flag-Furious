@@ -6,6 +6,10 @@
 
 I plugin dichiarano `unlock_capabilities` e invocano `Broker.request_unlock` con artefatto, tipo di protezione, plugin/run padre e adapter ammessi. Senza input il broker restituisce `waiting_for_user`. La password verificata resta nel `SecretVault`; JSON, log e audit contengono solo `secret_ref`, hash del candidato e `********`. L'analisi standard accetta le stesse opzioni in `plugin_options.bruteforce`.
 
+Se `transformations` è abilitato, `transformation_year` fissa l'anno usato dalle
+varianti; se omesso, si registra l'anno UTC scelto all'avvio del run. Così la
+generazione resta riproducibile anche dopo il cambio d'anno.
+
 ## Wordlist portabili
 
 Priorità: directory UI, `FORENSIC_HUB_WORDLIST_ROOT`, configurazione Hub, `./wordlists`, `./SecLists`, `./data/wordlists`. Nessun percorso assoluto è codificato. La UI mostra checkbox, ricerca, percorso relativo, byte, righe stimate e SHA-256. I file `.txt/.lst/.dic/.wordlist` sono montati singolarmente read-only nel sandbox e letti in streaming UTF-8/UTF-16 con fallback Latin-1. I candidati sono deduplicati tramite SHA-256.
