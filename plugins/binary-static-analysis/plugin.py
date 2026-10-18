@@ -125,16 +125,18 @@ class Plugin(BasePlugin):
         if entropy["global"]>7.4:findings.append(finding("high_entropy_region","low",.48,"Entropia globale elevata; può derivare da compressione, cifratura o dati casuali"))
         compression=detect_compression(validated,entropy)
 
-        reporter.phase("Overlay, embedded e carving");phase=time.monotonic();store=ArtifactManager(Path(context["output_dir"]),output_budget);artifacts,carve_warnings=carve(path,validated,store,physical);warnings.extend(carve_warnings)
+        reporter.phase("Overlay, embedded e carving");phase=time.monotonic();store=ArtifactManager(Path(context["output_dir"]),output_budget);artifacts,carve_warnings=carve(path,validated,store,physical);warnings.extend(carve_warnings);artifact_phase_warnings=list(carve_warnings)
         archive_rows=[]
         for item in [value for value in validated if value["format"]=="zip"]:
             try:
-                archive=analyze_zip(path,item,store);archive_rows.extend(archive["entries"]);artifacts.extend(archive["artifacts"]);warnings.extend(archive["warnings"])
-            except (OSError,ValueError) as exc:warnings.append(f"Archivio ZIP @{item['start_offset']}: {exc}")
+                archive=analyze_zip(path,item,store);archive_rows.extend(archive["entries"]);artifacts.extend(archive["artifacts"]);warnings.extend(archive["warnings"]);artifact_phase_warnings.extend(archive["warnings"])
+            except (OSError,ValueError) as exc:
+                message=f"Archivio ZIP @{item['start_offset']}: {exc}"
+                warnings.append(message);artifact_phase_warnings.append(message)
         primary_view=parsed or ({"logical_end":primary_candidates[0]["end_offset"]} if primary_candidates else None)
         overlays=analyze_overlay(physical,primary_view,(parsed or {}).get("sections",[]))
         for item in overlays:findings.append(finding(item["type"],"medium",item["confidence"],item["evidence"][0],item["start_offset"],evidence=item["evidence"]))
-        events.append(self._event("Overlay, embedded e carving",phase,"completed"));reporter.log(f"{len(artifacts)} artefatti salvati da intervalli validati")
+        events.append(self._event("Overlay, embedded e carving",phase,"partial" if artifact_phase_warnings else "completed"));reporter.log(f"{len(artifacts)} artefatti salvati da intervalli validati")
 
         reporter.phase("Disassemblaggio statico");phase=time.monotonic();instructions=[];functions={"functions":[],"blocks":[],"calls":[]};disassembly_warnings=[]
         if parsed and parsed.get("executable_regions"):
