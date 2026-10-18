@@ -31,17 +31,29 @@ class Plugin(BasePlugin):
         histogram = Counter(data)
         entropy = -sum((n / len(data)) * math.log2(n / len(data)) for n in histogram.values()) if data else 0
         text = data.decode("utf-8", errors="replace")
+        newline_count = data.count(b"\n") + data.count(b"\r") - data.count(b"\r\n")
+        line_count = newline_count + int(bool(data) and data[-1:] not in (b"\n", b"\r"))
+        partial = bool(asset.get("partial_input"))
+        warnings = []
+        if partial:
+            warnings.append(
+                f"Vista parziale: {asset.get('visible_bytes', len(data))} di "
+                f"{asset.get('size', len(data))} byte; i conteggi descrivono solo la vista analizzata."
+            )
         inventory = [
             {"metric": "Byte", "value": len(data)},
-            {"metric": "Righe", "value": len(text.splitlines())},
+            {"metric": "Righe", "value": line_count},
             {"metric": "Entropia bit/byte", "value": round(entropy, 4)},
         ]
         return {
-            "summary": f"{len(data)} byte, {len(text.splitlines())} righe",
+            "summary": f"{len(data)} byte, {line_count} righe" + (" (vista parziale)" if partial else ""),
+            "status": "partial" if partial else "completed",
             "confidence": 1,
             "sections": [
                 {"id": "inventory", "data": inventory},
-                {"id": "analysis", "data": asset.get("content", text[:16384])},
+                # The input can be much larger than the worker's authorized view.
+                # Return a bounded preview instead of echoing asset.content into IPC.
+                {"id": "analysis", "data": text[:16384]},
             ],
             "visualizations": [
                 {
@@ -52,5 +64,10 @@ class Plugin(BasePlugin):
                     "options": {"interactive": True},
                 }
             ],
-            "metrics": {"bytes_read": len(data)},
+            "metrics": {
+                "bytes_read": len(data),
+                "input_bytes": asset.get("size", len(data)),
+                "partial_input": partial,
+            },
+            "warnings": warnings,
         }

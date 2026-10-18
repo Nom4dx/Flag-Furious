@@ -47,6 +47,18 @@ universale di acquisizione certificata, mobile, cloud o live response.
   byte. La quota ora usa una query aggregata SQLite.
 - I matcher custom in sandbox venivano riavviati più volte sullo stesso asset immutabile.
   La decisione è memorizzata in una cache LRU limitata a 4.096 coppie plugin/asset.
+- I matcher plugin vedono una vista di 64 KiB: `archive-extractor` usava
+  `zipfile.is_zipfile`, che controlla l'EOCD in coda e rifiutava archivi validi più
+  grandi. Ora la firma li ammette come candidati e l'analisi completa fa la validazione.
+- La vista random-access di un asset `directory` coincideva con il JSON del manifest
+  invece che con l'albero ricostruito. I plugin random-access ora usano lo staging
+  directory limitato e ricostruito per questi asset.
+- `pic-up` accettava ogni file e `GitHappens` non aveva un matcher selettivo. Questo
+  provocava processi superflui e risultati irrilevanti durante il triage automatico;
+  i matcher ora restringono l'avvio ai tipi dichiarati.
+- `Text Inspector` poteva restituire `asset.content` completo anche quando l'analisi
+  leggeva solo la vista ammessa. Ora l'anteprima è 16 KiB e conteggi/risultato
+  dichiarano quando la vista è parziale.
 
 Questi cambiamenti riducono lavoro ripetuto, ma non trasformano i parser parziali in
 copertura completa. Il database locale, i report e le wordlist personali non fanno

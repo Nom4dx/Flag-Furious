@@ -67,6 +67,20 @@ def _bounded_artifacts(result, directory, output_bytes):
 
 
 class Plugin(BasePlugin):
+    def can_handle(self, asset, context):
+        """Avoid launching the multi-module pipeline on arbitrary binary files."""
+        detected = set(asset.get("detected_types", []))
+        if asset.get("type") == "directory":
+            return {"compatible": True, "score": 0.75, "reasons": ["Albero di file da esaminare"]}
+        if "disk_image" in detected:
+            return {"compatible": True, "score": 0.9, "reasons": ["Immagine disco identificata"]}
+        if "archive" in detected:
+            return {"compatible": True, "score": 0.76, "reasons": ["Archivio da esaminare per repository e cache"]}
+        extension = str(asset.get("extension", "")).lower()
+        if extension in {".bundle", ".git", ".qcow", ".qcow2", ".vmdk", ".vhd", ".vhdx", ".img", ".dd"}:
+            return {"compatible": True, "score": 0.72, "reasons": ["Estensione compatibile con immagine o bundle Git"]}
+        return {"compatible": False, "score": 0.0, "reasons": []}
+
     def analyze(self, asset, context, reporter):
         if asset["type"] == "directory":
             from picup_web.modules import git_forensics, cache, history, slack

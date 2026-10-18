@@ -1,10 +1,18 @@
 {
   "extensions": [
     ".zip",
+    ".7z",
+    ".rar",
     ".tar",
     ".gz",
     ".img",
     ".dd",
+    ".vmdk",
+    ".vdi",
+    ".vhd",
+    ".vhdx",
+    ".qed",
+    ".iso",
     ".qcow2"
   ],
   "asset_types": [
@@ -13,6 +21,7 @@
   "content_signatures": [
     "zip",
     "tar",
-    "qcow"
+    "qcow",
+    "filesystem_image"
   ]
 }

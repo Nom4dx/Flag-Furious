@@ -14,12 +14,7 @@ spec.loader.exec_module(tool)
 
 class Plugin(BasePlugin):
     def can_handle(self, asset, context):
-        """Reject filesystem images handled by the dedicated disk analyzers.
-
-        pic-up is a broad file and stream triage tool. Running it against a complete
-        disk image duplicates filesystem carving, consumes the job budget and can
-        hide the focused ext4 results under unrelated output.
-        """
+        """Select supported streams, images and archives without matching every file."""
         detected = set(asset.get("detected_types", []))
         if "disk_image" in detected:
             return {
@@ -28,14 +23,27 @@ class Plugin(BasePlugin):
                 "reasons": ["Immagine disco affidata ai plugin filesystem"],
             }
         extension = str(asset.get("extension", "")).lower()
-        focused = extension in {
+        mime = str(asset.get("mime", "")).lower()
+        header = bytes.fromhex(asset.get("header_hex", ""))
+        pcap = "pcap" in detected or asset.get("type") == "pcap" or header[:4] in {
+            b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x0a\x0d\x0d\x0a",
+            b"\x4d\x3c\xb2\xa1", b"\xa1\xb2\x3c\x4d",
+        }
+        image = mime.startswith("image/") or header.startswith((
+            b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a",
+            b"BM", b"RIFF",
+        ))
+        archive = "archive" in detected or header.startswith((
+            b"PK\x03\x04", b"PK\x05\x06", b"7z\xbc\xaf\x27\x1c", b"\x1f\x8b",
+        ))
+        focused = pcap or image or archive or extension in {
             ".pcap", ".pcapng", ".cap", ".jpg", ".jpeg", ".png", ".gif",
-            ".bmp", ".webp", ".zip", ".7z", ".tar", ".gz",
+            ".bmp", ".webp", ".zip", ".7z", ".tar", ".gz", ".xz", ".zst",
         }
         return {
-            "compatible": True,
+            "compatible": focused,
             "score": 0.82 if focused else 0.5,
-            "reasons": ["Formato supportato dal triage pic-up" if focused else "File generico analizzabile"],
+            "reasons": ["Formato supportato dal triage pic-up"] if focused else [],
         }
 
     def analyze(self, asset, context, reporter):

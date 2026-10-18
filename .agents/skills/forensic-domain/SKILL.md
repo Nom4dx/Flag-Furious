@@ -7,8 +7,9 @@ description: Extend and review Flag-Furious as a modular digital-forensics suite
 
 Use this skill when changing forensic coverage, adding plugins/connectors, reviewing
 finding logic, or changing how evidence is presented. Read
-[`docs/FORENSIC_DOMAIN_ROADMAP.md`](../../../docs/FORENSIC_DOMAIN_ROADMAP.md) first;
-it records current coverage, known blind spots, sequencing, and acceptance criteria.
+[`docs/FORENSIC_DOMAIN_ROADMAP.md`](../../../docs/FORENSIC_DOMAIN_ROADMAP.md) and
+[`docs/PLUGIN_REFACTOR_PROGRAM.md`](../../../docs/PLUGIN_REFACTOR_PROGRAM.md) first;
+they record current coverage, known blind spots, sequencing, and acceptance criteria.
 
 ## Required working method
 

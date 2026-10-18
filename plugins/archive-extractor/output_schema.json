@@ -56,6 +56,11 @@
             "format": "auto"
           },
           {
+            "field": "status",
+            "label": "Stato",
+            "format": "text"
+          },
+          {
             "field": "size",
             "label": "Dimensione",
             "format": "bytes"

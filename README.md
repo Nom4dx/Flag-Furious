@@ -11,6 +11,8 @@ La suite copre diversi flussi di triage, ma non tutto il dominio forensic. La
 [matrice di copertura e roadmap](docs/FORENSIC_DOMAIN_ROADMAP.md) distingue ciò che è
 presente, parziale e mancante. La skill di progetto per valutare o aggiungere capacità
 è in [`.agents/skills/forensic-domain/SKILL.md`](.agents/skills/forensic-domain/SKILL.md).
+Il rifacimento dei plugin esistenti e il gate prima dei moduli nuovi seguono il
+[programma di sviluppo](docs/PLUGIN_REFACTOR_PROGRAM.md).
 
 ## Avvio
 

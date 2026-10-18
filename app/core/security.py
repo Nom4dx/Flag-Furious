@@ -161,7 +161,14 @@ class Sandbox:
                 input_folder.mkdir()
                 target = input_folder / safe_name(asset["name"])
                 remaining = budget
-                full_input = action == "analyze" and manifest.get("input_access") == "random_access"
+                # Directory assets are canonical manifests in storage, not actual
+                # host directories. Even random-access plugins must receive the
+                # bounded, reconstructed directory tree below.
+                full_input = (
+                    action == "analyze"
+                    and manifest.get("input_access") == "random_access"
+                    and asset.get("type") != "directory"
+                )
                 if full_input:
                     if not source.is_file() or source.is_symlink() or source.stat().st_size > cfg.max_upload:
                         raise ValueError("Input random-access non valido o oltre il limite upload")
