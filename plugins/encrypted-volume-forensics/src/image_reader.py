@@ -89,6 +89,33 @@ def container_type(path: Path) -> str:
     return "raw"
 
 
+def _split_parts(path:Path)->tuple[list[Path],str|None]:
+    """Inventory a bounded numbered segment family and reject gaps/aliases."""
+    stem=path.name[:-4];numbers={};seen_entries=0
+    try:
+        with os.scandir(path.parent) as entries:
+            for entry in entries:
+                seen_entries+=1
+                if seen_entries>100_000:return [],"Directory troppo grande per verificare la sequenza dei segmenti"
+                if not entry.name.startswith(stem+"."):continue
+                suffix=entry.name[len(stem)+1:]
+                if not suffix.isdigit():continue
+                index=int(suffix)
+                if index<1:continue
+                if index>10_000:return [],"Numero massimo di segmenti (10.000) superato"
+                if index in numbers:return [],f"Segmento ambiguo alla posizione {index:03d}"
+                if entry.is_symlink() or not entry.is_file(follow_symlinks=False):
+                    return [],f"Segmento non regolare rifiutato: {entry.name}"
+                numbers[index]=Path(entry.path)
+    except OSError as exc:
+        return [],f"Impossibile inventariare i segmenti: {type(exc).__name__}"
+    if 1 not in numbers:return [],"Primo segmento .001 assente"
+    maximum=max(numbers)
+    missing=next((index for index in range(1,maximum+1) if index not in numbers),None)
+    if missing is not None:return [],f"Sequenza segmentata incompleta: segmento .{missing:03d} mancante"
+    return [numbers[index] for index in range(1,maximum+1)],None
+
+
 def prepare(path: Path, output_dir: Path, max_bytes: int, runner) -> tuple[Path, dict, list[str]]:
     """Return an analyzable RAW path, converting only with bounded output.
 
@@ -139,22 +166,27 @@ def prepare(path: Path, output_dir: Path, max_bytes: int, runner) -> tuple[Path,
             return path,info,[f"Conversione {kind.upper()} incompleta: dimensione raw diversa dal virtual size"]
         partial.chmod(0o400);os.replace(partial,target)
     else:
-        stem = str(path)[:-4]
-        total = 0
-        with target.open("xb") as destination:
-            index = 1
-            while True:
-                part = Path(f"{stem}.{index:03d}")
-                if not part.is_file() or part.is_symlink():
-                    break
-                total += part.stat().st_size
-                if total > max_bytes:
-                    destination.close(); target.unlink(missing_ok=True)
-                    return path, info, ["Merge immagine segmentata interrotto dal workspace budget"]
-                with part.open("rb") as source:
-                    shutil.copyfileobj(source, destination, 4 * 1024 * 1024)
-                index += 1
-        info["segments"] = index - 1
+        parts,problem=_split_parts(path)
+        if problem:return path,info,[problem]
+        partial=target.with_name(target.name+".partial");partial.unlink(missing_ok=True);total=0
+        try:
+            with partial.open("xb") as destination:
+                for part in parts:
+                    before=part.stat()
+                    with part.open("rb") as source:
+                        while block:=source.read(4*1024*1024):
+                            total+=len(block)
+                            if total>max_bytes:
+                                raise ValueError("Merge immagine segmentata oltre il workspace budget")
+                            destination.write(block)
+                    after=part.stat()
+                    if before.st_size!=after.st_size or before.st_mtime_ns!=after.st_mtime_ns:
+                        raise ValueError(f"Segmento modificato durante il merge: {part.name}")
+            partial.chmod(0o400);os.replace(partial,target)
+        except Exception as exc:
+            partial.unlink(missing_ok=True)
+            return path,info,[f"Merge immagine segmentata incompleto: {str(exc)[:240]}"]
+        info["segments"] = len(parts)
     target.chmod(0o400)
     info["analysis_path_is_original"] = False
     info["prepared_size"] = target.stat().st_size
