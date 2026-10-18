@@ -203,9 +203,30 @@ export function renderTable(data, fields = [], depth = 0) {
   const table = make("table");
   const thead = make("thead"),
     tr = make("tr");
+  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+  let sortField = columns.some((field) => field.field === "severity")
+    ? "severity"
+    : columns.some((field) => field.field === "confidence")
+      ? "confidence"
+      : "";
+  let sortDirection = "descending";
   columns.forEach((c) => {
-    const th = make("th", c.label);
+    const th = make("th");
     th.scope = "col";
+    const sort = make("button", c.label, "table-sort");
+    sort.type = "button";
+    sort.setAttribute("aria-label", `Ordina per ${c.label}`);
+    sort.onclick = () => {
+      if (sortField === c.field)
+        sortDirection = sortDirection === "ascending" ? "descending" : "ascending";
+      else {
+        sortField = c.field;
+        sortDirection = "ascending";
+      }
+      page = 0;
+      draw();
+    };
+    th.append(sort);
     tr.append(th);
   });
   tr.append(make("th", "Dettaglio"));
@@ -239,15 +260,41 @@ export function renderTable(data, fields = [], depth = 0) {
         (!confidenceFilter?.value ||
           Number(r.value.confidence) >= Number(confidenceFilter.value)),
     );
+    const direction = sortDirection === "ascending" ? 1 : -1;
+    const ordered = sortField
+      ? filtered.sort((a, b) => {
+          const av = readPath(a.value, sortField);
+          const bv = readPath(b.value, sortField);
+          let comparison = 0;
+          if (sortField === "severity")
+            comparison = (severityOrder[String(av).toLowerCase()] || 0) - (severityOrder[String(bv).toLowerCase()] || 0);
+          else if (Number.isFinite(Number(av)) && Number.isFinite(Number(bv)))
+            comparison = Number(av) - Number(bv);
+          else
+            comparison = String(av ?? "").localeCompare(String(bv ?? ""), "it-IT", { numeric: true, sensitivity: "base" });
+          if (comparison) return comparison * direction;
+          if (sortField === "severity") {
+            const confidence = Number(b.value.confidence || 0) - Number(a.value.confidence || 0);
+            if (confidence) return confidence;
+          }
+          return a.index - b.index;
+        })
+      : filtered;
     const start = page * size;
     tbody.replaceChildren();
-    counter.textContent = filtered.length
-      ? `${start + 1}–${Math.min(start + size, filtered.length)} / ${filtered.length}`
+    counter.textContent = ordered.length
+      ? `${start + 1}–${Math.min(start + size, ordered.length)} / ${ordered.length}`
       : "Nessun risultato";
     previous.disabled = page === 0;
-    next.disabled = start + size >= filtered.length;
-    paging.hidden = filtered.length <= size;
-    for (const { value: row, index } of filtered.slice(start, start + size)) {
+    next.disabled = start + size >= ordered.length;
+    paging.hidden = ordered.length <= size;
+    columns.forEach((field, index) => {
+      const th = tr.children[index];
+      const active = sortField === field.field;
+      th.setAttribute("aria-sort", active ? sortDirection : "none");
+      th.firstChild.textContent = `${field.label}${active ? sortDirection === "ascending" ? " ↑" : " ↓" : ""}`;
+    });
+    for (const { value: row, index } of ordered.slice(start, start + size)) {
       const tr = make("tr");
       tr.dataset.index = index;
       tr.dataset.selectionKey = String(row.id ?? row.key ?? index);

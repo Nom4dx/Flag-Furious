@@ -66,6 +66,10 @@ universale di acquisizione certificata, mobile, cloud o live response.
 - `Ext4atto` non dichiarava `mmls` mancante come incompletezza e segnalava una soglia
   di recupero di 2.500 file mentre il limite reale è 1.000. La soglia e il gate
   parziale ora corrispondono all'esecuzione.
+- La dashboard chiamava “prioritarie” le evidenze senza riordinarle, e le tabelle
+  non avevano un ordinamento per colonna. Ora findings/flag principali sono ordinati
+  per gravità/confidenza, la gravità è marcata con etichetta e colore, e le tabelle
+  espongono ordinamento accessibile con priorità iniziale per gravità/confidenza.
 
 Questi cambiamenti riducono lavoro ripetuto, ma non trasformano i parser parziali in
 copertura completa. Il database locale, i report e le wordlist personali non fanno

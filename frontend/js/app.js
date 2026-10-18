@@ -382,7 +382,10 @@ function dashboardHeader(host, pluginId, results, hasEvidence) {
 
 function compactFinding(item, pluginId) {
   const row = text("div", undefined, "dashboard-finding");
+  const severity = String(item.severity || "").toLowerCase();
+  if (severity) row.dataset.severity = severity;
   const confidence = confidencePercent(item.confidence);
+  if (severity) row.append(text("span", severity, `finding-severity severity-${severity}`));
   row.append(
     text("strong", item.title || item.type || "Riscontro"),
     text("p", item.description || item.value || item.summary || ""),
@@ -679,10 +682,15 @@ function renderIssues(job, results) {
 function renderSummary(job, results, graph) {
   const host = $("analysis-summary");
   host.replaceChildren();
-  const flags = job.flags || [];
+  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+  const flags = [...(job.flags || [])].sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0));
   const issues = issueItems(job, results);
   const findings = results.flatMap((result) =>
     (result.findings || []).map((finding) => ({ ...finding, plugin_id: result.plugin_id })),
+  ).sort((a, b) =>
+    (severityOrder[String(b.severity || "").toLowerCase()] || 0) -
+      (severityOrder[String(a.severity || "").toLowerCase()] || 0) ||
+    Number(b.confidence || 0) - Number(a.confidence || 0),
   );
   const pluginIds = [...new Set(results.map((result) => result.plugin_id))].filter((id) => id !== "magic-wrapper");
   const assets = new Set(graph.nodes.filter((node) => node.type === "asset").map((node) => node.asset_id || node.id));
