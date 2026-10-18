@@ -1,11 +1,15 @@
 import stat
 import struct
 import zipfile
+import hashlib
+import zlib
 from pathlib import Path, PurePosixPath
 from app.core.plugin import BasePlugin
 
 MAX_INVENTORY_MEMBERS = 10_000
 MAX_UNLOCK_REQUESTS = 256
+MAX_MEMBER_BYTES = 16 * 1024**2
+MAX_COMPRESSION_RATIO = 1_000
 
 
 def _protection_type(member):
@@ -100,13 +104,21 @@ class Plugin(BasePlugin):
                 if name.is_absolute() or ".." in name.parts or stat.S_ISLNK(member.external_attr >> 16):
                     warnings.append("Membro non sicuro ignorato: " + _bounded_text(member.filename, 256))
                     continue
-                if member.file_size > remaining or member.file_size > 16 * 1024**2:
+                ratio = member.file_size / max(member.compress_size, 1)
+                if member.file_size > remaining or member.file_size > MAX_MEMBER_BYTES:
                     warnings.append("Budget estrazione: " + _bounded_text(member.filename, 256))
+                    continue
+                if ratio > MAX_COMPRESSION_RATIO:
+                    warnings.append(
+                        f"Rapporto di compressione {ratio:.1f}:1 oltre il limite {MAX_COMPRESSION_RATIO}: "
+                        + _bounded_text(member.filename, 256)
+                    )
                     continue
                 leaf = _bounded_text(name.name, 180) or "member"
                 target = output / f"{index}-{leaf}"
                 try:
                     written = 0
+                    digest = hashlib.sha256()
                     with archive.open(member) as source, target.open("xb") as destination:
                         while block := source.read(min(65536, remaining + 1)):
                             written += len(block)
@@ -114,12 +126,18 @@ class Plugin(BasePlugin):
                             if remaining < 0:
                                 raise ValueError("Budget estrazione esaurito")
                             destination.write(block)
+                            digest.update(block)
                     derived.append(
                         {
                             "path": str(target),
                             "name": name.name,
                             "method": "ZIP extraction with CRC verification",
-                            "offset": member.header_offset,
+                            "source_asset_id": asset.get("id"),
+                            "source_member": _bounded_text(member.filename),
+                            "source_offset": member.header_offset,
+                            "source_size": member.file_size,
+                            "compressed_size": member.compress_size,
+                            "sha256": digest.hexdigest(),
                         }
                     )
                     rows.append(
@@ -128,12 +146,15 @@ class Plugin(BasePlugin):
                             "size": written,
                             "crc": f"{member.CRC:08x}",
                             "offset": member.header_offset,
+                            "compressed_size": member.compress_size,
+                            "compression_ratio": round(ratio, 2),
+                            "sha256": digest.hexdigest(),
                         }
                     )
-                    reporter.phase("Estratto " + member.filename)
-                except (ValueError, RuntimeError, zipfile.BadZipFile) as exc:
+                    reporter.phase("Estratto " + _bounded_text(member.filename, 256))
+                except (ValueError, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error, zipfile.BadZipFile) as exc:
                     target.unlink(missing_ok=True)
-                    warnings.append(str(exc))
+                    warnings.append(f"Estrazione fallita per {_bounded_text(member.filename, 256)}: {str(exc)[:240]}")
         if omitted_unlock_requests:
             warnings.append(
                 f"Richieste di sblocco omesse per limite: {omitted_unlock_requests}"

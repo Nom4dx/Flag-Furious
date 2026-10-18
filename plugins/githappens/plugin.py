@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from app.core.plugin import BasePlugin
 from picup_web.cases import CaseStore
 from picup_web.pipeline import Pipeline
@@ -66,6 +67,39 @@ def _bounded_artifacts(result, directory, output_bytes):
     return exported, omitted, used
 
 
+def _bounded_directory_artifacts(directory, output_bytes, source_asset_id):
+    candidates, scanned, limited = [], 0, False
+    for base, dirs, files in os.walk(directory, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
+        for name in sorted(files):
+            scanned += 1
+            if scanned > 10_000:
+                limited = True
+                break
+            path = Path(base) / name
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                candidates.append((path.stat().st_size, path))
+            except OSError:
+                continue
+        if limited:
+            break
+    candidates.sort(key=lambda row: (row[0], str(row[1])))
+    artifacts, used, omitted = [], 0, int(limited)
+    for size, path in candidates:
+        if len(artifacts) >= 64 or used + size > output_bytes:
+            omitted += 1
+            continue
+        used += size
+        artifacts.append({
+            "path": str(path), "name": path.name,
+            "method": "GitHappens directory analysis",
+            "source_asset_id": source_asset_id, "size": size,
+        })
+    return artifacts, omitted, used
+
+
 class Plugin(BasePlugin):
     def can_handle(self, asset, context):
         """Avoid launching the multi-module pipeline on arbitrary binary files."""
@@ -93,6 +127,8 @@ class Plugin(BasePlugin):
             results = {}
             findings = []
             warnings = []
+            if asset.get("partial_input"):
+                warnings.append("Directory vista solo parziale: alcuni file possono non essere stati acquisiti dal core.")
             timeline = []
             for name, analyze in [
                 ("git", lambda: git_forensics.analyze(root, output / "git", config)),
@@ -108,20 +144,21 @@ class Plugin(BasePlugin):
                     timeline.extend(_serial(value.get("events", [])))
                 except Exception as exc:
                     warnings.append(f"{name}: {exc}")
-            artifacts = [
-                {"path": str(p), "name": p.name, "method": "GitHappens directory analysis"}
-                for p in output.rglob("*")
-                if p.is_file() and not p.is_symlink()
-            ]
+            artifacts, omitted, artifact_bytes = _bounded_directory_artifacts(
+                output, context["output_bytes"], asset.get("id")
+            )
+            if omitted:
+                warnings.append(f"{omitted} artefatti non esportati: limite 64 file o budget output.")
             return {
                 "summary": "Git, cache, history e Slack della directory",
-                "status": "partial" if warnings else "completed",
+                "status": "partial" if warnings or asset.get("partial_input") or omitted else "completed",
                 "confidence": 0.9,
                 "sections": [{"id": "analysis", "data": results}],
                 "artifacts": artifacts,
                 "findings": findings,
                 "timeline": timeline,
                 "warnings": warnings,
+                "metrics": {"artifacts_exported": len(artifacts), "artifacts_omitted": omitted, "artifact_bytes_exported": artifact_bytes},
             }
         previous = [None]
 
@@ -133,8 +170,24 @@ class Plugin(BasePlugin):
                 return super().save(case_id, manifest)
 
         store = ObservedStore(Path(context["output_dir"]) / "git-cases")
-        with Path(asset["path"]).open("rb") as stream:
-            case = store.create(asset["name"], asset["name"], stream, max_bytes=context["byte_budget"])
+        input_path = Path(asset["path"])
+        input_size = input_path.stat().st_size
+        class LimitedStream:
+            def __init__(self, stream, limit):
+                self.stream, self.remaining = stream, limit
+            def read(self, size=-1):
+                if self.remaining <= 0:
+                    return b""
+                amount = self.remaining if size < 0 else min(size, self.remaining)
+                block = self.stream.read(amount)
+                self.remaining -= len(block)
+                return block
+
+        with input_path.open("rb") as stream:
+            case = store.create(
+                asset["name"], asset["name"], LimitedStream(stream, context["byte_budget"]),
+                max_bytes=context["byte_budget"],
+            )
         case["configuration"] = {"prefixes": ",".join(context.get("prefixes", []))}
         store.save(case["id"], case)
         Pipeline(store).run(case["id"])
@@ -144,6 +197,14 @@ class Plugin(BasePlugin):
             result, directory, context["output_bytes"]
         )
         warnings = list(result["warnings"])
+        input_partial = bool(asset.get("partial_input")) or input_size > context["byte_budget"]
+        if input_partial:
+            if input_size > context["byte_budget"]:
+                warnings.append(
+                    f"Input copiato fino al limite di {context['byte_budget']} byte su {input_size}; risultati parziali."
+                )
+            else:
+                warnings.append("Input già parziale nel core; risultati riferiti alla vista disponibile.")
         if omitted:
             warnings.append(
                 f"{omitted} artefatti non esportati: budget output; inventario e finding conservati."
@@ -153,7 +214,7 @@ class Plugin(BasePlugin):
             status = "failed"
         elif result["status"] == "cancelled":
             status = "cancelled"
-        elif result["errors"] or warnings:
+        elif result["errors"] or warnings or input_partial:
             status = "partial"
         else:
             status = "completed"

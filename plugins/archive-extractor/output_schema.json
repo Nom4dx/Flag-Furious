@@ -74,6 +74,21 @@
             "field": "offset",
             "label": "Offset nell’archivio",
             "format": "hex"
+          },
+          {
+            "field": "compressed_size",
+            "label": "Dimensione compressa",
+            "format": "bytes"
+          },
+          {
+            "field": "compression_ratio",
+            "label": "Rapporto di compressione",
+            "format": "number"
+          },
+          {
+            "field": "sha256",
+            "label": "SHA-256 estratto",
+            "format": "code"
           }
         ],
         "hide_empty": false

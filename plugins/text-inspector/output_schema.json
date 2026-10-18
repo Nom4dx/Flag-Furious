@@ -63,7 +63,7 @@
         "type": "auto",
         "group": "content",
         "order": 2,
-        "description": "Campi e valori riconosciuti nell’asset, organizzati per struttura."
+        "description": "Anteprima UTF-8 fino a 16 KiB; i conteggi descrivono al massimo 64 MiB e includono SHA-256 della vista analizzata."
       }
     ],
     "include_unmapped": true

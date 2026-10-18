@@ -54,12 +54,10 @@ nascodono aggiornando attese senza spiegazione.
    Ripetere i percorsi di integrazione che attraversano derivati e workflow.
 3. **A2 — Gruppo B:** rifare i sette specialisti. Per i plugin che condividono formati,
    definire il proprietario del parser e i confini di responsabilità prima delle modifiche.
-4. **A3 — Gate iniziale plugin presenti:** nessun plugin deve restare in `audit`; ogni
-   plugin esistente deve avere almeno un miglioramento concreto di limiti, matcher,
-   copertura o presentazione e i rilievi alti devono essere risolti o registrati come
-   bloccati. I gate di fixture/validazione restano `refactor` finché non sono eseguiti;
-   questo debito non va nascosto né scambiato per copertura verificata. Superato il gate
-   iniziale, B1 può partire mentre le verifiche dei plugin continuano in parallelo.
+4. **A3 — Chiusura plugin presenti:** nessun plugin può restare in `audit`; tutti i
+   plugin legacy devono aver completato il rifacimento, la revisione e i gate di fixture,
+   contratto e runtime prima di promuoverli a `done`. Rilievi aperti restano registrati
+   come debito `refactor`. Non si avviano moduli nuovi prima della chiusura A3.
 5. **B1 — Host artifact forensics:** SQLite/WAL, browser, Windows Registry/EVTX,
    macOS plist/Unified Logs, Linux journald; implementazione incrementale con schema
    comune e correlazione timeline.
@@ -76,12 +74,12 @@ nascodono aggiornando attese senza spiegazione.
 
 | Plugin | Stato | Commit/nota |
 | --- | --- | --- |
-| archive-extractor | refactor | Matcher ZIP corretto; AES/ZipCrypto distinti, cifratura e vista incompleta parziali; inventario limitato a 10.000 membri. Restano validatori e fixture |
-| text-inspector | refactor | Preview limitata a 16 KiB e conteggi marcati parziali; restano offset e decodifica dichiarata |
-| pic-up | refactor | Matcher limitato a stream, immagini e archivi; candidate convertite in finding/flag; accetta tutti i prefissi |
-| hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate; diagnostics e input troncato producono `partial`; restano provenance frame-level e limiti dichiarati |
-| githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; warning/errori propagati come esito parziale. Restano limiti adapter e fixture |
-| ext4atto | refactor | Warning include `mmls` mancante e soglia reale di recupero; restano limiti TSK/output da verificare |
+| archive-extractor | refactor | Matcher ZIP corretto; AES/ZipCrypto distinti; inventario 10.000; membri max 16 MiB e ratio 1.000:1; CRC, SHA-256 e offset nei derivati. Restano validatori e fixture |
+| text-inspector | refactor | Preview UTF-8 16 KiB, serializzazione inline progressiva, conteggi/hash su max 64 MiB e copertura parziale; restano offset e decodifica dichiarata |
+| pic-up | refactor | Matcher limitato a stream, immagini e archivi; tutti i prefissi; budget scan/espansione e export max 64 derivati bounded |
+| hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga candidate; TShark limitato per tempo/byte/righe; hash core riusato e `capinfos` con timeout; diagnostics producono `partial` |
+| githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; copia input limitata, export derivati max 64/budget e warning per vista parziale. Restano limiti scansione directory e fixture |
+| ext4atto | refactor | Matcher immagine/partizioni; query risultati limitate, tolta rilettura completa a ogni fase; TSK non contabilizzato è dichiarato e rende `partial` |
 | binary-static-analysis | refactor | `status=partial` ora riflette warning delle fasi e copertura incompleta; restano gate di fixture/contratto e matrice verificata formati/tool |
 | document-metadata-forensics | refactor | Matcher allineato alla validazione su file montato; input oltre byte budget ora dichiarato `partial`; restano matrice formati e gate fixture/contratto |
 | polyglot-and-embedded-content | refactor | Flag scan degli artefatti derivati bounded e parzialità esplicita; restano confini/duplicati e gate fixture/contratto |
@@ -108,12 +106,12 @@ previste restano un gate prima di dichiarare i plugin `done`.
 
 ## Registro moduli futuri
 
-Il gate iniziale A3 è stato superato: tutti i plugin presenti hanno un intervento
-concreto registrato; i test/fixture non eseguiti restano visibili in stato `refactor`.
-Il primo modulo nuovo in sviluppo è `host-artifact-forensics` (SQLite/WAL e cronologia
-browser offline). I moduli successivi e la motivazione sono in
+La chiusura A3 non è stata raggiunta: i plugin legacy hanno interventi registrati,
+ma restano gate di fixture, contratto e runtime. `host-artifact-forensics` è un
+prototipo creato in anticipo e il suo sviluppo è differito fino alla chiusura A3.
+I moduli successivi e la motivazione sono in
 [roadmap del dominio forensic](FORENSIC_DOMAIN_ROADMAP.md).
 
 | Modulo | Stato | Copertura iniziale | Debito aperto |
 | --- | --- | --- | --- |
-| `host-artifact-forensics` | in sviluppo | Inventario SQLite, WAL, visite/download Chromium, Firefox e Safari; inventario presenza cookie/credenziali senza valori | Registry, EVTX, artefatti Linux/macOS e app DB; fixture e verifica runtime |
+| `host-artifact-forensics` | prototipo differito | Inventario SQLite, WAL, visite/download Chromium, Firefox e Safari; inventario presenza cookie/credenziali senza valori | Sviluppo bloccato dalla sequenza A3; Registry, EVTX, artefatti Linux/macOS e app DB; fixture/runtime |

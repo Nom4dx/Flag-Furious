@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -10,6 +11,39 @@ spec = importlib.util.spec_from_file_location(
 tool = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = tool
 spec.loader.exec_module(tool)
+
+
+def _bounded_artifacts(root, budget, source_asset_id):
+    root = root.resolve()
+    candidates, scanned, limited = [], 0, False
+    for base, dirs, files in os.walk(root, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
+        for name in sorted(files):
+            scanned += 1
+            if scanned > 10_000:
+                limited = True
+                break
+            path = Path(base) / name
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                candidates.append((path.stat().st_size, path))
+            except OSError:
+                continue
+        if limited:
+            break
+    candidates.sort(key=lambda row: (row[0], str(row[1])))
+    artifacts, used, omitted = [], 0, 0
+    for size, path in candidates:
+        if len(artifacts) >= 64 or used + size > budget:
+            omitted += 1
+            continue
+        used += size
+        artifacts.append({
+            "path": str(path), "name": path.name, "method": "pic-up extraction",
+            "source_asset_id": source_asset_id, "size": size,
+        })
+    return artifacts, omitted + int(limited), used
 
 
 class Plugin(BasePlugin):
@@ -47,6 +81,12 @@ class Plugin(BasePlugin):
         }
 
     def analyze(self, asset, context, reporter):
+        tool.MAX_RAW_SCAN_BYTES = min(tool.MAX_RAW_SCAN_BYTES, max(1, context["byte_budget"]))
+        tool.MAX_EXPANDED_BYTES = min(
+            tool.MAX_EXPANDED_BYTES,
+            max(1, context["byte_budget"]),
+            max(1, context["output_bytes"]),
+        )
         output = Path(context["output_dir"]) / "picup"
         args = tool.build_parser().parse_args(
             [
@@ -96,11 +136,12 @@ class Plugin(BasePlugin):
             any(marker in str(message).casefold() for marker in incomplete_markers)
             for message in warnings
         )
-        artifacts = [
-            {"path": str(p), "name": p.name, "method": "pic-up extraction"}
-            for p in output.rglob("*")
-            if p.is_file() and not p.is_symlink()
-        ]
+        artifacts, omitted, exported_bytes = _bounded_artifacts(
+            output, context["output_bytes"], asset.get("id")
+        )
+        if omitted:
+            warnings.append(f"{omitted} artefatti non esportati: limite 64 file o budget output.")
+            partial = True
         return {
             "summary": "Analisi pic-up completata" + (" con coverage parziale" if partial else ""),
             "status": "partial" if partial else "completed",
@@ -109,6 +150,12 @@ class Plugin(BasePlugin):
             "artifacts": artifacts,
             "flags": flags,
             "findings": [*report.get("findings", []), *flags],
+            "metrics": {
+                "artifacts_exported": len(artifacts),
+                "artifacts_omitted": omitted,
+                "artifact_bytes_exported": exported_bytes,
+                "artifact_export_limited": omitted > 0,
+            },
             "warnings": warnings + (
                 ["Input troncato dal byte budget: i risultati coprono solo i byte visibili."]
                 if asset.get("partial_input") else []

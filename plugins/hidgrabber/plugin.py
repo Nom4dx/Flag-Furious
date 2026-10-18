@@ -14,9 +14,9 @@ class Plugin(BasePlugin):
 
     def analyze(self, asset, context, reporter):
         output = Path(context["output_dir"]) / "hid"
-        output.mkdir()
+        output.mkdir(parents=True, exist_ok=True)
         args = tool.build_parser().parse_args(
-            [asset["path"], "--json", "--output-dir", str(output), "--timeout", "30", "--color", "never"]
+            [asset["path"], "--json", "--output-dir", str(output), "--timeout", "30", "--color", "never", "--skip-hash"]
         )
         args.flag_prefix = context.get("prefixes") or None
         reporter.phase("Decodifica report USB HID")

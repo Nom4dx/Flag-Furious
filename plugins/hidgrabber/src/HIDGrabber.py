@@ -8,10 +8,13 @@ import binascii
 import csv
 import hashlib
 import json
+import os
 import re
+import selectors
 import shutil
 import subprocess
 import sys
+import time
 import urllib.parse
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -30,6 +33,9 @@ TEXT_ENCODINGS = (
     "cp1252", "cp850", "mac-roman",
 )
 MAX_TEXT_BYTES = 8 * 1024 * 1024
+MAX_TSHARK_OUTPUT_BYTES = 64 * 1024 * 1024
+MAX_TSHARK_ROWS = 50_000
+MAX_TSHARK_LINE_BYTES = 64 * 1024
 
 ANSI = {
     "reset": "\033[0m", "bold": "\033[1m", "green": "\033[92m", "red": "\033[31m",
@@ -150,28 +156,36 @@ def capture_magic(path: Path) -> bool:
     }
 
 
-def capture_info(path: Path) -> dict[str, Any]:
+def capture_info(path: Path, *, hash_file: bool = True) -> dict[str, Any]:
     info: dict[str, Any] = {
         "path": str(path.resolve()),
         "size": path.stat().st_size,
-        "sha256": sha256_file(path),
+        "sha256": sha256_file(path) if hash_file else None,
     }
-    result = subprocess.run(
-        ["capinfos", "-M", str(path)], capture_output=True, text=True,
-        errors="replace", check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["capinfos", "-M", str(path)], capture_output=True, text=True,
+            errors="replace", check=False, timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        info.setdefault("diagnostics", []).append("capinfos ha superato il timeout di 10 secondi")
+        result = None
+    except OSError as exc:
+        info.setdefault("diagnostics", []).append(f"capinfos non disponibile: {str(exc)[:200]}")
+        result = None
     wanted = {
         "File type": "format", "File encapsulation": "encapsulation",
         "Number of packets": "packets", "Capture duration": "duration",
         "First packet time": "first_packet", "Last packet time": "last_packet",
         "Strict time order": "strict_time_order",
     }
-    for line in result.stdout.splitlines():
-        if ":" not in line:
-            continue
-        name, value = (part.strip() for part in line.split(":", 1))
-        if name in wanted:
-            info[wanted[name]] = value
+    if result:
+        for line in result.stdout.splitlines():
+            if ":" not in line:
+                continue
+            name, value = (part.strip() for part in line.split(":", 1))
+            if name in wanted:
+                info[wanted[name]] = value
     return info
 
 
@@ -180,6 +194,8 @@ class Tshark:
         self.capture = capture
         self.display_filter = display_filter
         self.timeout = timeout
+        self.truncated = False
+        self.stop_reason = ""
 
     def fields(self, names: Sequence[str], display_filter: str) -> list[list[str]]:
         effective_filter = display_filter
@@ -192,19 +208,78 @@ class Tshark:
         for name in names:
             command.extend(("-e", name))
         try:
-            result = subprocess.run(
-                command, capture_output=True, text=True, errors="replace",
-                timeout=self.timeout, check=False,
-            )
-        except subprocess.TimeoutExpired as error:
-            raise RuntimeError(f"TShark timeout after {self.timeout}s") from error
-        if result.returncode:
-            raise RuntimeError(result.stderr.strip() or "TShark failed")
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        except OSError as error:
+            raise RuntimeError(f"TShark non avviabile: {error}") from error
         rows = []
-        for line in result.stdout.splitlines():
-            values = line.split("\t")
+        buffer = bytearray()
+        consumed = 0
+        deadline = time.monotonic() + self.timeout
+
+        def add_line(line):
+            values = line.decode("utf-8", "replace").rstrip("\r").split("\t")
             values.extend([""] * (len(names) - len(values)))
             rows.append(values[:len(names)])
+
+        try:
+            assert process.stdout is not None
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        self.truncated = True
+                        self.stop_reason = "timeout"
+                        break
+                    if not selector.select(remaining):
+                        self.truncated = True
+                        self.stop_reason = "timeout"
+                        break
+                    chunk = os.read(process.stdout.fileno(), 65536)
+                    if not chunk:
+                        break
+                    consumed += len(chunk)
+                    if consumed > MAX_TSHARK_OUTPUT_BYTES:
+                        self.truncated = True
+                        self.stop_reason = "byte limit"
+                        break
+                    buffer.extend(chunk)
+                    while True:
+                        newline = buffer.find(b"\n")
+                        if newline < 0:
+                            if len(buffer) > MAX_TSHARK_LINE_BYTES:
+                                self.truncated = True
+                                self.stop_reason = "line limit"
+                            break
+                        if newline > MAX_TSHARK_LINE_BYTES:
+                            self.truncated = True
+                            self.stop_reason = "line limit"
+                        else:
+                            add_line(bytes(buffer[:newline]))
+                        del buffer[:newline + 1]
+                        if self.truncated or len(rows) >= MAX_TSHARK_ROWS:
+                            self.truncated = True
+                            if not self.stop_reason:
+                                self.stop_reason = "row limit"
+                            break
+                    if self.truncated:
+                        break
+            if not self.truncated and buffer:
+                if len(buffer) <= MAX_TSHARK_LINE_BYTES and len(rows) < MAX_TSHARK_ROWS:
+                    add_line(bytes(buffer))
+                else:
+                    self.truncated = True
+                    self.stop_reason = "line limit or row limit"
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            elif process.poll() not in (0, None) and not self.truncated:
+                raise RuntimeError("TShark failed")
         return rows
 
 
@@ -248,6 +323,8 @@ def extract_hid_reports(runner: Tshark) -> tuple[list[HIDReport], list[str]]:
     reports.sort(key=lambda item: (item.timestamp, item.frame))
     for removed, count in trimmed_headers.most_common():
         diagnostics.append(f"removed {removed} USB capture-header byte(s) from {count} report(s)")
+    if runner.truncated:
+        diagnostics.append(f"TShark stopped at {runner.stop_reason}; HID report is partial")
     return reports, list(dict.fromkeys(diagnostics))
 
 
@@ -732,9 +809,11 @@ def decoder_reports(reports: Sequence[HIDReport], include_non_interrupt: bool, i
 
 
 def analyze(args: argparse.Namespace) -> dict[str, Any]:
-    info = capture_info(args.pcap)
+    info = capture_info(args.pcap, hash_file=not getattr(args, "skip_hash", False))
+    diagnostics = list(info.pop("diagnostics", []))
     runner = Tshark(args.pcap, args.display_filter, args.timeout)
-    reports, diagnostics = extract_hid_reports(runner)
+    reports, tshark_diagnostics = extract_hid_reports(runner)
+    diagnostics.extend(tshark_diagnostics)
     if args.all:
         diagnostics.append("--all active: every layout, text encoding, HID decoder, transfer type, and endpoint direction was checked")
     usable_reports, selection_notes = decoder_reports(reports, args.include_non_interrupt, args.include_outbound)
@@ -982,6 +1061,7 @@ File behavior:
     parser.add_argument("--include-outbound", action="store_true", help="also decode host-to-device USB reports")
     parser.add_argument("--clean", action="store_true", help="omit non-text special-key markers from reconstructed plaintext")
     parser.add_argument("--timeout", type=int, default=120, help="TShark timeout in seconds (default: 120)")
+    parser.add_argument("--skip-hash", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--force", action="store_true", help="allow use of a non-empty --output-dir")
     parser.add_argument("--json", action="store_true", help="emit the report as JSON on standard output; does not create files")
     parser.add_argument("--color", choices=("auto", "always", "never"), default="auto", help="color mode (default: auto)")

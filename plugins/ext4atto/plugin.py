@@ -20,14 +20,28 @@ def prepare_for_hub(source, workdir):
     return prepare_image(source, workdir)
 
 
+RESULT_LIMITS = {
+    "partition": 2_000, "filesystem": 2_000, "file": 5_000,
+    "deleted": 5_000, "recovered": 5_000, "flag": 10_000,
+    "carved": 5_000, "artifact": 5_000,
+}
+
+
 def all_results(db, kind):
+    maximum = RESULT_LIMITS.get(kind, 2_000)
+    with db.connect() as connection:
+        total = connection.execute(
+            "SELECT COUNT(*) FROM results WHERE job_id=? AND kind=?", ("analysis", kind)
+        ).fetchone()[0]
     rows, offset = [], 0
     while True:
-        batch = db.results("analysis", kind, limit=1000, offset=offset)
+        batch = db.results("analysis", kind, limit=min(1000, maximum - offset), offset=offset)
         rows.extend(batch)
-        if len(batch) < 1000:
-            return rows
+        if len(batch) < min(1000, maximum - offset):
+            return rows, total > len(rows)
         offset += len(batch)
+        if offset >= maximum:
+            return rows, total > len(rows)
 
 
 def hub_flags(rows):
@@ -83,9 +97,6 @@ class Plugin(BasePlugin):
                 reporter.log(message, level, command)
                 if str(message).startswith("phase:"):
                     reporter.phase(str(message)[6:])
-                    flags = hub_flags(all_results(self, "flag"))
-                    if flags:
-                        reporter.partial({"status": "partial", "summary": message, "flags": flags})
                 super().log(job_id, level, message, command, raw_output)
 
         db = ObservedDatabase(work / "disk.sqlite3")
@@ -98,7 +109,7 @@ class Plugin(BasePlugin):
         with patch("diskhunt.analyzer.prepare_image", prepare_for_hub):
             Analyzer(db, "analysis", Event()).run()
         job = db.get_job("analysis")
-        groups = {
+        rows_with_limits = {
             kind: all_results(db, kind)
             for kind in (
                 "partition",
@@ -111,7 +122,12 @@ class Plugin(BasePlugin):
                 "artifact",
             )
         }
+        groups = {kind: value[0] for kind, value in rows_with_limits.items()}
+        truncated_kinds = [kind for kind, value in rows_with_limits.items() if value[1]]
         warnings = list(job["warnings"])
+        if truncated_kinds:
+            warnings.append("Inventario risultati limitato per payload/memoria: " + ", ".join(truncated_kinds))
+        warnings.append("Letture degli strumenti TSK non sono contabilizzate dal byte budget del core.")
         missing = [
             name
             for name in ("mmls", "fls", "icat", "blkls", "fsstat", "ils", "jls")
@@ -160,7 +176,7 @@ class Plugin(BasePlugin):
             "FAILED": "failed",
             "CANCELLED": "cancelled",
         }.get(job["status"], "partial")
-        if status == "completed" and (missing or omitted):
+        if status == "completed" and warnings:
             status = "partial"
         partitions = groups["partition"]
         return {
