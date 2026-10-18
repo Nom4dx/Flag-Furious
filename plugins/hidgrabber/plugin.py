@@ -83,7 +83,7 @@ class Plugin(BasePlugin):
             "summary": "Decodifica HID completata" + (" su vista parziale" if asset.get("partial_input") else ""),
             "status": "partial" if asset.get("partial_input") or result.get("diagnostics") or artifact_warnings else "completed",
             "confidence": 0.9,
-            "sections": [{"id": "analysis", "data": result}],
+            "sections": [{"id": "analysis", "data": result, "status": "partial" if asset.get("partial_input") or result.get("diagnostics") or artifact_warnings else "completed"}],
             "artifacts": artifacts,
             "flags": flags,
             "findings": flags,

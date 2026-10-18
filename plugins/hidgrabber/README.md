@@ -28,3 +28,5 @@ di input tastiera. La deduplicazione mantiene distinti bus, dispositivo, endpoin
 e tipo di trasferimento anche quando frame e payload coincidono. Gli artefatti
 scaricabili conservano SHA-256, asset genitore e contesto di origine; l'adapter
 non esporta una seconda copia JSON integrale del risultato.
+La sezione dashboard dell'analisi porta lo stesso stato `partial` del risultato
+quando l'input, TShark o l'esportazione riducono la coverage.
