@@ -109,16 +109,35 @@ def prepare(path: Path, output_dir: Path, max_bytes: int, runner) -> tuple[Path,
             return path, info, ["qemu-img non disponibile: immagine virtuale inventariata senza conversione"]
         inspected = runner.run([binary, "info", "--output=json", str(path)], 30)
         try:
-            virtual_size = int(json.loads(inspected["stdout"] or "{}").get("virtual-size", 0))
+            description=json.loads(inspected["stdout"] or "{}")
         except (ValueError, json.JSONDecodeError):
-            virtual_size = 0
+            description={}
+        if not isinstance(description,dict):description={}
+        detected_format=str(description.get("format","")).casefold()
+        try:virtual_size=int(description.get("virtual-size",0) or 0)
+        except (TypeError,ValueError):virtual_size=0
+        info["detected_format"]=detected_format or None
         info["virtual_size"] = virtual_size
+        if inspected.get("exit_code")!=0 or inspected.get("output_truncated") or inspected.get("timed_out"):
+            return path,info,["qemu-img info incompleto: conversione non eseguita"]
+        if description.get("backing-filename") or description.get("full-backing-filename"):
+            return path,info,["Immagine virtuale con backing file esterno rifiutata"]
+        expected={"vhd":{"vpc"},"vhdx":{"vhdx"}}[kind]
+        if detected_format not in expected:
+            return path,info,[f"Formato interno {detected_format or 'sconosciuto'} non coerente con il contenitore {kind.upper()}"]
         if not virtual_size or virtual_size > max_bytes:
             return path, info, [f"Conversione {kind.upper()} non eseguita: virtual size oltre il workspace"]
-        result = runner.run([binary, "convert", "-f", kind, "-O", "raw", str(path), str(target)],
+        partial=target.with_name(target.name+".partial")
+        partial.unlink(missing_ok=True)
+        result = runner.run([binary, "convert", "-f", detected_format, "-O", "raw", str(path), str(partial)],
                             600, max_file_size=max_bytes)
-        if result["exit_code"] != 0 or not target.exists():
+        if result.get("exit_code") != 0 or result.get("output_truncated") or result.get("timed_out") or not partial.is_file():
+            partial.unlink(missing_ok=True)
             return path, info, [f"Conversione {kind.upper()} fallita: {result['stderr'][-300:]}"]
+        if partial.stat().st_size!=virtual_size:
+            partial.unlink(missing_ok=True)
+            return path,info,[f"Conversione {kind.upper()} incompleta: dimensione raw diversa dal virtual size"]
+        partial.chmod(0o400);os.replace(partial,target)
     else:
         stem = str(path)[:-4]
         total = 0

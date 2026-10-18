@@ -8,5 +8,9 @@ treated as relative offsets and bounded by the declared volume. They are evidenc
 locations, not decoded secrets. NTFS, FAT, exFAT and ext are identified after a
 successful decrypted export.
 
-VHD/VHDX require `qemu-img` conversion to a separate RAW file. The conversion is
-skipped when its virtual size exceeds the workspace budget.
+VHD/VHDX require `qemu-img` inspection and conversion to a separate RAW file.
+The adapter validates the reported internal format (`vpc` for VHD and
+`vhdx` for VHDX), rejects external backing files and refuses truncated
+inspection. Conversion output is written to a temporary file, bounded by the
+workspace limit, checked against the reported virtual size and promoted
+atomically only when complete.
