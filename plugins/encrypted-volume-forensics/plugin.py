@@ -140,7 +140,10 @@ class Plugin(BasePlugin):
                 unlocked=store.register_file("unlocked","unlocked-volume.raw",Path(attempt["path"]),{"kind":"decrypted_volume","detected_type":"filesystem image","parent_artifact_id":volume["id"],"extraction_method":attempt["method"],"password_verified":True,"writable":False})
                 artifacts.append(unlocked);fs=detect_filesystem(Path(unlocked["path"]));fs["volume_id"]=volume["id"];fs["artifact_id"]=unlocked["artifact_id"];filesystem_rows.append(fs)
                 extracted=extract_interesting(Path(unlocked["path"]),store,options.get("filesystem",{}))
-                for child in extracted["artifacts"]:child["parent_artifact_id"]=unlocked["artifact_id"]
+                for child in extracted["artifacts"]:
+                    child["parent_artifact_id"]=unlocked["artifact_id"]
+                    for occurrence in child.get("source_occurrences",[]):
+                        occurrence["parent_artifact_id"]=unlocked["artifact_id"]
                 artifacts.extend(extracted["artifacts"]);deleted.extend(extracted["deleted"]);ads.extend(extracted["ads"]);warnings.extend(extracted["warnings"])
                 break
             elif attempt["status"] not in {"wrong_password","limit_reached"}:warnings.append(f"Sblocco: {attempt.get('reason',attempt['status'])}")

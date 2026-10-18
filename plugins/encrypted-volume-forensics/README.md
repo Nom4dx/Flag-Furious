@@ -77,6 +77,12 @@ Any coverage warning from hash extraction, filesystem recovery or flag scanning
 keeps the result `partial`. Hash extraction is reported as `skipped` when disabled
 explicitly by the case options.
 
+The filesystem walk uses a deque and stops as soon as `max_files` is reached.
+Its capped entry inventory, skipped oversized files, extraction count and
+cumulative output budget are reported as coverage warnings. Repeated file
+contents are stored once, with up to 100 distinct source path/inode records
+retained on the artifact and an omission count beyond that.
+
 ## Output and artifacts
 
 The mapped sections include identity, partition table, BitLocker metadata,
