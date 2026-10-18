@@ -14,8 +14,12 @@ class CaseManager:
     def delete(self, id):
         with self.store.lock:
             self.store.get("case", id)
-            if any(j["status"] in ("queued", "running") for j in self.store.list("job", id)):
-                raise ValueError("Annullare e attendere i job attivi prima di eliminare il caso")
+            active_jobs = {"queued", "running", "paused"}
+            active_workflows = {"queued", "running", "paused"}
+            if any(j["status"] in active_jobs for j in self.store.list("job", id)):
+                raise ValueError("Annullare o riprendere e attendere i job attivi prima di eliminare il caso")
+            if any(r["status"] in active_workflows for r in self.store.list("workflow_run", id)):
+                raise ValueError("Annullare e attendere i workflow attivi prima di eliminare il caso")
             shutil.rmtree(self.settings.storage / "cases" / id)
             for path in (self.settings.storage / "reports").glob(id + ".*"):
                 path.unlink()

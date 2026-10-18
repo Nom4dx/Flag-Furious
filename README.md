@@ -7,6 +7,11 @@ Gli output dei plugin sono organizzati in gruppi e sezioni tramite un
 [engine di presentazione JSON dichiarativo](docs/OUTPUT_MAPPING.md), con tabelle
 ricercabili, valori formattati e dettagli espandibili.
 
+La suite copre diversi flussi di triage, ma non tutto il dominio forensic. La
+[matrice di copertura e roadmap](docs/FORENSIC_DOMAIN_ROADMAP.md) distingue ciò che è
+presente, parziale e mancante. La skill di progetto per valutare o aggiungere capacità
+è in [`.agents/skills/forensic-domain/SKILL.md`](.agents/skills/forensic-domain/SKILL.md).
+
 ## Avvio
 
 Richiede **Linux, Python 3.11+ e bubblewrap** con user namespace disponibili. Non avviare
@@ -42,10 +47,8 @@ i job usano una coda locale con due worker e checkpoint SQLite.
 
 ## Tool preservati e integrazione
 
-La directory iniziale `Flag&Furious` era vuota. La raccolta esistente è stata trovata
-in `/home/nomad/Scrivania/RootRunnersForensicTools`. Sono stati conservati 76 file
-sorgente/documentazione/test, senza modificarli. Origini, percorsi e SHA-256 sono in
-[`docs/source-inventory.json`](docs/source-inventory.json).
+Le integrazioni riusano componenti forensic esistenti e ne registrano le copie,
+destinazioni e SHA-256 in [`docs/source-inventory.json`](docs/source-inventory.json).
 
 | Componente | Integrazione | Dipendenze |
 | --- | --- | --- |
@@ -65,9 +68,9 @@ invalido, un ciclo di dipendenze o un requisito obbligatorio mancante disabilita
 singolo plugin e lascia disponibile l'hub. Il core non enumera domini o categorie:
 `domains` e `supported_asset_types` sono stringhe estendibili nel manifest.
 
-I quattro file `upload/...` non erano presenti con quei percorsi: è stata usata la
-copia locale di Magic Wrapper, comprendente `app.py`, `pyproject.toml`, `README.md`
-e `test_magic_wrapper.py`. La sua suite è inclusa e viene eseguita senza alterazioni.
+Magic Wrapper comprende l'adapter e i file sorgente necessari alla sua integrazione.
+I dettagli sui componenti e sulle relative limitazioni sono registrati nei manifest e
+nella documentazione dei plugin.
 
 ## Flusso di lavoro
 

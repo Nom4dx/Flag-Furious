@@ -23,10 +23,9 @@ class AssetManager:
     ):
         with self.store.lock:
             self.store.get("case", case_id)
-            assets = self.store.list("asset", case_id)
-            if len(assets) >= self.settings.max_assets:
+            asset_count, used = self.store.asset_usage(case_id)
+            if asset_count >= self.settings.max_assets:
                 raise ValueError("Limite asset del caso raggiunto")
-            used = sum(x["size"] for x in assets)
             id = uid()
             folder = self.settings.storage / "cases" / case_id / "evidence" / id
             folder.mkdir(parents=True)

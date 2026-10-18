@@ -74,8 +74,6 @@ class WorkflowManager:
         for node_id, values in secrets.items():
             if node_id not in allowed_secrets or set(values) - allowed_secrets[node_id]:
                 raise ValueError("Campo segreto non dichiarato dal connector")
-        if sum(x["status"] in {"queued", "running", "paused"} for x in self.store.list("workflow_run")) >= 4:
-            raise ValueError("Coda workflow piena")
         run = {
             "id": uid(),
             "case_id": workflow["case_id"],
@@ -98,11 +96,19 @@ class WorkflowManager:
             "errors": [],
             "artifacts": [],
         }
-        self.store.put("workflow_run", run)
-        cancel = self.cancelled[run["id"]] = threading.Event()
-        future = self.executor.submit(self._execute, run, copy.deepcopy(secrets), cancel)
-        self.futures[run["id"]] = future
-        future.add_done_callback(lambda _future, run_id=run["id"]: self._release(run_id))
+        # Serialize the existence check and queued record with case deletion.
+        # Otherwise a workflow could be queued just after its case was removed.
+        with self.store.lock:
+            self.store.get("case", workflow["case_id"])
+            if sum(
+                x["status"] in {"queued", "running", "paused"} for x in self.store.list("workflow_run")
+            ) >= 4:
+                raise ValueError("Coda workflow piena")
+            self.store.put("workflow_run", run)
+            cancel = self.cancelled[run["id"]] = threading.Event()
+            future = self.executor.submit(self._execute, run, copy.deepcopy(secrets), cancel)
+            self.futures[run["id"]] = future
+            future.add_done_callback(lambda _future, run_id=run["id"]: self._release(run_id))
         return run
 
     def _release(self, run_id):

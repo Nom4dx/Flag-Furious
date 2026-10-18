@@ -56,6 +56,16 @@ class Store:
             ).fetchall()
         return [json.loads(r[0]) for r in rows]
 
+    def asset_usage(self, case_id):
+        """Return case asset count and retained bytes without decoding every row."""
+        with self.connect() as db:
+            count, total = db.execute(
+                "SELECT COUNT(*), COALESCE(SUM(CAST(json_extract(data, '$.size') AS INTEGER)), 0) "
+                "FROM records WHERE kind='asset' AND case_id=?",
+                (case_id,),
+            ).fetchone()
+        return count, total
+
     def delete_case(self, case_id):
         with self.lock, self.connect() as db:
             db.execute("DELETE FROM records WHERE case_id=?", (case_id,))

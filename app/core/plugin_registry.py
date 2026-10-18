@@ -1,6 +1,8 @@
 import importlib.util
 import shutil
 import regex
+import threading
+from collections import OrderedDict
 from jsonschema import Draft202012Validator
 from app.core.plugin_loader import discover
 
@@ -8,6 +10,9 @@ from app.core.plugin_loader import discover
 class PluginRegistry:
     def __init__(self, settings, sandbox):
         self.sandbox = sandbox
+        self._matcher_cache = OrderedDict()
+        self._matcher_cache_lock = threading.Lock()
+        self._matcher_cache_limit = 4096
         self.plugins, self.errors = discover(settings.plugins)
         self.aliases = {
             alias: plugin_id
@@ -123,13 +128,28 @@ class PluginRegistry:
                 "reasons": reasons or ["Tipo asset dichiarato"],
             }
             if plugin["available"]:
-                try:
-                    custom = self.sandbox.run("match", asset, plugin, context={"byte_budget": 65536})
-                    if not custom.get("compatible"):
+                key = (id, asset["id"])
+                with self._matcher_cache_lock:
+                    custom = self._matcher_cache.get(key)
+                    if custom is not None:
+                        self._matcher_cache.move_to_end(key)
+                if custom is None:
+                    try:
+                        custom = self.sandbox.run("match", asset, plugin, context={"byte_budget": 65536})
+                    except Exception as exc:
+                        custom = {"compatible": False, "error": str(exc)}
+                    with self._matcher_cache_lock:
+                        self._matcher_cache[key] = custom
+                        self._matcher_cache.move_to_end(key)
+                        while len(self._matcher_cache) > self._matcher_cache_limit:
+                            self._matcher_cache.popitem(last=False)
+                if not custom.get("compatible"):
+                    if custom.get("error"):
+                        decision.update(compatible=False, error=custom["error"])
+                    else:
                         continue
+                else:
                     decision["score"] = max(0, min(1, float(custom.get("score", decision["score"]))))
                     decision["reasons"] += custom.get("reasons", [])
-                except Exception as exc:
-                    decision.update(compatible=False, error=str(exc))
             results.append({"plugin_id": id, "name": m["name"], "available": plugin["available"], **decision})
         return sorted(results, key=lambda x: -x["score"])
