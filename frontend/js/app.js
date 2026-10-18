@@ -143,6 +143,21 @@ function renderSection(parent, section, result) {
   node.style.setProperty("--section-accent", palette[section.tone || "primary"] || palette.primary);
   const heading = text("div", undefined, "mapped-section-heading");
   heading.append(text("h3", section.title || section.id || "Output"));
+  const sectionStatus = {
+    partial: "Copertura parziale",
+    failed: "Sezione non disponibile",
+    skipped: "Non analizzata",
+  }[section.status];
+  if (sectionStatus) {
+    const status = text("span", sectionStatus, "section-status section-status-" + section.status);
+    status.style.setProperty("--section-status-color", {
+      partial: palette.secondary,
+      failed: palette.critical,
+      skipped: palette.muted,
+    }[section.status]);
+    status.setAttribute("role", "status");
+    heading.append(status);
+  }
   if (Array.isArray(section.data))
     heading.append(
       text("span", section.data.length + " elementi", "section-count"),

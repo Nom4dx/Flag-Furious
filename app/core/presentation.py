@@ -109,6 +109,7 @@ def present(result, schema=None):
     mapping = validate_mapping(schema)
     legacy = result.get("sections", [])
     data = {s["id"]: s.get("data", s.get("content")) for s in legacy if s.get("id")}
+    legacy_by_id = {s["id"]: s for s in legacy if s.get("id")}
     source = {**result, "data": data}
     sections, used = [], set()
     for item in sorted(mapping.sections, key=lambda s: s.order):
@@ -117,7 +118,13 @@ def present(result, schema=None):
             used.add(item.source)
         if value is MISSING or (item.hide_empty and empty(value)):
             continue
-        sections.append({**item.model_dump(), "data": value})
+        section = {**item.model_dump(), "data": value}
+        source_parts = item.source.split(".")
+        legacy_id = source_parts[1] if len(source_parts) > 1 and source_parts[0] == "data" else item.id
+        status = legacy_by_id.get(legacy_id, {}).get("status")
+        if status:
+            section["status"] = status
+        sections.append(section)
     if not mapping.sections:
         sections = [
             {

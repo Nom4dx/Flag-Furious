@@ -65,7 +65,7 @@ def _line_rows(data, codec, base_offset):
         if next_start <= start:
             break
         start = next_start
-    return rows
+    return rows, start < len(data)
 
 
 def _invisible_characters(text, data, codec, base_offset, exact_offsets):
@@ -188,7 +188,12 @@ class Plugin(BasePlugin):
             text = preview_body.decode(codec, errors="replace")
             decode_errors = True
         newline_count, line_count = _newline_counts(body, codec)
-        lines = _line_rows(preview_body, codec, bom_bytes)
+        lines, omitted_lines = _line_rows(preview_body, codec, bom_bytes)
+        line_preview_truncated = (
+            len(data) > len(preview)
+            or omitted_lines
+            or any(row["truncated"] for row in lines)
+        )
         invisible, invisible_count = _invisible_characters(
             text, preview_body, codec, bom_bytes, not decode_errors
         )
@@ -220,7 +225,7 @@ class Plugin(BasePlugin):
                 # The input can be much larger than the worker's authorized view.
                 # Return a bounded preview instead of echoing asset.content into IPC.
                 {"id": "analysis", "data": text, "preview_bytes": len(preview), "preview_truncated": len(data) > len(preview)},
-                {"id": "lines", "data": lines, "status": "partial" if len(data) > len(preview) or len(lines) >= MAX_LINE_ROWS else "completed"},
+                {"id": "lines", "data": lines, "status": "partial" if line_preview_truncated else "completed"},
                 {"id": "invisible-characters", "data": invisible, "status": "partial" if len(data) > len(preview) or invisible_count > len(invisible) or decode_errors else "completed"},
             ],
             "visualizations": [
@@ -243,6 +248,7 @@ class Plugin(BasePlugin):
                 "newline_count": newline_count,
                 "line_preview_bytes": len(preview_body),
                 "line_preview_rows": len(lines),
+                "line_preview_truncated": line_preview_truncated,
                 "invisible_character_count": invisible_count,
                 "invisible_character_preview_rows": len(invisible),
                 "invisible_scan_bytes": len(preview_body),
