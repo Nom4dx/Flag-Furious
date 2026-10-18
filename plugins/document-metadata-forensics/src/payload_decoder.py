@@ -7,13 +7,18 @@ import re
 
 from .reporting import ModuleResult
 
+MAX_CANDIDATES = 2_000
+MAX_DECODED_BYTES = 16 * 1024**2
+MAX_DECODED_ITEMS = 1_000
+
 
 def decode_payloads(values: list[dict], source: str) -> ModuleResult:
     """Decode Base64, hexadecimal and Brainfuck candidates.
 
     Input: normalized evidence records/source. Output: transformation chains.
-    Invalid candidates are ignored. Limits: 2,000 values, 3 decode levels,
-    4 MiB/candidate and 2 million Brainfuck steps. Security: decoded bytes are
+    Invalid candidates are ignored. Limits: 2,000 examined values, 1,000 output
+    items, 16 MiB cumulative decoded bytes, 3 decode levels, 4 MiB/candidate and
+    2 million Brainfuck steps. Security: decoded bytes are
     data and never executed. Example: ``decode_payloads(metadata, "a.pdf")``.
     """
     result = ModuleResult("payloads")
@@ -23,7 +28,14 @@ def decode_payloads(values: list[dict], source: str) -> ModuleResult:
         if isinstance(value, str):
             queue.append((value, item.get("source", source), item.get("offset"), []))
     seen = set()
+    decoded_bytes = 0
+    processed = 0
+    limited = False
     for value, origin, offset, chain in queue:
+        if processed >= MAX_CANDIDATES:
+            limited = True
+            break
+        processed += 1
         if (value, tuple(chain)) in seen or len(chain) >= 3 or len(value) > 4 * 1024**2:
             continue
         seen.add((value, tuple(chain)))
@@ -44,14 +56,23 @@ def decode_payloads(values: list[dict], source: str) -> ModuleResult:
         for raw, decoder in candidates:
             if not raw or len(raw) > 4 * 1024**2:
                 continue
+            if len(result.items) >= MAX_DECODED_ITEMS or decoded_bytes + len(raw) > MAX_DECODED_BYTES:
+                limited = True
+                break
             decoded = raw.decode("utf-8", "replace")
             printable = sum(c.isprintable() or c in "\r\n\t" for c in decoded) / max(1, len(decoded))
             if printable < 0.7:
                 continue
+            decoded_bytes += len(raw)
             item = {"type": "decoded_payload", "raw_value": value[:10000], "normalized_value": decoded[:4 * 1024**2], "source": origin, "offset": offset, "size": len(raw), "parser": "payload-decoder", "decoder": decoder, "decoder_chain": chain + [decoder], "confidence": min(0.98, 0.72 + printable * 0.25)}
             result.items.append(item)
             queue.append((decoded, origin, offset, chain + [decoder]))
-    result.metrics = {"decoded": len(result.items), "candidates_examined": len(seen)}
+        if limited:
+            break
+    if limited:
+        result.status = "partial"
+        result.warnings.append("Decodifica payload interrotta al budget cumulativo di candidati, risultati o byte")
+    result.metrics = {"decoded": len(result.items), "decoded_bytes": decoded_bytes, "candidates_examined": processed, "candidate_limit": MAX_CANDIDATES, "decoded_byte_limit": MAX_DECODED_BYTES}
     return result
 
 

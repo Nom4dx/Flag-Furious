@@ -25,6 +25,10 @@ commenti, revisioni, fogli/slide nascosti, macro statiche, embedded objects,
 stream PDF Flate, layer/OCG, rendering invisibile, dati dopo EOF, zero-width e
 payload Base64/hex/Brainfuck.
 
+Il decoder dei payload esamina al massimo 2.000 candidati, conserva fino a 1.000
+risultati e 16 MiB cumulativi di dati decodificati (4 MiB per elemento); se
+raggiunge un limite, il modulo segnala coverage parziale.
+
 Il supporto HEIC/AVIF/WebP/GIF consiste nell'inventario statico del contenitore e
 nelle firme/metadata accessibili; non comprende un decoder completo di tutti i
 box o extension block. Vedere [formati](docs/formats.md) e
