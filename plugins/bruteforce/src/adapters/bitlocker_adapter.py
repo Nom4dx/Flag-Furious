@@ -1,6 +1,7 @@
 """BitLocker adapter backed by pybde/libbde; source volumes stay immutable."""
 from __future__ import annotations
-import hashlib,os,shutil,subprocess,time
+import hashlib,os,time
+import uuid
 from pathlib import Path
 from .base import PasswordAdapter
 from ..subprocess_runner import run
@@ -89,18 +90,16 @@ class BitLockerAdapter(PasswordAdapter):
 
     def _dislocker(self,artifact,password,context):
         """Perform one full read-only validation without leaking the secret in argv."""
-        binary=shutil.which('dislocker-file');region=_volume(self.path(artifact))
-        if not binary or not region:return None
+        region=_volume(self.path(artifact))
+        if not region:return None
         _,size=region
         if size>context['limits'].max_output:return None
         root=Path(context['output_dir'])/'bruteforce'/'unlocked';root.mkdir(parents=True,exist_ok=True)
         target=root/f'bitlocker-{time.time_ns()}.raw'
         compact=''.join(c for c in password if c.isdigit())
         switch='-p' if len(compact)==48 else '-u'
-        try:
-            done=subprocess.run([binary,'-r','-q','-V',str(self.path(artifact)),'-O',str(region[0]),switch,'--',str(target)],input=(password+'\n').encode(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=context['limits'].timeout_seconds,check=False)
-        except (OSError,subprocess.TimeoutExpired):return None
-        if done.returncode or not target.is_file() or target.stat().st_size<512:
+        done=run('dislocker-file',['-r','-q','-V',str(self.path(artifact)),'-O',str(region[0]),switch,'--',str(target)],context['limits'].timeout_seconds,input_data=(password+'\n').encode(),max_file_size=min(size,context['limits'].max_output),max_stdout=64*1024)
+        if done.get('exit_code')!=0 or done.get('output_truncated') or not target.is_file() or target.stat().st_size<512:
             target.unlink(missing_ok=True);return None
         with target.open('rb') as source:boot=source.read(512)
         if boot[3:11]!=b'NTFS    ' and boot[510:512]!=b'\x55\xaa':
@@ -114,14 +113,15 @@ class BitLockerAdapter(PasswordAdapter):
         ``max_attempts``. The recovered password is returned only to the caller
         frame and is removed from generated files immediately after reading.
         """
-        bitlocker2john=shutil.which('bitlocker2john');hashcat=shutil.which('hashcat')
-        if not bitlocker2john or not hashcat:return {'status':'not_supported','attempts':0,'successes':[],'failures':[],'duration':0}
-        root=Path(context['output_dir'])/'bruteforce'/'bitlocker-recovery';root.mkdir(parents=True,exist_ok=True)
-        hash_file=root/'bitlocker.hash';candidate_file=root/'candidates.txt';found_file=root/'found.txt';started=time.monotonic()
+        from shutil import which
+        if not which('bitlocker2john') or not which('hashcat'):return {'status':'not_supported','attempts':0,'successes':[],'failures':[],'duration':0}
+        started=time.monotonic()
         probe=run('bitlocker2john',['-i',str(self.path(artifact))],min(120,context['limits'].timeout_seconds))
         if probe.get('output_truncated') or probe.get('status')=='timeout':return {'status':'partial','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         lines=[line[line.find('$bitlocker$'):].strip().encode() for line in (probe.get('stdout','')+'\n'+probe.get('stderr','')).splitlines() if '$bitlocker$0$' in line]
         if not lines:return {'status':'corrupted_artifact','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        root=Path(context['output_dir'])/'bruteforce'/'bitlocker-recovery'/uuid.uuid4().hex;root.mkdir(parents=True,exist_ok=False)
+        hash_file=root/'bitlocker.hash';candidate_file=root/'candidates.txt';found_file=root/'found.txt'
         hash_file.write_bytes(lines[0]+b'\n');seen=set();attempts=0
         candidate_bytes=0;candidate_budget=context['limits'].max_output
         with candidate_file.open('w',encoding='utf-8',newline='\n') as output:
@@ -133,10 +133,17 @@ class BitLockerAdapter(PasswordAdapter):
                 seen.add(value);output.write(value+'\n');attempts+=1
                 candidate_bytes+=encoded_size
                 if attempts>=context['limits'].max_attempts:break
-        if not attempts:return {'status':'not_found','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        if not attempts:
+            hash_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True)
+            root.rmdir()
+            return {'status':'not_found','attempts':0,'successes':[],'failures':[],'duration':time.monotonic()-started}
         timeout=max(1,context['limits'].timeout_seconds-int(time.monotonic()-started))
-        try:done=subprocess.run([hashcat,'-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=timeout,check=False)
-        except subprocess.TimeoutExpired:return {'status':'timeout','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
+        done=run('hashcat',['-m','22100','--potfile-disable','--outfile',str(found_file),'--outfile-format','2','--quiet',str(hash_file),str(candidate_file)],timeout,max_stdout=1024*1024,max_file_size=context['limits'].max_output)
+        if done['status']!='completed':
+            found_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True);hash_file.unlink(missing_ok=True)
+            root.rmdir()
+            return {'status':'timeout' if done['status']=='timeout' else 'partial','attempts':attempts,'successes':[],'failures':[],'duration':time.monotonic()-started}
         password=found_file.read_text(encoding='utf-8',errors='replace').splitlines()[0] if found_file.is_file() and found_file.stat().st_size else None
         found_file.unlink(missing_ok=True);candidate_file.unlink(missing_ok=True);hash_file.unlink(missing_ok=True)
+        root.rmdir()
         return {'status':'success' if password else 'not_found','attempts':attempts,'successes':[{'password':password,'origin':'selected_wordlists','line':None,'verification':{'valid':True,'reason':'hashcat_bitlocker_22100'}}] if password else [],'failures':[],'duration':time.monotonic()-started}
