@@ -139,6 +139,7 @@ class Plugin(BasePlugin):
                 if path.is_file() and path.stat().st_size==66 and path.read_bytes()[1:2]==b"\x80":key_candidates.append(path)
         attempts=[(secret,method)] if secret else []
         attempts.extend((str(path),"fvek") for path in key_candidates)
+        unlock_attempted=bool(attempts and volumes)
         if attempts and volumes:
           for candidate,candidate_method in attempts:
             volume=volumes[0];target=output/"encrypted-volume-forensics"/"temporary"/f"unlocked-volume-{len(unlock_rows)}.raw"
@@ -146,7 +147,7 @@ class Plugin(BasePlugin):
             attempt=unlock(analysis_path,volume,candidate,candidate_method,target,runner,max_unlocked,str(options.get("unlock_engine","libbde")))
             secret=None;attempt={**attempt,"volume_id":volume["id"],"credential_type":candidate_method,"password_display":"********"};unlock_rows.append(attempt)
             if attempt["status"]=="success":
-                unlocked=store.register_file("unlocked","unlocked-volume.raw",Path(attempt["path"]),{"kind":"decrypted_volume","detected_type":"filesystem image","parent_artifact_id":volume["id"],"extraction_method":attempt["method"],"password_verified":True,"writable":False})
+                unlocked=store.register_file("unlocked","unlocked-volume.raw",Path(attempt["path"]),{"kind":"decrypted_volume","detected_type":"filesystem image","parent_artifact_id":volume["id"],"extraction_method":attempt["method"],"password_verified":bool(attempt.get("password_verified")),"key_verified":bool(attempt.get("key_verified")),"writable":False})
                 artifacts.append(unlocked);fs=detect_filesystem(Path(unlocked["path"]));fs["volume_id"]=volume["id"];fs["artifact_id"]=unlocked["artifact_id"];filesystem_rows.append(fs)
                 extracted=extract_interesting(Path(unlocked["path"]),store,options.get("filesystem",{}))
                 for child in extracted["artifacts"]:
@@ -157,7 +158,7 @@ class Plugin(BasePlugin):
                 break
             elif attempt["status"] not in {"wrong_password","limit_reached"}:warnings.append(f"Sblocco: {attempt.get('reason',attempt['status'])}")
         elif options.get("unlock"):unlock_rows.append({"status":"wrong_password" if credential_record["status"]=="invalid_format" else "waiting_for_user","volume_id":volumes[0]["id"] if volumes else None,"password_display":credential_record.get("password_display")})
-        events.append(event("Sblocco read-only",phase,"completed" if any(x["status"]=="success" for x in unlock_rows) else "skipped"))
+        events.append(event("Sblocco read-only",phase,"completed" if unlock_attempted else "skipped"))
 
         reporter.phase("Flag hunting");phase=time.monotonic();flags,flag_warnings=hunt_flags({**asset,"path":str(source)},context,asset.get("name",source.name));warnings.extend(flag_warnings)
         for row in artifacts:
@@ -177,12 +178,10 @@ class Plugin(BasePlugin):
         try:import pytsk3;tools.append({"tool":"pytsk3","available":True,"version":pytsk3.get_version()})
         except ImportError:tools.append({"tool":"pytsk3","available":False,"version":None})
 
+        if any(row.get("output_truncated") or row.get("timed_out") for row in runner.audit):warnings.append("Uno o più strumenti volume hanno raggiunto il limite di output o tempo")
         safe_artifacts=[{k:v for k,v in row.items() if k!="path"} for row in artifacts]
         metrics={"duration":round(time.monotonic()-started,4),"source_bytes":size,"declared_source_bytes":declared_size,"partial_input":input_partial,"bytes_scanned":min(byte_budget,analysis_path.stat().st_size),"partitions":len(partitions),"bitlocker_volumes":len(volumes),"memory_fvek_candidates":len(memory_keys),"metadata_copies":len(copies),"key_protectors":len(protectors),"hash_artifacts":len(hash_artifacts),"unlock_attempts":len(unlock_rows),"unlocked_volumes":sum(x["status"]=="success" for x in unlock_rows),"extracted_files":sum(x.get("kind") not in {"password_hash","bitlocker_fvek"} for x in artifacts),"flags":len(flags),"original_modified":False}
         sections=[section("file_identity","File Identity",10,[identity],kind="summary"),section("disk_image","Disk Image",20,[image_info]),section("memory_fvek","Memory FVEK Candidates",25,memory_keys,kind="artifact_list"),section("partition_table","Partition Table",30,partitions),section("volume_detection","Volume Detection",40,volumes),section("bitlocker_metadata","BitLocker Metadata",50,metadata,kind="details"),section("backup_metadata","Backup Metadata",60,copies),section("key_protectors","Key Protectors",70,protectors),section("encryption_method","Encryption Method",80,[{"volume_id":row["id"],"method":row.get("encryption_method"),"method_id":row.get("encryption_method_id"),"locked":row.get("locked",True)} for row in metadata]),section("hash_extraction","Hash Extraction",90,[{k:v for k,v in row.items() if k!="path"} for row in hash_artifacts],kind="artifact_list"),section("recovery_credentials","Recovery Credentials",100,[credential_record] if options.get("unlock") else []),section("bruteforce_requests","Bruteforce Requests",110,unlock_requests),section("unlock_attempts","Unlock Attempts",120,unlock_rows),section("read_only_access","Read-only Access",130,[row for row in safe_artifacts if row.get("kind")=="decrypted_volume"]),section("filesystem","Filesystem",140,filesystem_rows),section("extracted_files","Extracted Files",150,[row for row in safe_artifacts if row.get("kind") not in {"password_hash","decrypted_volume","bitlocker_fvek"}],kind="artifact_list"),section("deleted_files","Deleted Files",160,deleted),section("alternate_data_streams","Alternate Data Streams",170,ads),section("timeline","Timeline",180,timeline,kind="timeline",visualization=timeline_visual),section("graph","Graph",190,[graph_visual],kind="visualization_list",visualization=graph_visual),section("flag_candidates","Flag Candidates",200,flags),section("findings","Findings",210,findings),section("tools","Tools",890,tools+runner.audit),section("warnings","Warnings",900,warnings,kind="list"),section("errors","Errors",910,errors,kind="list"),section("metrics","Metrics",920,[metrics],kind="metrics")]
-        # Warnings may come from hashing, filesystem extraction, flags or unlock
-        # adapters as well as image preparation; expose every reduced phase.
-        if any(row.get("output_truncated") or row.get("timed_out") for row in runner.audit):warnings.append("Uno o più strumenti volume hanno raggiunto il limite di output o tempo")
         status="partial" if warnings or truncated or input_partial or (volumes and not metadata) else "completed"
         summary=(f"{len(memory_keys)} candidati FVEK da memoria" if memory_mode else f"{len(volumes)} volumi BitLocker, {len(protectors)} protector, {len(hash_artifacts)} hash, {metrics['unlocked_volumes']} sbloccati")
         result={"plugin_id":"encrypted-volume-forensics","status":status,"summary":summary,"confidence":max((row.get("confidence",0) for row in metadata),default=.2),"phase":"encrypted volume forensics","findings":findings,"sections":sections,"artifacts":artifacts,"derived_assets":[],"visualizations":[partition_visual,graph_visual,timeline_visual],"flags":flags,"timeline":timeline,"execution_events":events,"logs":runner.audit,"warnings":warnings,"errors":errors,"metrics":metrics,"unlock_requests":unlock_requests,"requested_plugins":[]}

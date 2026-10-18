@@ -13,6 +13,9 @@ For memory-assisted cases such as picoCTF 2025 Bitlocker-2, `.mem`, `.dmp`,
 FVEK artifacts. A pool hit is never called a valid key until the operator links
 the encrypted volume and candidate to **Sblocco BitLocker read-only** and the
 decrypted filesystem passes structural validation.
+An exported volume records `key_verified` separately from `password_verified`;
+using an FVEK cannot be reported as password verification. Incomplete libbde
+exports are deleted before the attempt returns.
 
 ## Analysis pipeline
 

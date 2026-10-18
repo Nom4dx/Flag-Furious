@@ -14,7 +14,7 @@ def unlock(path:Path,volume:dict,secret:str,method:str,target:Path,max_bytes:int
     """Verify a password/recovery password and export a read-only virtual volume."""
     try:import pybde
     except ImportError:return {"status":"not_supported","reason":"pybde unavailable"}
-    view=SliceReader(path,volume["offset"],volume["length"]);handle=None
+    view=SliceReader(path,volume["offset"],volume["length"]);handle=None;created=False
     try:
         handle=pybde.volume();handle.open_file_object(view)
         if method=="recovery_password":handle.set_recovery_password(secret)
@@ -24,6 +24,7 @@ def unlock(path:Path,volume:dict,secret:str,method:str,target:Path,max_bytes:int
         if size>max_bytes:return {"status":"limit_reached","password_verified":True,"reason":f"decrypted volume {size} exceeds output budget","size":size}
         target.parent.mkdir(parents=True,exist_ok=True)
         with target.open("xb") as destination:
+            created=True
             remaining=size
             while remaining:
                 data=handle.read(min(8*1024*1024,remaining))
@@ -33,7 +34,9 @@ def unlock(path:Path,volume:dict,secret:str,method:str,target:Path,max_bytes:int
             target.unlink(missing_ok=True);return {"status":"failed","password_verified":True,"reason":"short decrypted read"}
         target.chmod(0o400)
         return {"status":"success","password_verified":True,"path":str(target),"size":size,"method":"libbde_read_only_export","writable":False}
-    except Exception as exc:return {"status":"wrong_password" if "unlock" in str(exc).casefold() or "key" in str(exc).casefold() else "failed","password_verified":False,"reason":str(exc)}
+    except Exception as exc:
+        if created:target.unlink(missing_ok=True)
+        return {"status":"wrong_password" if "unlock" in str(exc).casefold() or "key" in str(exc).casefold() else "failed","password_verified":False,"reason":str(exc)}
     finally:
         try:
             if handle:handle.close()
