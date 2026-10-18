@@ -109,12 +109,31 @@
         "order": 3
       },
       {
+        "id": "hid-text-provenance",
+        "title": "Provenienza dei caratteri",
+        "source": "data.analysis.keyboard_text_sources",
+        "type": "table",
+        "group": "evidence",
+        "order": 4,
+        "fields": [
+          {"field": "channel", "label": "Canale"},
+          {"field": "layout", "label": "Layout"},
+          {"field": "text_start", "label": "Inizio testo (code point)", "format": "number"},
+          {"field": "text_end", "label": "Fine testo (code point)", "format": "number"},
+          {"field": "frame", "label": "Frame", "format": "number"},
+          {"field": "timestamp", "label": "Timestamp (epoch second)"},
+          {"field": "keycode", "label": "Keycode"},
+          {"field": "usage", "label": "Tasto HID"},
+          {"field": "action", "label": "Azione"}
+        ]
+      },
+      {
         "id": "hid-key_events",
         "title": "Sequenza dei tasti",
         "source": "data.analysis.key_events",
         "type": "table",
         "group": "keyboard",
-        "order": 4
+        "order": 5
       },
       {
         "id": "hid-mouse",
@@ -122,7 +141,7 @@
         "source": "data.analysis.mouse",
         "type": "table",
         "group": "mouse",
-        "order": 5
+        "order": 6
       },
       {
         "id": "hid-decoded_encodings",
@@ -130,7 +149,7 @@
         "source": "data.analysis.decoded_encodings",
         "type": "auto",
         "group": "evidence",
-        "order": 6
+        "order": 7
       },
       {
         "id": "hid-matches",
@@ -138,7 +157,7 @@
         "source": "data.analysis.matches",
         "type": "table",
         "group": "evidence",
-        "order": 7
+        "order": 8
       },
       {
         "id": "hid-hid_reports",
@@ -146,7 +165,7 @@
         "source": "data.analysis.hid_reports",
         "type": "table",
         "group": "diagnostics",
-        "order": 8
+        "order": 9
       },
       {
         "id": "hid-diagnostics",
@@ -154,7 +173,7 @@
         "source": "data.analysis.diagnostics",
         "type": "list",
         "group": "diagnostics",
-        "order": 9
+        "order": 10
       },
       {
         "id": "hid-artifacts",
@@ -162,7 +181,7 @@
         "source": "data.analysis.artifacts",
         "type": "table",
         "group": "diagnostics",
-        "order": 10
+        "order": 11
       }
     ],
     "include_unmapped": true

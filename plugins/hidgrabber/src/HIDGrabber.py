@@ -410,15 +410,25 @@ class KeyboardDecoder:
         self.num_lock = True
         self.alt_digits = ""
         self.output: list[str] = []
+        self.output_sources: list[dict[str, Any]] = []
         self.events: list[KeyEvent] = []
 
-    def _append(self, value: str) -> None:
+    def _append(self, value: str, report: HIDReport, keycode: int, usage: str, action: str) -> None:
         if value:
             self.output.append(value)
+            self.output_sources.append({
+                "frame": report.frame,
+                "timestamp": report.timestamp,
+                "channel": report.channel,
+                "keycode": f"0x{keycode:02x}" if keycode else None,
+                "usage": usage,
+                "action": action,
+            })
 
     def _backspace(self) -> None:
         if self.output:
             self.output.pop()
+            self.output_sources.pop()
 
     def _flush_alt_code(self, report: HIDReport) -> None:
         if not self.alt_digits:
@@ -433,7 +443,7 @@ class KeyboardDecoder:
                 rendered = chr(value)
         else:
             rendered = chr(value) if value <= 0x10FFFF else f"[ALT_CODE_{self.alt_digits}]"
-        self._append(rendered)
+        self._append(rendered, report, 0, "ALT_CODE", "text")
         self.events.append(KeyEvent(
             report.frame, report.timestamp, report.channel, self.previous_modifier,
             modifier_names(self.previous_modifier), 0, "ALT_CODE", rendered,
@@ -508,7 +518,7 @@ class KeyboardDecoder:
             else:
                 rendered, action = self._render_key(keycode, modifier)
                 if action == "text" or self.keep_actions or not rendered.startswith("["):
-                    self._append(rendered)
+                    self._append(rendered, report, keycode, usage, action)
             self.events.append(KeyEvent(
                 report.frame, report.timestamp, report.channel, modifier,
                 modifier_names(modifier), keycode, usage, rendered, action,
@@ -554,6 +564,7 @@ def decode_keyboards(
     for channel, items in grouped.items():
         candidates = []
         event_sets: dict[str, list[KeyEvent]] = {}
+        text_sources_by_layout: dict[str, list[dict[str, Any]]] = {}
         for layout in layouts:
             decoder = KeyboardDecoder(layout, keep_actions)
             for report, raw in items:
@@ -561,11 +572,19 @@ def decode_keyboards(
             text, events = decoder.finish(items[-1][0] if items else None)
             candidates.append({"layout": layout, "text": text, "score": round(text_score(text), 3)})
             event_sets[layout] = events
+            offset = 0
+            text_sources = []
+            for chunk, source in zip(decoder.output, decoder.output_sources):
+                end = offset + len(chunk)
+                text_sources.append({"text_start": offset, "text_end": end, **source})
+                offset = end
+            text_sources_by_layout[layout] = text_sources
         best = max(candidates, key=lambda item: item["score"])
         selected_events.extend(event_sets[best["layout"]])
         decodings.append({
             "channel": channel, "selected_layout": best["layout"],
             "text": best["text"], "layout_candidates": candidates,
+            "text_sources": text_sources_by_layout[best["layout"]],
             "report_count": len(items), "event_count": len(event_sets[best["layout"]]),
         })
     return decodings, selected_events, keyboard_frames
@@ -712,16 +731,24 @@ def find_matches(
     seen = set()
     for source, text in texts:
         for match in flag_pattern.finditer(text):
-            key = ("flag", match.group())
+            key = ("flag", match.group(), source, match.start(), match.end())
             if key not in seen:
                 seen.add(key)
-                output.append({"kind": "flag", "value": match.group(), "source": source})
+                output.append({
+                    "kind": "flag", "value": match.group(), "source": source,
+                    "text_start": match.start(), "text_end": match.end(),
+                    "text_offset_unit": "unicode_codepoint",
+                })
         for name, pattern in compiled:
             for match in pattern.finditer(text):
-                key = (name, match.group())
+                key = (name, match.group(), source, match.start(), match.end())
                 if key not in seen:
                     seen.add(key)
-                    output.append({"kind": f"pattern:{name}", "value": match.group(), "source": source})
+                    output.append({
+                        "kind": f"pattern:{name}", "value": match.group(), "source": source,
+                        "text_start": match.start(), "text_end": match.end(),
+                        "text_offset_unit": "unicode_codepoint",
+                    })
     return output
 
 
@@ -842,6 +869,14 @@ def analyze(args: argparse.Namespace) -> dict[str, Any]:
                 layered.append(item)
                 text_sources.append((f"{source}: {item['chain']}", item["text"]))
     matches = find_matches(text_sources, args.flag_prefix, args.pattern)
+    keyboard_text_sources = []
+    for decoding in keyboard_decodings:
+        channel = decoding["channel"]
+        layout = decoding["selected_layout"]
+        keyboard_text_sources.extend(
+            {"channel": channel, "layout": layout, **source}
+            for source in decoding.pop("text_sources")
+        )
 
     output = args.output_dir.resolve() if args.output_dir else None
     artifacts: list[dict[str, Any]] = []
@@ -892,6 +927,7 @@ def analyze(args: argparse.Namespace) -> dict[str, Any]:
         },
         "hid_reports": [serialize_hid_report(item) for item in reports],
         "keyboard": keyboard_decodings,
+        "keyboard_text_sources": keyboard_text_sources,
         "key_events": [asdict(item) for item in key_events],
         "mouse": [asdict(item) for item in mouse_events],
         "decoded_encodings": layered,

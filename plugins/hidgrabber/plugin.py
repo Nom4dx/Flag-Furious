@@ -45,6 +45,9 @@ class Plugin(BasePlugin):
                     "value": item["value"],
                     "source": source,
                     "method": "HID decoded layer" if layered else "HID keyboard layout",
+                "text_start": item.get("text_start"),
+                "text_end": item.get("text_end"),
+                "text_offset_unit": item.get("text_offset_unit"),
                     "confidence": 0.75 if layered else 0.9,
                     "classification": "candidate",
                 }
