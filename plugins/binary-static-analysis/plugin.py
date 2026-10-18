@@ -170,6 +170,7 @@ class Plugin(BasePlugin):
         sections.append(section("metrics","Metrics",910,[metrics],kind="metrics"))
         # Each warning records a coverage reduction or unavailable enrichment.
         # Keep the job state aligned with these diagnostics for downstream UI.
+        if any(row.get("output_truncated") or row.get("timeout") for row in runner.audit):warnings.append("Uno o più strumenti statici hanno raggiunto il limite di output o tempo")
         status="partial" if warnings or truncated or budget<physical or parser_error or input_partial else "completed"
         result={"plugin_id":"binary-static-analysis","status":status,"summary":f"{len(validated)} formati validati, {len(findings)} indicatori, {len(artifacts)} artefatti","confidence":max((item["confidence"] for item in validated),default=.45),"phase":"binary static analysis","findings":findings,"sections":sections,"artifacts":artifacts,"derived_assets":[],"visualizations":[entropy_visual,offset_visual,byte_visual,structure_visual,code_visual],"flags":flags,"timeline":[],"execution_events":events,"logs":runner.audit,"warnings":warnings,"errors":errors,"metrics":metrics,"unlock_requests":unlock_requests}
         report=json.dumps({**result,"artifacts":[{k:v for k,v in item.items() if k!="path"} for item in artifacts]},ensure_ascii=False,indent=2).encode()

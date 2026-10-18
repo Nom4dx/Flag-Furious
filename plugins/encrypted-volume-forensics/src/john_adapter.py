@@ -19,7 +19,7 @@ def run(hash_file:Path,wordlists:list[Path],workdir:Path,options:dict)->dict:
     pot=workdir/"john.pot";started=time.monotonic();attempted=[]
     for wordlist in wordlists:
         command=[binary,f"--pot={pot}",f"--wordlist={wordlist}",str(hash_file)]
-        try:completed=subprocess.run(command,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,shell=False,timeout=min(int(options.get("timeout",900)),900),check=False)
+        try:completed=subprocess.run(command,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=min(int(options.get("timeout",900)),900),check=False)
         except subprocess.TimeoutExpired:return {"status":"timeout","engine":"john","duration":round(time.monotonic()-started,3)}
         attempted.append(str(wordlist.name))
         if pot.exists() and pot.stat().st_size:return {"status":"success","engine":"john","password_verified":False,"secret_pending_vault_import":True,"wordlists":attempted,"duration":round(time.monotonic()-started,3)}

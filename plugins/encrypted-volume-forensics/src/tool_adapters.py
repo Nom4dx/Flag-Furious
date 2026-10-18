@@ -1,7 +1,8 @@
 """Optional local-tool inventory and bounded shell-free execution."""
 
 from __future__ import annotations
-import shutil,subprocess,time
+import shutil,time
+from app.core.bounded_process import run_bounded
 from .security import mask_command
 
 
@@ -11,10 +12,8 @@ class ToolRunner:
     def run(self,argv:list[str],timeout:int=60,stdin:bytes|None=None)->dict:
         started=time.monotonic();record={"command":mask_command([str(x) for x in argv]),"version":None}
         try:
-            completed=subprocess.run(argv,input=stdin,stdout=subprocess.PIPE,stderr=subprocess.PIPE,shell=False,timeout=timeout,check=False)
-            result={"exit_code":completed.returncode,"stdout":completed.stdout.decode("utf-8","replace")[:1024*1024],"stderr":completed.stderr.decode("utf-8","replace")[:1024*1024]}
-        except subprocess.TimeoutExpired as exc:
-            result={"exit_code":None,"stdout":bytes(exc.stdout or b"").decode("utf-8","replace")[:1024*1024],"stderr":"timeout","timed_out":True}
+            bounded=run_bounded(argv,stdin=stdin,timeout=timeout,max_stdout=1024*1024,max_stderr=1024*1024)
+            result={"exit_code":bounded["returncode"],"stdout":bounded["stdout"].decode("utf-8","replace"),"stderr":bounded["stderr"].decode("utf-8","replace"),"timed_out":bounded["timed_out"],"output_truncated":bounded["truncated"]}
         except OSError as exc:result={"exit_code":None,"stdout":"","stderr":str(exc)}
         record.update(result,duration=round(time.monotonic()-started,4));self.audit.append(record);return result
     def inventory(self,names:list[str])->list[dict]:

@@ -7,8 +7,7 @@ writable host mounts before this code runs.
 
 from pathlib import Path
 import shutil
-import subprocess
-import time
+from app.core.bounded_process import run_bounded
 
 
 class ToolRunner:
@@ -25,12 +24,8 @@ class ToolRunner:
         if not args or args[0] not in self.ALLOWED:raise ValueError("Tool non autorizzato")
         if not self.available(args[0]):
             result={"command":args,"available":False,"exit_code":None,"stdout":"","stderr":"tool non installato","duration":0};self.audit.append(result);return result
-        started=time.monotonic()
-        try:
-            completed=subprocess.run(args,capture_output=True,timeout=max(1,min(timeout,60)),shell=False,check=False)
-            result={"command":args,"available":True,"exit_code":completed.returncode,"stdout":completed.stdout[:max_output].decode("utf-8","replace"),"stderr":completed.stderr[:max_output].decode("utf-8","replace"),"duration":round(time.monotonic()-started,4),"output_truncated":len(completed.stdout)>max_output or len(completed.stderr)>max_output}
-        except subprocess.TimeoutExpired as exc:
-            result={"command":args,"available":True,"exit_code":None,"stdout":bytes(exc.stdout or b"")[:max_output].decode("utf-8","replace"),"stderr":"timeout","duration":round(time.monotonic()-started,4),"timeout":True}
+        bounded=run_bounded(args,timeout=max(1,min(timeout,60)),max_stdout=max_output,max_stderr=max_output)
+        result={"command":args,"available":True,"exit_code":bounded["returncode"],"stdout":bounded["stdout"].decode("utf-8","replace"),"stderr":bounded["stderr"].decode("utf-8","replace"),"duration":round(bounded["duration"],4),"output_truncated":bounded["truncated"],"timeout":bounded["timed_out"]}
         self.audit.append(result);return result
 
     def inventory(self)->list[dict]:
