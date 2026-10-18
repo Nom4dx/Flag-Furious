@@ -24,3 +24,6 @@ Ogni diagnostica del parser rende il risultato `partial`, poiché il parser stor
 non distingue ancora omissioni di copertura da messaggi informativi. Gli artefatti
 carvati ed esportati riportano la fonte registrata dal parser insieme all'asset
 genitore; il rendering mostra entrambi quando sono disponibili.
+La sezione di analisi espone lo stesso stato `partial`/`completed` del risultato
+principale, affinché la dashboard evidenzi anche a livello di sezione una coverage
+incompleta.

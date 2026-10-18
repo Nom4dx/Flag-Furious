@@ -188,7 +188,7 @@ class Plugin(BasePlugin):
             "summary": "Analisi pic-up completata" + (" con coverage parziale" if partial else ""),
             "status": "partial" if partial else "completed",
             "confidence": 0.85,
-            "sections": [{"id": "analysis", "data": report}],
+            "sections": [{"id": "analysis", "data": report, "status": "partial" if partial else "completed"}],
             "artifacts": artifacts,
             "flags": flags,
             "findings": [*report.get("findings", []), *flags],
