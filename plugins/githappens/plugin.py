@@ -255,7 +255,7 @@ class Plugin(BasePlugin):
             status = "failed"
         elif result["status"] == "cancelled":
             status = "cancelled"
-        elif result["errors"] or warnings or input_partial:
+        elif result["status"] in {"partial", "error"} or result["errors"] or warnings or input_partial:
             status = "partial"
         else:
             status = "completed"
@@ -264,7 +264,7 @@ class Plugin(BasePlugin):
             "status": status,
             "confidence": 0.9,
             "sections": [
-                {"id": "analysis", "data": result["modules"]},
+                {"id": "analysis", "data": result["modules"], "status": status},
                 {"id": "timeline", "data": result["timeline"]},
                 {"id": "logs", "data": result["logs"]},
             ],
