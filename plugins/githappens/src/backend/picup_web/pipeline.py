@@ -135,7 +135,15 @@ class Pipeline:
                                 combined.extend(report["repositories"]); self.store.add_findings(manifest, report["findings"])
                                 for repository in report["repositories"]:
                                     _record_warnings(manifest, phase, repository.get("warnings", []))
-                        manifest["modules"][phase] = {"repositories": [_serial(x) for x in combined], "count": len(combined)}
+                        git_partial = any(
+                            repository.get("integrity") == "partial" or repository.get("warnings")
+                            for repository in combined
+                        )
+                        manifest["modules"][phase] = {
+                            "repositories": [_serial(x) for x in combined],
+                            "count": len(combined),
+                            "status": "partial" if git_partial else "complete",
+                        }
                         for recovered in (output / "git").rglob("*.bin"):
                             if not any(a["path"] == str(recovered.relative_to(case_dir)) for a in manifest["artifacts"]):
                                 self.store.add_artifact(manifest, case_dir, recovered, source="git object", module="git", method="git-cat-file", status="recovered", confidence=0.95)
@@ -157,7 +165,9 @@ class Pipeline:
                             if path.is_file() and path.stat().st_size <= 128 * 1024 * 1024:
                                 with path.open("rb") as handle:
                                     self.store.add_findings(manifest, scan_stream(handle, source=str(evidence), path=str(path), module="scan", config=config))
-                    manifest["modules"].setdefault(phase, {})["status"] = "complete"
+                    phase_module = manifest["modules"].setdefault(phase, {})
+                    if phase_module.get("status") not in {"partial", "error", "cancelled"}:
+                        phase_module["status"] = "complete"
                 except Exception as exc:
                     manifest["errors"].append(f"{phase}: {type(exc).__name__}: {exc}")
                     manifest["modules"][phase] = {"status": "error", "error": str(exc)}

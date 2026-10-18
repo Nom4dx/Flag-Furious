@@ -15,6 +15,12 @@ Il parser fallback degli oggetti loose Git legge lo zlib a blocchi da 64 KiB, li
 gli oggetti a 16 MiB e enumera al massimo 50.000 entry. Marca `partial` quando trova
 oggetti malformati o raggiunge il limite di inventario; i link simbolici dentro
 `objects/` vengono ignorati.
+Con la CLI Git disponibile, timeout, stdout troncato, inventari di oggetti/commit/tree
+oltre i cap e letture blob fallite producono warning e integrità `partial`. I comandi
+nel report sono riepilogati entro 2.000 righe con stato, byte raccolti e preview stderr;
+`command_coverage` conta quelli omessi e lo stdout grezzo non viene duplicato. Senza
+la CLI Git, il fallback marca sempre `partial`, perché non può esaminare refs, storia,
+oggetti packed o linee rimosse.
 Le anteprime degli artefatti testuali leggono al massimo 2 MiB e mostrano una nota
 esplicita quando il contenuto supera tale limite.
 

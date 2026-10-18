@@ -138,10 +138,12 @@ def run(argv: list[str], *, cwd: Path | None = None, timeout: int = 120, input_d
             "command": argv, "returncode": returncode,
             "stdout": stdout.decode("utf-8", "replace"),
             "stderr": stderr.decode("utf-8", "replace"),
+            "stdout_bytes": len(stdout), "stderr_bytes": len(stderr),
             "ok": returncode == 0 and not timed_out, "timed_out": timed_out, "output_truncated": truncated,
         }
     except OSError as exc:
-        return {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "ok": False}
+        return {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "stdout_bytes": 0,
+                "stderr_bytes": len(str(exc).encode("utf-8", "replace")), "ok": False}
 
 
 def run_binary(argv: list[str], *, cwd: Path | None = None, timeout: int = 120, max_bytes: int = 256 * 1024 * 1024) -> tuple[bytes, dict[str, Any]]:
@@ -151,10 +153,12 @@ def run_binary(argv: list[str], *, cwd: Path | None = None, timeout: int = 120, 
             stdout_limit=max_bytes, stderr_limit=MAX_COMMAND_OUTPUT,
         )
         return data, {"command": argv, "returncode": returncode, "stdout": f"<{len(data)} binary bytes>",
+                      "stdout_bytes": len(data), "stderr_bytes": len(stderr),
                       "stderr": stderr.decode("utf-8", "replace"), "ok": returncode == 0 and not timed_out and not truncated,
                       "timed_out": timed_out, "output_truncated": truncated}
     except OSError as exc:
-        return b"", {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "ok": False}
+        return b"", {"command": argv, "returncode": -1, "stdout": "", "stderr": str(exc), "stdout_bytes": 0,
+                      "stderr_bytes": len(str(exc).encode("utf-8", "replace")), "ok": False}
 
 
 def json_dump(path: Path, value: Any) -> None:

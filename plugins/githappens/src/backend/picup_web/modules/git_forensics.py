@@ -18,6 +18,20 @@ OID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 LOOSE_OBJECT_LIMIT = 16 * 1024 * 1024
 LOOSE_OBJECT_READ_SIZE = 64 * 1024
 LOOSE_OBJECT_PREFIX_LIMIT = 4096
+MAX_REPOSITORY_WARNINGS = 100
+MAX_REPOSITORY_COMMANDS = 2_000
+
+
+def _command_summary(record: dict[str, Any]) -> dict[str, Any]:
+    """Retain bounded command evidence without copying captured output into reports."""
+    stdout = record.get("stdout", "")
+    stderr = record.get("stderr", "")
+    return {
+        **{key: value for key, value in record.items() if key not in {"stdout", "stderr"}},
+        "stdout_bytes": int(record.get("stdout_bytes", len(stdout.encode("utf-8", "replace")) if isinstance(stdout, str) else len(stdout))),
+        "stderr_bytes": int(record.get("stderr_bytes", len(stderr.encode("utf-8", "replace")) if isinstance(stderr, str) else len(stderr))),
+        "stderr_preview": stderr[:2048] if isinstance(stderr, str) else "",
+    }
 
 
 def find_repositories(root: Path) -> list[dict[str, Any]]:
@@ -139,7 +153,7 @@ def _all_git_objects(git_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str
     return objects, commands
 
 
-def _refs(git_dir: Path) -> tuple[list[dict[str, Any]], dict[str, set[str]]]:
+def _refs(git_dir: Path) -> tuple[list[dict[str, Any]], dict[str, set[str]], dict[str, Any]]:
     rec = _git(git_dir, ["for-each-ref", "--format=%(objectname)%09%(refname)%09%(objecttype)"])
     refs = []
     by_oid: dict[str, set[str]] = {}
@@ -148,7 +162,7 @@ def _refs(git_dir: Path) -> tuple[list[dict[str, Any]], dict[str, set[str]]]:
         if len(fields) == 3:
             refs.append({"oid": fields[0], "name": fields[1], "type": fields[2]})
             by_oid.setdefault(fields[0], set()).add(fields[1])
-    return refs, by_oid
+    return refs, by_oid, rec
 
 
 def _commit_metadata(git_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -183,25 +197,68 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
     git_dir = Path(repo["git_dir"])
     output.mkdir(parents=True, exist_ok=True)
     result: dict[str, Any] = {**repo, "valid": False, "integrity": "unverified", "head": None, "branch": None, "refs": [], "commits": [], "objects": [], "recovered": [], "findings": [], "commands": [], "warnings": []}
+    warning_omitted = 0
+    command_omitted = 0
+
+    def warn(message: str) -> None:
+        nonlocal warning_omitted
+        if message in result["warnings"]:
+            return
+        if len(result["warnings"]) < MAX_REPOSITORY_WARNINGS:
+            result["warnings"].append(message)
+        else:
+            warning_omitted += 1
+        config.warn(message)
+
+    def record_command(record: dict[str, Any], label: str, *, failure_is_gap: bool = False) -> None:
+        nonlocal command_omitted
+        if len(result["commands"]) < MAX_REPOSITORY_COMMANDS:
+            result["commands"].append(_command_summary(record))
+        else:
+            command_omitted += 1
+        timed_out = bool(record.get("timed_out"))
+        truncated = bool(record.get("output_truncated"))
+        failed = failure_is_gap and not record.get("ok", False)
+        if timed_out or truncated or failed:
+            reasons = []
+            if timed_out:
+                reasons.append("timeout")
+            if truncated:
+                reasons.append("output cap")
+            if failed:
+                reasons.append("command error")
+            warn(f"{label}: inventory or parsing incomplete ({', '.join(reasons)}).")
+
     head_path = git_dir / "HEAD"
     if head_path.is_file():
         head_text = head_path.read_text("utf-8", "replace").strip()
         result["head"] = head_text
         result["branch"] = head_text.removeprefix("ref: refs/heads/") if head_text.startswith("ref: refs/heads/") else "DETACHED"
     objects, commands = _all_git_objects(git_dir)
-    result["commands"].extend(commands)
+    for command in commands:
+        record_command(command, "Git object inventory", failure_is_gap=True)
     result["objects"] = objects[:max_objects]
+    if len(objects) > max_objects:
+        warn(f"Git object inventory capped at {max_objects} of at least {len(objects)} objects.")
     if shutil.which("git"):
         verify = _git(git_dir, ["rev-parse", "--is-bare-repository"])
-        result["commands"].append(verify)
+        record_command(verify, "Git repository validation", failure_is_gap=True)
         result["valid"] = verify["ok"]
         result["integrity"] = "complete" if verify["ok"] else "partial"
-        refs, ref_map = _refs(git_dir)
+        refs, _ref_map, refs_command = _refs(git_dir)
+        record_command(refs_command, "Git reference inventory", failure_is_gap=True)
         result["refs"] = refs
         commits, mixed = _commit_metadata(git_dir)
         result["commits"] = commits
         unreachable = [item for item in mixed if "command" not in item]
-        result["commands"].extend(item for item in mixed if "command" in item)
+        for command in (item for item in mixed if "command" in item):
+            record_command(
+                command,
+                "Git commit/unreachable inventory",
+                failure_is_gap=True,
+            )
+        if len(commits) > 10_000:
+            warn(f"Commit inventory capped at 10,000 of {len(commits)} commits.")
         unreachable_ids = {item["id"] for item in unreachable}
         for item in result["objects"]:
             item["reachable"] = item["id"] not in unreachable_ids
@@ -213,10 +270,10 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
             remaining = max(0, config.max_input_bytes - config.bytes_read)
             object_limit = min(16 * 1024 * 1024, remaining)
             if item.get("size", 0) > object_limit:
-                result["warnings"].append(f"Blob {item['id']} oltre budget per oggetto/input; contenuto non letto.")
-                config.warn(f"Git blob non letto: limite byte raggiunto in {git_dir}")
+                warn(f"Blob {item['id']} oltre budget per oggetto/input; contenuto non letto.")
                 continue
             data, content = run_binary(["git", f"--git-dir={git_dir}", "cat-file", "blob", item["id"]], timeout=60, max_bytes=object_limit)
+            record_command(content, f"Git blob {item['id']} read", failure_is_gap=True)
             if not content["ok"]:
                 continue
             config.bytes_read += len(data)
@@ -231,7 +288,11 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
         for commit in commits[:10_000]:
             result["findings"].extend(scan_bytes(commit["message"].encode(), source=str(git_dir), path=f"commit:{commit['id']}", module="git", config=config, method="commit-message"))
             tree = _git(git_dir, ["ls-tree", "-r", "--full-tree", commit["id"]], timeout=120)
-            for line in tree["stdout"].splitlines()[:100_000]:
+            record_command(tree, f"Git tree inventory {commit['id']}", failure_is_gap=True)
+            tree_lines = tree["stdout"].splitlines()
+            if len(tree_lines) > 100_000:
+                warn(f"Tree {commit['id']} capped at 100,000 entries.")
+            for line in tree_lines[:100_000]:
                 match = re.match(r"(\d+) (\w+) ([0-9a-f]{40,64})\t(.*)", line)
                 if not match:
                     continue
@@ -256,10 +317,11 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
                 ))
         # Removed lines are independently scanned, covering flags deleted between versions.
         diff = _git(git_dir, ["log", "--all", "--reflog", "-p", "--format=commit:%H"], timeout=300)
-        result["commands"].append({**diff, "stdout": diff["stdout"][:200_000]})
+        record_command(diff, "Git removed-line history", failure_is_gap=True)
         removed = "\n".join(line[1:] for line in diff["stdout"].splitlines() if line.startswith("-") and not line.startswith("---"))
         result["findings"].extend(scan_bytes(removed.encode(), source=str(git_dir), path="git:removed-lines", module="git", config=config, method="git-diff-removed"))
     else:
+        warn("Git CLI unavailable; refs, commit history, packed objects and removed-line scans were skipped.")
         audit: dict[str, int | bool] = {}
         result["objects"] = []
         for item in loose_objects(git_dir, max_objects, audit):
@@ -269,12 +331,30 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
         rejected = int(audit.get("rejected", 0))
         capped = bool(audit.get("limit_reached", False))
         if rejected:
-            result["warnings"].append(f"{rejected} loose Git objects were malformed or exceeded the per-object budget.")
-            config.warn(f"Loose Git object parsing incomplete in {git_dir}: {rejected} objects rejected")
+            warn(f"{rejected} loose Git objects were malformed or exceeded the per-object budget.")
         if capped:
-            result["warnings"].append(f"Loose Git object inventory capped at {max_objects} objects.")
-            config.warn(f"Loose Git object inventory limit reached in {git_dir}")
-        result["integrity"] = "partial" if rejected or capped else "complete" if result["valid"] else "unverified"
+            warn(f"Loose Git object inventory capped at {max_objects} objects.")
+        result["integrity"] = "partial"
+    if command_omitted:
+        warn(f"Git command log capped at {MAX_REPOSITORY_COMMANDS}; {command_omitted} command summaries omitted.")
+    result["command_coverage"] = {
+        "stored": len(result["commands"]),
+        "omitted": command_omitted,
+        "complete": command_omitted == 0,
+    }
+    if warning_omitted:
+        if result["warnings"]:
+            warning_omitted += 1  # The final detail is replaced by the omission summary.
+        summary = f"Additional repository warnings omitted ({warning_omitted}); warning_coverage contains the count."
+        if result["warnings"]:
+            result["warnings"][-1] = summary
+        else:
+            result["warnings"].append(summary)
+        result["warning_coverage"] = {"stored": len(result["warnings"]), "omitted": warning_omitted, "complete": False}
+    else:
+        result["warning_coverage"] = {"stored": len(result["warnings"]), "omitted": 0, "complete": True}
+    if result["warnings"] and result["integrity"] == "complete":
+        result["integrity"] = "partial"
     return result
 
 
