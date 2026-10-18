@@ -8,8 +8,13 @@ from .bounded_process import run_bounded
 
 class TSK:
     def __init__(self, image: Path, logger: Callable[..., None], timeout: int = 120,
-                 warn: Callable[[str], None] | None = None):
+                 warn: Callable[[str], None] | None = None,
+                 max_output_total: int = 512 * 1024 * 1024):
         self.image = image; self.logger = logger; self.timeout = timeout; self.warn = warn or (lambda _message: None)
+        self.max_output_total = max(0, max_output_total); self.output_bytes = 0
+
+    def _remaining_output(self) -> int:
+        return max(0, self.max_output_total - self.output_bytes)
 
     def run(self, command: str, *args: str) -> tuple[int, str]:
         return self._execute(command, list(args), [])
@@ -21,7 +26,13 @@ class TSK:
             return 127, ""
         argv = [binary, *args, str(self.image), *tail]
         printable = " ".join(argv)
-        proc = run_bounded(argv, timeout=self.timeout, max_stdout=8 * 1024 * 1024)
+        remaining = self._remaining_output()
+        if not remaining:
+            message = f"{command}: budget cumulativo output TSK esaurito"
+            self.warn(message); self.logger("WARNING", message, printable)
+            return 124, ""
+        proc = run_bounded(argv, timeout=self.timeout, max_stdout=min(8 * 1024 * 1024, remaining))
+        self.output_bytes += len(proc["stdout"])
         stdout = proc["stdout"].decode("utf-8", "replace")
         stderr = proc["stderr"].decode("utf-8", "replace")
         if proc["truncated"]:
@@ -78,11 +89,16 @@ class TSK:
         argv = [binary]
         if deleted: argv.append("-r")
         argv += ["-o", str(sector_offset), str(self.image), str(inode)]
+        remaining = self._remaining_output()
+        if not remaining:
+            self.warn("icat: budget cumulativo output TSK esaurito")
+            return False
         try:
-            proc = run_bounded(argv, timeout=self.timeout, max_stdout=max_bytes,
+            proc = run_bounded(argv, timeout=self.timeout, max_stdout=min(max_bytes, remaining),
                                output_path=target)
         except FileExistsError:
             return False
+        if target.exists(): self.output_bytes += target.stat().st_size
         if proc["timed_out"] or proc["truncated"] or proc["returncode"] != 0:
             target.unlink(missing_ok=True)
             message = f"icat inode {inode}: recupero incompleto o oltre limite"
@@ -112,19 +128,25 @@ class TSK:
         flag = "-s" if mode == "slack" else "-A"
         argv = [binary, flag, "-o", str(sector_offset), str(self.image)]
         target.parent.mkdir(parents=True, exist_ok=True)
+        remaining = self._remaining_output()
+        if not remaining:
+            self.warn(f"blkls {mode}: budget cumulativo output TSK esaurito")
+            return False, True
+        limit = min(max_bytes, remaining)
         try:
-            proc = run_bounded(argv, timeout=self.timeout, max_stdout=max_bytes,
+            proc = run_bounded(argv, timeout=self.timeout, max_stdout=limit,
                                output_path=target)
         except FileExistsError:
             return target.exists() and target.stat().st_size > 0, False
         if proc["timed_out"]:
             self.warn(f"blkls {mode}: timeout, dump parziale")
         if proc["truncated"]:
-            self.warn(f"blkls {mode}: dump limitato a {max_bytes} byte")
+            self.warn(f"blkls {mode}: dump limitato a {limit} byte")
         if proc["stderr_truncated"]:
             self.warn(f"blkls {mode}: stderr limitato")
         if not target.exists():
             return False, proc["truncated"] or proc["timed_out"]
+        self.output_bytes += target.stat().st_size
         self.logger("INFO" if proc["returncode"] == 0 and not proc["timed_out"] else "WARNING",
                     f"blkls {mode} produced {target.stat().st_size} bytes", " ".join(argv),
                     proc["stderr"].decode("utf-8", "replace"))
@@ -136,7 +158,12 @@ class TSK:
         if not binary: return None
         from .scanner import scan_bytes
         argv = [binary, "-a", "-t", "d", str(self.image)]; found = []; evidence = []
-        proc = run_bounded(argv, timeout=self.timeout, max_stdout=64 * 1024 * 1024)
+        remaining = self._remaining_output()
+        if not remaining:
+            self.warn("srch_strings: budget cumulativo output TSK esaurito")
+            return []
+        proc = run_bounded(argv, timeout=self.timeout, max_stdout=min(64 * 1024 * 1024, remaining))
+        self.output_bytes += len(proc["stdout"])
         if proc["truncated"] or proc["timed_out"]:
             self.warn("srch_strings: output o tempo limitato; ricerca parziale")
         for line in proc["stdout"].decode("utf-8", "replace").splitlines():

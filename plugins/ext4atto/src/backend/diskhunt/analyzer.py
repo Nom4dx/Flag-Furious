@@ -50,7 +50,8 @@ class Analyzer:
             self.db.update_job(self.job_id, image_path=str(image)); self.completed.append("image preparation")
             patterns = compile_flag_patterns(options.prefix, options.prefix_is_regex, options.prefixes)
             catalog = ArtifactCatalog(self.db, self.job_id, workdir / "artifacts", patterns)
-            tsk = TSK(image, self.log, warn=self.warnings.append)
+            tsk = TSK(image, self.log, warn=self.warnings.append,
+                      max_output_total=min(512 * 1024 * 1024, b.total))
             self.phase("image triage", 13); tsk.image_triage(); self.completed.append("image triage")
             self.phase("partition analysis", 18)
             with image.open("rb") as handle: table, partitions, anomalies = inspect_partitions(handle, image.stat().st_size)
@@ -99,7 +100,7 @@ class Analyzer:
                 if target.exists(): catalog.register(target, name_original=item["name"], original_path="unallocated/raw", method="magic-byte carving", status=item["status"], confidence=item["confidence"], partition=item.get("partition"), absolute_offset=item["absolute_offset"])
             if "carving" not in budget.exhausted_phases: self.completed.append("carving")
             self.phase("report checkpoint", 96); self.completed.append("report checkpoint")
-            stats.update({"budget": budget.stats(), "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3),
+            stats.update({"budget": budget.stats(), "tsk_output_bytes": tsk.output_bytes, "completed_phases": self.completed, "elapsed_seconds": round(time.monotonic()-started, 3),
                           "partitions": len(partitions), "flags": len(self.db.results(self.job_id, "flag")), "files": len(self.db.results(self.job_id, "file")), "deleted": len(self.db.results(self.job_id, "deleted")), "artifacts": len(self.db.results(self.job_id, "artifact"))})
             exhausted = bool(budget.exhausted_phases) or budget.stats()["remaining"] == 0
             if exhausted:
