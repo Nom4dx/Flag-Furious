@@ -53,6 +53,9 @@ a frammenti, la vista troncata è segnalata come `partial` e i byte non vengono
 duplicati in una serializzazione completa prima del parsing.
 Gli hash del core vengono riusati quando disponibili; altrimenti il calcolo locale
 si ferma al byte budget e identifica esplicitamente hash/prefisso incompleto.
+L'estrazione entità si arresta a 5.000 risultati per evento e 100.000 totali; i
+cap marcano parziali la sezione e la fase timeline e rendono visibili gli eventi
+successivi non esaminati nelle metriche.
 
 ## Dipendenze e tool
 
