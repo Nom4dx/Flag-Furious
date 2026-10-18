@@ -29,17 +29,25 @@ class Plugin(BasePlugin):
         """Route known protected containers while allowing explicit binary use."""
         path=asset.get('path')
         if not path:return {'compatible':False,'score':0,'reasons':['File locale richiesto']}
-        head=Path(path).open('rb').read(64*1024*1024);ext=Path(path).suffix.lower();evidence=[]
+        source_path=Path(path)
+        if not source_path.is_file() or source_path.is_symlink():return {'compatible':False,'score':0,'reasons':['File regolare locale richiesto']}
+        ext=Path(asset.get('name',source_path.name)).suffix.lower();size=source_path.stat().st_size
+        with source_path.open('rb') as source:
+            head=source.read(64*1024)
+            tail=b''
+            if size>len(head):
+                source.seek(max(0,size-64*1024));tail=source.read(64*1024)
+        evidence=[]
         if ext in {'.zip','.7z','.rar','.pdf','.docx','.xlsx','.pptx','.doc','.xls','.ppt','.jpg','.jpeg','.bmp','.wav','.au','.gpg','.enc','.img','.dd','.raw','.vhd','.vhdx','.bde','.fve'}:evidence.append('Formato con protezione supportabile')
-        if b'/Encrypt' in head or b'EncryptedPackage' in head:evidence.append('Struttura cifrata rilevata')
-        if b'-FVE-FS-' in head:evidence.append('Volume BitLocker/FVE rilevato')
+        if b'/Encrypt' in head or b'/Encrypt' in tail or b'EncryptedPackage' in head:evidence.append('Struttura cifrata rilevata')
+        if b'-FVE-FS-' in head or b'-FVE-FS-' in tail:evidence.append('Volume BitLocker/FVE rilevato')
         return {'compatible':bool(evidence),'score':.96 if len(evidence)>1 else .72 if evidence else 0,'reasons':evidence}
     def validate(self,asset,context):
         """Require a regular non-symlink sandbox input."""
         p=Path(asset.get('path',''));return {'valid':p.is_file() and not p.is_symlink(),'reason':'File regolare locale richiesto'}
     def analyze(self,asset,context,reporter):
         """Inspect protection and optionally run an explicitly configured attempt."""
-        started=time.monotonic();path=Path(asset['path']);limits=Limits.from_context(context);options=context.get('plugin_options',{}).get('bruteforce',{});artifact={'id':asset.get('id',''),'path':str(path),'name':asset.get('name',path.name)};protection=options.get('protection_type',self._protection(path));adapter_list=select(artifact,{'protection_type':protection});project=Path(__file__).resolve().parent;needs_wordlists=bool(options.get('wordlists'));root_items=roots(project,options.get('wordlist_roots',[]),options.get('configured_roots',[])) if needs_wordlists else [];wordlists=inventory(root_items)
+        started=time.monotonic();path=Path(asset['path']);limits=Limits.from_context(context);options=context.get('plugin_options',{}).get('bruteforce',{});artifact={'id':asset.get('id',''),'path':str(path),'name':asset.get('name',path.name),'type':asset.get('type')};protection=options.get('protection_type',self._protection(path,asset.get('name',path.name)));adapter_list=select(artifact,{'protection_type':protection});project=Path(__file__).resolve().parent;needs_wordlists=bool(options.get('wordlists'));root_items=roots(project,options.get('wordlist_roots',[]),options.get('configured_roots',[])) if needs_wordlists else [];wordlists=inventory(root_items)
         reporter.phase('Rilevamento protezione');audit=[event('protected_artifact_inspected',artifact=artifact['name'],protection_type=protection)];status='waiting_for_user';response={'status':status,'attempts':0,'extracted_artifacts':[],'adapter':adapter_list[0].name if adapter_list else ''}
         known=options.get('known_password');selected=self._selected(options.get('wordlists',[]),wordlists,root_items)
         if not adapter_list:status=response['status']='not_supported'
@@ -66,14 +74,18 @@ class Plugin(BasePlugin):
     def search_flags(self,*a):return []
     def cleanup(self,context):return None
     @staticmethod
-    def _protection(path):
-        head=path.open('rb').read(8*1024*1024);ext=path.suffix.lower()
+    def _protection(path,name=None):
+        size=path.stat().st_size
+        with path.open('rb') as source:
+            head=source.read(64*1024);tail=b''
+            if size>len(head):source.seek(max(0,size-64*1024));tail=source.read(64*1024)
+        ext=Path(name or path.name).suffix.lower();pdf_markers=head+tail
         if head.startswith(b'PK'):return 'zipcrypto'
-        if head.startswith(b'%PDF-') and b'/Encrypt' in head:return 'pdf'
+        if head.startswith(b'%PDF-') and b'/Encrypt' in pdf_markers:return 'pdf'
         if head.startswith(b'\xd0\xcf\x11\xe0'):return 'office'
         if ext in {'.jpg','.jpeg','.bmp','.wav','.au'}:return 'steghide'
         if ext in {'.7z','.rar'}:return ext[1:]
-        if b'-FVE-FS-' in head:return 'bitlocker'
+        if b'-FVE-FS-' in pdf_markers:return 'bitlocker'
         return 'unknown'
     @staticmethod
     def _candidates(known,selected):

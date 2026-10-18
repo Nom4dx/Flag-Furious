@@ -5,7 +5,9 @@ from .base import PasswordAdapter
 class OfficeAdapter(PasswordAdapter):
  name='office_adapter';supported_formats=['docx','xlsx','pptx','ole'];supported_protections=['office','office_agile','office_standard']
  def can_handle(self,a,c):
-  head=self.path(a).open('rb').read(8);return head.startswith(b'\xd0\xcf\x11\xe0') or self.path(a).suffix.lower() in {'.docx','.xlsx','.pptx','.doc','.xls','.ppt'}
+  path=self.path(a)
+  with path.open('rb') as source:head=source.read(8)
+  return head.startswith(b'\xd0\xcf\x11\xe0') or Path(a.get('name',path.name)).suffix.lower() in {'.docx','.xlsx','.pptx','.doc','.xls','.ppt'}
  def verify_password(self,a,p,c):
   try:
    import msoffcrypto

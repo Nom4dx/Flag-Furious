@@ -85,7 +85,7 @@ nascodono aggiornando attese senza spiegazione.
 | seganografy | refactor | Detection del tipo artefatto limitata a 1 MiB e partial dichiarato; restano falsi positivi/tool opzionali e gate fixture/contratto |
 | log-forensics | refactor | Asset inline limitato e parzialità visibile; restano schema/regole/timestamp e gate fixture/contratto |
 | encrypted-volume-forensics | refactor | Ogni warning di copertura produce `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker e gate fixture/contratto |
-| bruteforce | audit | 5 file test; audit adapters/budget/segreti da svolgere |
+| bruteforce | refactor | Matcher da 64 MiB ridotto a campione prefix/tail; PDF e Office adapter senza letture massive/ripetute; restano matrice adapter/limiti e gate fixture/contratto |
 
 ### Rilievi specialistici e correzioni in corso
 
@@ -101,7 +101,7 @@ previste restano un gate prima di dichiarare i plugin `done`.
 | `polyglot-and-embedded-content` | Corretto: flag scan legge al massimo 16 MiB per artefatto e segnala il troncamento | Risolta |
 | `seganografy` | Corretto: detection del tipo usa un prefisso massimo di 1 MiB e registra la coverage parziale | Risolta |
 | `encrypted-volume-forensics` | Corretto: warning di hash, filesystem e flag ora producono `partial`; fase hash disabilitata resta `skipped` | Risolta |
-| `bruteforce` | Matcher legge fino a 64 MiB a ogni valutazione; rilevamento protezione può leggere altri 8 MiB, costo elevato durante il routing | Media |
+| `bruteforce` | Corretto: routing limitato a prefix/tail, PDF adapter bounded e scan BitLocker riservata a candidati disk-image | Risolta |
 
 ## Registro moduli futuri
 

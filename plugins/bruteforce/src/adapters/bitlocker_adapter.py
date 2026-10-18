@@ -33,7 +33,13 @@ class BitLockerAdapter(PasswordAdapter):
     """Verify and export local BitLocker volumes without mounting them."""
     name='bitlocker_adapter';supported_formats=['bitlocker','fve','raw_disk'];supported_protections=['bitlocker','bitlocker_password','bitlocker_recovery_password']
     def __init__(self):self._pending={}
-    def can_handle(self,artifact,context):return context.get('protection_type') in self.supported_protections or _volume(self.path(artifact)) is not None
+    def can_handle(self,artifact,context):
+        if context.get('protection_type') in self.supported_protections:return True
+        # A bounded 64 MiB VBR scan is useful for disk evidence but wasteful on
+        # every ordinary file during adapter routing.
+        name=Path(artifact.get('name',self.path(artifact).name)).suffix.lower()
+        if artifact.get('type')!='disk_image' and name not in {'.raw','.img','.dd','.001','.vhd','.vhdx','.bde','.fve'}:return False
+        return _volume(self.path(artifact)) is not None
     def _open(self,artifact,password):
         import pybde
         path=self.path(artifact);region=_volume(path)
