@@ -58,7 +58,11 @@ class Pipeline:
                     if phase == "metadata":
                         manifest["metadata"] = {**hashes(evidence), "name": evidence.name, "mime": mime_for(evidence), "mtime": datetime.fromtimestamp(evidence.stat().st_mtime, UTC).isoformat()}
                     elif phase == "extract":
-                        extracted, warnings = extract_recursive(evidence, output / "files")
+                        extracted, warnings = extract_recursive(
+                            evidence, output / "files",
+                            max_bytes=max(0, config.max_input_bytes-config.bytes_read),
+                        )
+                        config.bytes_read += sum(path.stat().st_size for path in extracted if path.is_file())
                         roots = [evidence, *extracted]
                         manifest["warnings"].extend(warnings)
                         for path in extracted:
