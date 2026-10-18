@@ -22,6 +22,10 @@ Le sezioni sono File Identity, Detection Summary, Text, Unicode, Whitespace, Ima
 
 L'originale è aperto in sola lettura. Niente rete, shell, macro, script, JavaScript PDF, HTML attivo o eseguibili. ZIP Slip, symlink, duplicati e archive bomb sono bloccati. `Limits` impone depth, output, singolo artefatto, numero file/frame/tentativi, rapporto di espansione e timeout. I validator completi esistono per PNG/JPEG/ZIP/PDF/RIFF; i formati senza un confine deterministico ricevono confidence ridotta. Il tipo degli artefatti derivati è determinato leggendo al massimo 1 MiB; file più grandi sono etichettati con detection parziale e il job lo segnala.
 
+Le fasi in memoria leggono al massimo 64 MiB. Se il budget concesso o la vista
+montata è più ampia, il risultato segnala `partial` e separa vista letta,
+dimensione fisica e byte budget nelle metriche.
+
 ## Estensione
 
 Per aggiungere un decoder, implementare una funzione pura e limitata in `src/decoders.py`, registrarla in `decode_candidates` e aggiungere una fixture con falso positivo. Per una tecnica, creare un modulo `analyze(...)` che restituisca candidate/finding/artifact con tecnica, prova e confidence, quindi collegarlo a una fase in `plugin.py`. Non elevare mai un indicatore statistico a certezza.
