@@ -28,6 +28,10 @@ troncamento sono dichiarati nelle metriche e nelle righe; l'endpoint locale dei 
 supporta `limit` e `offset`. I prefissi predefiniti includono quelli del tool
 originale, compresi `FLAG{` e `SRDNLEN{`; un elenco personalizzato li sostituisce.
 Sono riconosciuti anche input gzip/xz/zstd e superblock ext senza estensione nota.
+Le immagini virtuali dirette o compresse sono identificate con `qemu-img info`
+prima della conversione; i backing file non vengono seguiti. I formati vhd/vpc,
+vhdx, vmdk, qcow, qcow2, vdi e qed usano il format rilevato, non una traduzione
+presunta dall'estensione. E01 compresso non è dichiarato supportato.
 La scansione di flag sugli artefatti catalogati legge blocchi da 1 MiB, fino a
 64 MiB e 10.000 finding per file. L'API e i report registrano byte esaminati,
 conteggio finding e stato `complete`, `partial` o `skipped_size_limit`; scansioni

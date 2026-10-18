@@ -103,7 +103,7 @@ La suite copre parser MBR/GPT/GPT corrotta/EBR/superfloppy, FAT12/16/32, ext4, f
 - Nessun mount automatico e nessuna esecuzione di artifact. I comandi TSK sono costruiti senza shell e con timeout.
 - Download confinati alla directory artifact del job; nomi e path sono normalizzati.
 - L'adapter di validazione NBD rifiuta endpoint locali/privati e resta disabilitato. Il trasporto NBD non è esposto nella v0.1.
-- E01 usa `ewfexport`; VHD/VMDK/QCOW2 usano `qemu-img` e falliscono esplicitamente se il convertitore non è disponibile.
+- E01 usa `ewfexport`; i formati virtuali supportati sono identificati con `qemu-img info` prima della conversione in raw e falliscono esplicitamente se il convertitore manca o dichiara un backing file. VHD usa il formato QEMU `vpc`; sono accettati anche VHDX, VMDK, QCOW/QCOW2, VDI e QED.
 - `jls` e `ils` vengono acquisiti nel log, ma il replay completo delle transazioni JBD2 resta un'evoluzione successiva. DiskHunt conserva sempre stati prudenti e non promuove output incompleti a `RECOVERED`.
 
 Il report di esempio è in [`examples/report.json`](examples/report.json).

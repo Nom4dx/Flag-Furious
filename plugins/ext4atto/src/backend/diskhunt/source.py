@@ -1,16 +1,20 @@
 from __future__ import annotations
 import gzip
 import ipaddress
+import json
 import lzma
 import shutil
 import subprocess
 import resource
 from pathlib import Path
 from urllib.parse import urlparse
+from .bounded_process import run_bounded
 import zstandard
 
 
 COMPRESSED_SUFFIXES = {".gz", ".xz", ".zst"}
+QEMU_SUFFIXES = {".vhd", ".vhdx", ".vmdk", ".qcow", ".qcow2", ".vdi", ".qed"}
+QEMU_FORMATS = {"vpc", "vhdx", "vmdk", "qcow", "qcow2", "vdi", "qed"}
 
 
 def _file_size_limit(max_output_bytes: int):
@@ -31,6 +35,66 @@ def _copy_bounded(source, destination, limit: int, written: int = 0) -> int:
         destination.write(block)
 
 
+def _qemu_info(path: Path) -> tuple[str | None, str | None]:
+    binary = shutil.which("qemu-img")
+    if not binary:
+        return None, None
+    result = run_bounded([binary, "info", "--output=json", str(path)], timeout=30,
+                         max_stdout=64 * 1024, max_stderr=64 * 1024)
+    if result["returncode"] or result["timed_out"] or result["truncated"]:
+        raise RuntimeError("qemu-img could not identify the virtual image safely")
+    try:
+        info = json.loads(result["stdout"].decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("qemu-img returned invalid image metadata") from exc
+    if info.get("backing-filename") or info.get("full-backing-filename"):
+        raise RuntimeError("virtual disk backing files are not followed")
+    image_format = info.get("format")
+    if not isinstance(image_format, str) or not image_format:
+        raise RuntimeError("qemu-img did not identify an image format")
+    return binary, image_format
+
+
+def _known_virtual_signature(path: Path) -> bool:
+    with path.open("rb") as source:
+        head = source.read(128)
+        size = source.seek(0, 2)
+        footer = b""
+        if size >= 512:
+            source.seek(-512, 2)
+            footer = source.read(8)
+    return (
+        head.startswith((b"QFI\xfb", b"KDMV", b"vhdxfile", b"QED"))
+        or b"<<< Oracle VM VirtualBox Disk Image >>>" in head
+        or head.startswith(b"EVF\x09\x0d\x0a\xff\x00")
+        or footer == b"conectix"
+    )
+
+
+def _convert_qemu(path: Path, output: Path, binary: str, image_format: str,
+                  max_output_bytes: int) -> Path:
+    if image_format not in QEMU_FORMATS:
+        raise RuntimeError(f"unsupported qemu image format: {image_format or 'unknown'}")
+    temporary = output.with_name(output.name + ".partial")
+    if temporary.is_symlink():
+        raise ValueError("unsafe virtual image output")
+    temporary.unlink(missing_ok=True)
+    try:
+        subprocess.run(
+            [binary, "convert", "-f", image_format, "-O", "raw", str(path), str(temporary)],
+            check=True, timeout=1800, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, preexec_fn=_file_size_limit(max_output_bytes),
+        )
+        if not temporary.is_file() or temporary.stat().st_size > max_output_bytes:
+            raise ValueError("prepared_image_budget_exceeded")
+        temporary.chmod(0o400)
+        temporary.replace(output)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        temporary.unlink(missing_ok=True)
+        raise
+    return output
+
+
 def prepare_image(upload: Path, workdir: Path, max_output_bytes: int = 512 * 1024**2) -> tuple[Path, str]:
     """Return a local, immutable analysis source; decompress/merge without altering upload."""
     suffix = upload.suffix.lower()
@@ -42,6 +106,10 @@ def prepare_image(upload: Path, workdir: Path, max_output_bytes: int = 512 * 102
             return existing, "prepared raw analysis image"
     if suffix in COMPRESSED_SUFFIXES:
         output = analysis_dir / "image.raw"
+        unpacked = analysis_dir / "decompressed.img"
+        if unpacked.is_symlink():
+            raise ValueError("unsafe decompression output")
+        unpacked.unlink(missing_ok=True)
         if suffix == ".gz":
             source = gzip.open(upload, "rb")
         elif suffix == ".xz":
@@ -49,12 +117,30 @@ def prepare_image(upload: Path, workdir: Path, max_output_bytes: int = 512 * 102
         else:
             source = zstandard.open(upload, "rb")
         try:
-            with source, output.open("xb") as dst:
+            with source, unpacked.open("xb") as dst:
                 _copy_bounded(source, dst, max_output_bytes)
-        except (OSError, ValueError):
-            output.unlink(missing_ok=True)
+        except (OSError, EOFError, ValueError, lzma.LZMAError, zstandard.ZstdError):
+            unpacked.unlink(missing_ok=True)
             raise
-        output.chmod(0o400)
+        try:
+            binary, image_format = _qemu_info(unpacked)
+        except Exception:
+            unpacked.unlink(missing_ok=True)
+            raise
+        if image_format and image_format != "raw":
+            if not binary:
+                unpacked.unlink(missing_ok=True)
+                raise RuntimeError("qemu-img is required for the compressed virtual disk format")
+            try:
+                _convert_qemu(unpacked, output, binary, image_format, max_output_bytes)
+            finally:
+                unpacked.unlink(missing_ok=True)
+            return output, f"compressed {suffix} {image_format} converted to raw"
+        if not binary and _known_virtual_signature(unpacked):
+            unpacked.unlink(missing_ok=True)
+            raise RuntimeError("qemu-img is required to identify or convert this compressed virtual image")
+        unpacked.chmod(0o400)
+        unpacked.replace(output)
         return output, f"compressed {suffix} raw image"
     if suffix == ".001":
         output = analysis_dir / "segmented.raw"
@@ -79,19 +165,15 @@ def prepare_image(upload: Path, workdir: Path, max_output_bytes: int = 512 * 102
             raise ValueError("segmented_image_missing")
         output.chmod(0o400)
         return output, f"segmented raw image ({index - 1} parts)"
-    if suffix in {".vhd", ".vmdk", ".qcow2"}:
+    if suffix in QEMU_SUFFIXES:
         output = analysis_dir / "image.raw"
-        binary = shutil.which("qemu-img")
-        if not binary: raise RuntimeError("qemu-img is required for virtual disk conversion")
-        try:
-            subprocess.run([binary, "convert", "-f", suffix[1:], "-O", "raw", str(upload), str(output)], check=True, timeout=1800, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=_file_size_limit(max_output_bytes))
-        except (OSError, subprocess.SubprocessError):
-            output.unlink(missing_ok=True)
-            raise
-        if output.stat().st_size > max_output_bytes:
-            output.unlink(missing_ok=True)
-            raise ValueError("prepared_image_budget_exceeded")
-        output.chmod(0o400); return output, f"{suffix[1:].upper()} converted to raw"
+        binary, image_format = _qemu_info(upload)
+        if image_format == "raw":
+            return upload, "raw image validated by qemu-img despite virtual disk suffix"
+        if not binary:
+            raise RuntimeError("qemu-img is required for virtual disk conversion")
+        converted = _convert_qemu(upload, output, binary, image_format, max_output_bytes)
+        return converted, f"{image_format.upper()} converted to raw"
     if suffix == ".e01":
         binary = shutil.which("ewfexport")
         if not binary: raise RuntimeError("ewfexport is required for E01 conversion")

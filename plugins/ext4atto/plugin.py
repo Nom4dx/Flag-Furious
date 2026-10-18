@@ -9,13 +9,13 @@ from diskhunt.analyzer import Analyzer
 from diskhunt.db import Database
 from diskhunt.models import AnalysisOptions
 from diskhunt.scanner import DEFAULT_PREFIXES
-from diskhunt.source import prepare_image, COMPRESSED_SUFFIXES
+from diskhunt.source import prepare_image, COMPRESSED_SUFFIXES, QEMU_SUFFIXES
 
 
 def prepare_for_hub(source, workdir, max_output_bytes=512 * 1024**2):
     # The hub already owns an immutable evidence copy. Raw images need neither
     # another copy nor chmod (which is forbidden on the read-only input mount).
-    if source.suffix.lower() not in COMPRESSED_SUFFIXES | {".001", ".vhd", ".vmdk", ".qcow2", ".e01"}:
+    if source.suffix.lower() not in COMPRESSED_SUFFIXES | {".001", ".e01"} | QEMU_SUFFIXES:
         return source, "raw disk image (hub read-only evidence)"
     return prepare_image(source, workdir, max_output_bytes)
 
@@ -64,10 +64,12 @@ class Plugin(BasePlugin):
         detected = set(asset.get("detected_types", []))
         signatures = set(asset.get("content_signatures", []))
         name = str(asset.get("name", "")).lower()
-        direct_suffixes = (".img", ".dd", ".raw", ".qcow", ".qcow2", ".vhd", ".vmdk", ".e01")
+        virtual_suffixes = tuple(sorted(QEMU_SUFFIXES))
+        direct_suffixes = (".img", ".dd", ".raw", *virtual_suffixes, ".e01")
+        compressible_disk_suffixes = (".img", ".dd", ".raw", *virtual_suffixes)
         compressed_images = tuple(
             disk + archive
-            for disk in direct_suffixes
+            for disk in compressible_disk_suffixes
             for archive in (".gz", ".xz", ".zst")
         )
         if "disk_image" in detected or signatures.intersection({"filesystem_image", "qcow"}):
