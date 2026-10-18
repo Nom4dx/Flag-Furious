@@ -170,7 +170,7 @@ class Analyzer:
         recovered = []; seen = set(); total = 0; max_total = 512 * 1024 * 1024; max_files = 1000
         for item in files:
             if len(recovered) >= max_files:
-                self.warnings.append("artifact recovery stopped at the 2500-file safety limit"); break
+                self.warnings.append(f"artifact recovery stopped at the {max_files}-file safety limit"); break
             if item["type"].startswith(("d/", "V/")) or item["size"] <= 0 or item["size"] > 64 * 1024 * 1024: continue
             key = (item["partition"], item["inode"])
             if key in seen: continue

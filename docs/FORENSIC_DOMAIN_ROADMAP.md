@@ -63,6 +63,9 @@ universale di acquisizione certificata, mobile, cloud o live response.
   e non promuovevano le corrispondenze decodificate nel contratto globale delle flag.
   Ora accettano prefissi ripetuti e restituiscono le corrispondenze come candidate con
   metodo e fonte disponibili nel report.
+- `Ext4atto` non dichiarava `mmls` mancante come incompletezza e segnalava una soglia
+  di recupero di 2.500 file mentre il limite reale è 1.000. La soglia e il gate
+  parziale ora corrispondono all'esecuzione.
 
 Questi cambiamenti riducono lavoro ripetuto, ma non trasformano i parser parziali in
 copertura completa. Il database locale, i report e le wordlist personali non fanno

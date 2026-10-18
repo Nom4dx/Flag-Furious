@@ -77,8 +77,8 @@ nascodono aggiornando attese senza spiegazione.
 | text-inspector | refactor | Preview limitata a 16 KiB e conteggi marcati parziali; restano offset e decodifica dichiarata |
 | pic-up | refactor | Matcher limitato a stream, immagini e archivi; candidate convertite in finding/flag; accetta tutti i prefissi |
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga le candidate al risultato; restano provenance frame-level e limiti dichiarati |
-| githappens | refactor | Aggiunto matcher per directory, archivi, immagini disco e bundle; stato archiviato e limiti adapter da verificare |
-| ext4atto | audit | Adattatore complesso; copertura e limiti TSK da verificare |
+| githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; warning/errori propagati come esito parziale. Restano limiti adapter e fixture |
+| ext4atto | refactor | Warning include `mmls` mancante e soglia reale di recupero; restano limiti TSK/output da verificare |
 | binary-static-analysis | audit | 5 file test; audit formati/tool da svolgere |
 | document-metadata-forensics | audit | 8 file test; audit formati/timeline da svolgere |
 | polyglot-and-embedded-content | audit | 8 file test; audit confini/duplicati da svolgere |

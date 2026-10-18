@@ -7,13 +7,16 @@
     ".gz",
     ".img",
     ".dd",
+    ".raw",
+    ".qcow",
     ".vmdk",
     ".vdi",
     ".vhd",
     ".vhdx",
     ".qed",
     ".iso",
-    ".qcow2"
+    ".qcow2",
+    ".bundle"
   ],
   "asset_types": [
     "directory"

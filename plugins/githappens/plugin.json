@@ -18,9 +18,11 @@
     "directory"
   ],
   "capabilities": [
-    "analysis",
-    "derived_assets",
-    "visualizations"
+    "git_forensics",
+    "virtual_disk_analysis",
+    "artifact_recovery",
+    "cache_analysis",
+    "timeline"
   ],
   "execution_mode": "isolated",
   "requires_network": false,

@@ -149,9 +149,17 @@ class Plugin(BasePlugin):
                 f"{omitted} artefatti non esportati: budget output; inventario e finding conservati."
             )
         flags = _hub_flags(result["findings"])
+        if result["status"] == "failed":
+            status = "failed"
+        elif result["status"] == "cancelled":
+            status = "cancelled"
+        elif result["errors"] or warnings:
+            status = "partial"
+        else:
+            status = "completed"
         return {
             "summary": f"GitHappens: {result['status']}",
-            "status": "partial" if result["errors"] else "completed",
+            "status": status,
             "confidence": 0.9,
             "sections": [
                 {"id": "analysis", "data": result["modules"]},

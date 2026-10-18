@@ -113,7 +113,9 @@ class Plugin(BasePlugin):
         }
         warnings = list(job["warnings"])
         missing = [
-            name for name in ("fls", "icat", "blkls", "fsstat", "ils", "jls") if not shutil.which(name)
+            name
+            for name in ("mmls", "fls", "icat", "blkls", "fsstat", "ils", "jls")
+            if not shutil.which(name)
         ]
         if missing:
             warnings.append("Funzionalità filesystem incomplete: comandi mancanti " + ", ".join(missing))

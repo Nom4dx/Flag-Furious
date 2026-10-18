@@ -1,11 +1,8 @@
 # Ext4atto
 
-Ext4atto — adapter Forensic Hub
-
-Contratto e installazione: [guida plugin](../README.md).
-
-Il codice originale e i test sono conservati senza modifiche in `src/`.
-Il file `plugin.py` costituisce l’adapter; non modifica gli analizzatori originali.
+Adapter del motore DiskHunt per analisi di immagini disco, partizioni, filesystem,
+file cancellati, carving e recupero. Lo stato è parziale se si esaurisce il budget,
+si omettono artefatti o mancano strumenti necessari come `mmls`.
 
 ## Integrazione 1.1 — immagini complete e recupero
 
