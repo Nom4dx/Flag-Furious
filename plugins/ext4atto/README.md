@@ -52,7 +52,10 @@ degli artefatti non vengono inclusi.
 
 Il triage globale riserva budget ai plugin selezionati. Le letture investigative
 native rispettano il budget ricevuto; hashing e letture interne di TSK, come nel
-tool originale, non sono misurate da quel contatore. La disponibilità dell'intera
+tool originale, non sono misurate da quel contatore. Per evitare una seconda lettura
+completa del disco sorgente, Ext4atto riusa gli hash MD5/SHA-1/SHA-256 dell'asset
+calcolati durante l'ingestione; un'immagine convertita o decompattata riceve invece
+un hash separato della vista analizzata. La disponibilità dell'intera
 immagine non equivale a una scansione esaustiva: timeout, CPU e budget delle fasi
 restano attivi. Per analisi lunghe configurare `HUB_TIMEOUT` e i limiti del manifest;
 il valore effettivo è il più restrittivo. Immagini segmentate richiedono ancora

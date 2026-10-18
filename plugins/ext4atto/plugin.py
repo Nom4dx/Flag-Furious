@@ -118,6 +118,15 @@ class Plugin(BasePlugin):
             prefixes = DEFAULT_PREFIXES
         options = AnalysisOptions(prefixes=prefixes, mode=context.get("mode", "balanced"))
         options.budgets.total = max(512, context["byte_budget"])
+        options.source_hashes = {
+            name: value
+            for name, value in asset.get("hashes", {}).items()
+            if name in {"md5", "sha1", "sha256"} and isinstance(value, str)
+        }
+        if len(options.source_hashes) != 3:
+            options.source_hashes = {}
+        else:
+            options.source_size = asset.get("size")
         db.create_job("analysis", asset["name"], str(source), options.model_dump())
         def bounded_prepare(source_path, workdir_path):
             return prepare_for_hub(source_path, workdir_path, options.budgets.total)

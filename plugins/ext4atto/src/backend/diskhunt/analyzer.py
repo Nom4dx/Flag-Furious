@@ -62,7 +62,14 @@ class Analyzer:
         stats: dict = {"completed_phases": [], "incomplete_phases": [], "started_monotonic": started}
         self.db.update_job(self.job_id, status="RUNNING", error=None)
         try:
-            self.phase("hashing", 4); hashes, size = self._hash(source); stats.update({"hashes": hashes, "original_hashes": hashes, "size": size})
+            self.phase("hashing", 4)
+            if options.source_hashes and options.source_size is not None:
+                hashes, size = options.source_hashes, options.source_size
+                stats["hash_source"] = "forensic hub asset ingestion"
+            else:
+                hashes, size = self._hash(source)
+                stats["hash_source"] = "DiskHunt source read"
+            stats.update({"hashes": hashes, "original_hashes": hashes, "size": size})
             self.completed.append("hashing")
             self.phase("image preparation", 9); image, image_type = prepare_image(source, workdir)
             stats["image_type"] = image_type; stats["analysis_size"] = image.stat().st_size; stats["sector_size"] = 512; stats["sectors"] = image.stat().st_size // 512

@@ -30,6 +30,8 @@ class AnalysisOptions(BaseModel):
     mode: str = Field("balanced", pattern="^(quick|balanced|deep)$")
     budgets: Budgets = Field(default_factory=Budgets)
     custom_signatures: list[dict[str, str]] = Field(default_factory=list)
+    source_hashes: dict[str, str] = Field(default_factory=dict)
+    source_size: int | None = Field(None, ge=0)
 
     @field_validator("prefix")
     @classmethod
