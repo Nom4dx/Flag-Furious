@@ -78,13 +78,13 @@ nascodono aggiornando attese senza spiegazione.
 | text-inspector | refactor | Preview UTF-8 16 KiB, serializzazione inline progressiva, conteggi/hash su max 64 MiB e copertura parziale; restano offset e decodifica dichiarata |
 | pic-up | refactor | Matcher limitato a stream, immagini e archivi; tutti i prefissi; budget scan/espansione e export max 64 derivati bounded |
 | hidgrabber | refactor | Wrapper inoltra tutti i prefissi e propaga candidate; TShark limitato per tempo/byte/righe; hash core riusato e `capinfos` con timeout; diagnostics producono `partial` |
-| githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; copia input limitata, export derivati max 64/budget e warning per vista parziale. Restano limiti scansione directory e fixture |
+| githappens | refactor | Matcher per directory, archivi, immagini disco e bundle; copia input limitata, output derivati max 64/budget; scanner, decompressione, History, Slack, cache SQLite, Git oggetti e reference diff con cap di byte/record/percorso e warning parziali. Restano subprocess Git con capture da rendere bounded, copertura delle fixture e percorsi pipeline da verificare |
 | ext4atto | refactor | Matcher immagine/partizioni; query risultati limitate, tolta rilettura completa a ogni fase; TSK non contabilizzato è dichiarato e rende `partial` |
 | binary-static-analysis | refactor | Warning di coverage; entropy/string limits e input parziale espliciti; YARA limitato a prefisso 64 MiB e disassembly max 20.000 istruzioni |
 | document-metadata-forensics | refactor | Matcher allineato; source size separata dalla vista; regex custom con timeout, cap testo e contesto configurato |
 | polyglot-and-embedded-content | refactor | Flag scan artefatti bounded e parzialità dichiarata anche per vista importata incompleta; restano confini/duplicati |
 | seganografy | refactor | Type detection artefatti limitata a 1 MiB; input parziale esplicito, restano falsi positivi/tool opzionali |
-| log-forensics | refactor | Asset inline limitato e parzialità visibile; restano schema/regole/timestamp e gate fixture/contratto |
+| log-forensics | refactor | Directory/file e contenitori compressi letti entro budget con espansione limitata; output eventi/decoder clamp; identity riusa hash core; inline partial visibile; revisione statica aggiornata |
 | encrypted-volume-forensics | refactor | Ogni warning e vista importata parziale producono `partial`; hash disabilitato esplicitamente risulta `skipped`; restano matrice BitLocker |
 | bruteforce | refactor | Matcher bounded; inventory wordlist budgetato e righe enormi ignorate; ZIP AES senza pyzipper risulta unsupported e interrompe tentativi inutili |
 

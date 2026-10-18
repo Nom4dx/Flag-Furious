@@ -39,6 +39,7 @@ class Pipeline:
         prefixes = tuple(item.strip() for item in configured.get("prefixes", "").split(",") if item.strip())
         config = ScanConfig(prefixes=prefixes or ScanConfig().prefixes, regex=configured.get("regex") or None,
                             case_sensitive=bool(configured.get("case_sensitive")))
+        config.max_input_bytes = max(0, min(int(configured.get("byte_budget", 256 * 1024 * 1024)), 256 * 1024 * 1024))
         manifest["configuration"]["generated_regexes"] = generated_regexes(config)
         phases = [only] if only else ["metadata", "extract", "virtual", "legacy", "git", "diff", "slack", "cache", "history", "scan"]
         manifest.update(status="running", phase=phases[0], progress=1)
@@ -134,6 +135,7 @@ class Pipeline:
             manifest.update(status="failed", phase="failed")
             manifest["errors"].append(f"pipeline: {type(exc).__name__}: {exc}")
         finally:
+            manifest["warnings"].extend(config.diagnostics)
             self.store.save(case_id, manifest)
             with self.lock:
                 self.cancelled.discard(case_id)

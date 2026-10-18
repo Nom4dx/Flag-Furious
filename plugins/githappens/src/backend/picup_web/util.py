@@ -91,14 +91,27 @@ def json_dump(path: Path, value: Any) -> None:
     temp.replace(path)
 
 
-def iter_files(root: Path, *, limit: int = 100_000) -> Iterable[Path]:
+def iter_files(root: Path, *, limit: int = 100_000, max_dirs: int = 10_000,
+               diagnostics: list[str] | None = None) -> Iterable[Path]:
     if root.is_file():
         yield root
         return
-    count = 0
-    for path in root.rglob("*"):
-        if path.is_file() and not path.is_symlink():
+    count = walked = 0
+    for base, dirs, files in os.walk(root, followlinks=False):
+        walked += 1
+        if walked > max_dirs:
+            if diagnostics is not None:
+                message=f"{root}: directory scan limit {max_dirs} reached"
+                if message not in diagnostics:diagnostics.append(message)
+            return
+        dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
+        for name in sorted(files):
+            path = Path(base) / name
+            if path.is_symlink() or not path.is_file():continue
+            if count >= limit:
+                if diagnostics is not None:
+                    message=f"{root}: file scan limit {limit} reached"
+                    if message not in diagnostics:diagnostics.append(message)
+                return
             yield path
             count += 1
-            if count >= limit:
-                break

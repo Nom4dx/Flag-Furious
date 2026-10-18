@@ -4,6 +4,7 @@ import hashlib
 import re
 import shutil
 import zlib
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -18,15 +19,23 @@ OID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 def find_repositories(root: Path) -> list[dict[str, Any]]:
     candidates: dict[Path, str] = {}
     if root.is_dir():
-        for path in root.rglob("*"):
-            if not path.is_dir() or path.is_symlink():
-                continue
-            if path.name == ".git":
-                candidates[path] = "worktree"
-            elif (path / "HEAD").is_file() and (path / "objects").is_dir():
-                candidates[path] = "bare" if path.name != ".git" else "worktree"
-            elif (path / "objects" / "pack").is_dir() and any((path / "objects" / "pack").glob("*.pack")):
-                candidates[path] = "partial"
+        walked = 0
+        for base, dirs, _files in os.walk(root, followlinks=False):
+            walked += 1
+            if walked > 10_000:
+                break
+            dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
+            for name in list(dirs):
+                path = Path(base) / name
+                if path.name == ".git":
+                    candidates[path] = "worktree"
+                    dirs.remove(name)
+                elif (path / "HEAD").is_file() and (path / "objects").is_dir():
+                    candidates[path] = "bare"
+                elif (path / "objects" / "pack").is_dir() and any((path / "objects" / "pack").glob("*.pack")):
+                    candidates[path] = "partial"
+            if len(candidates) >= 100:
+                break
     return [{"git_dir": str(path), "root": str(path.parent if kind == "worktree" else path), "type": kind} for path, kind in sorted(candidates.items(), key=lambda item: str(item[0]))]
 
 
@@ -36,7 +45,12 @@ def _git(git_dir: Path, args: list[str], timeout: int = 120) -> dict[str, Any]:
 
 def parse_loose_object(path: Path, oid: str | None = None) -> dict[str, Any] | None:
     try:
-        raw = zlib.decompress(path.read_bytes())
+        if path.stat().st_size > 16 * 1024 * 1024:
+            return None
+        decoder = zlib.decompressobj()
+        raw = decoder.decompress(path.read_bytes(), 16 * 1024 * 1024 + 1)
+        if len(raw) > 16 * 1024 * 1024 or decoder.unconsumed_tail:
+            return None
         header, body = raw.split(b"\0", 1)
         object_type, declared = header.decode("ascii").split(" ", 1)
         if object_type not in {"blob", "tree", "commit", "tag"} or int(declared) != len(body):
@@ -48,20 +62,24 @@ def parse_loose_object(path: Path, oid: str | None = None) -> dict[str, Any] | N
         return None
 
 
-def loose_objects(git_dir: Path) -> Iterable[dict[str, Any]]:
+def loose_objects(git_dir: Path, limit: int = 50_000) -> Iterable[dict[str, Any]]:
     objects = git_dir / "objects"
     if not objects.is_dir():
         return
-    for prefix in objects.iterdir():
+    count = 0
+    for prefix in sorted(objects.iterdir()):
         if not prefix.is_dir() or not re.fullmatch(r"[0-9a-f]{2}", prefix.name):
             continue
-        for child in prefix.iterdir():
+        for child in sorted(prefix.iterdir()):
             oid = prefix.name + child.name
             if child.is_file() and OID_RE.fullmatch(oid):
                 parsed = parse_loose_object(child, oid)
                 if parsed:
                     parsed["path"] = str(child)
                     yield parsed
+                    count += 1
+                    if count >= limit:
+                        return
 
 
 def _all_git_objects(git_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -149,9 +167,16 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
         for item in result["objects"]:
             if item["type"] != "blob":
                 continue
-            data, content = run_binary(["git", f"--git-dir={git_dir}", "cat-file", "blob", item["id"]], timeout=60)
+            remaining = max(0, config.max_input_bytes - config.bytes_read)
+            object_limit = min(16 * 1024 * 1024, remaining)
+            if item.get("size", 0) > object_limit:
+                result["warnings"].append(f"Blob {item['id']} oltre budget per oggetto/input; contenuto non letto.")
+                config.warn(f"Git blob non letto: limite byte raggiunto in {git_dir}")
+                continue
+            data, content = run_binary(["git", f"--git-dir={git_dir}", "cat-file", "blob", item["id"]], timeout=60, max_bytes=object_limit)
             if not content["ok"]:
                 continue
+            config.bytes_read += len(data)
             findings = scan_bytes(data, source=str(git_dir), path=f"git:{item['id']}", module="git", config=config, method="git-object")
             for finding in findings:
                 finding.metadata.update({"repository": str(git_dir), "object": item["id"], "object_type": "blob", "reachable": item.get("reachable")})
@@ -160,10 +185,10 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
                 target = output / f"{item['id']}_{safe_name(findings[0].value[:32] if findings else 'unreachable_blob')}.bin"
                 target.write_bytes(data)
                 result["recovered"].append({"path": str(target), "blob": item["id"], "status": item.get("status", "historical")})
-        for commit in commits:
+        for commit in commits[:10_000]:
             result["findings"].extend(scan_bytes(commit["message"].encode(), source=str(git_dir), path=f"commit:{commit['id']}", module="git", config=config, method="commit-message"))
             tree = _git(git_dir, ["ls-tree", "-r", "--full-tree", commit["id"]], timeout=120)
-            for line in tree["stdout"].splitlines():
+            for line in tree["stdout"].splitlines()[:100_000]:
                 match = re.match(r"(\d+) (\w+) ([0-9a-f]{40,64})\t(.*)", line)
                 if not match:
                     continue
@@ -171,7 +196,7 @@ def analyze_repository(repo: dict[str, Any], output: Path, config: ScanConfig, *
                 result["findings"].extend(scan_bytes(path.encode(), source=str(git_dir), path=path, module="git", config=config, method="git-path"))
         # Generic, evidence-backed reconstruction: only when a commit explicitly
         # instructs that a literal phrase must be wrapped in the configured flag format.
-        for commit in commits:
+        for commit in commits[:10_000]:
             instruction = re.search(r"(?i)wrap\s+(?:this\s+)?(?:phrase|value|string)\s+in\s+(?:the\s+)?flag\s+format\s*:\s*([A-Za-z0-9_+./=-]{3,256})", commit["message"])
             if not instruction:
                 continue

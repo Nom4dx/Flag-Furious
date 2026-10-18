@@ -36,10 +36,10 @@ def analyze(root: Path, config: ScanConfig, timezone: str = "Europe/Rome") -> di
     messages: list[dict[str, Any]] = []
     findings = []
     warnings = []
-    for path in iter_files(root):
+    for path in iter_files(root,limit=10_000,diagnostics=config.diagnostics):
         if path.suffix.lower() not in (".json", ".log", ".ldb"):
             continue
-        raw = path.read_bytes()[:64 * 1024 * 1024]
+        raw = config.read_prefix(path,8*1024*1024 if path.suffix.lower()==".json" else 64*1024*1024)
         findings.extend(scan_bytes(raw, source=str(root), path=str(path), module="slack", config=config))
         if path.suffix.lower() != ".json":
             continue
@@ -58,15 +58,19 @@ def analyze(root: Path, config: ScanConfig, timezone: str = "Europe/Rome") -> di
                     channels[channel["id"]] = channel
         elif isinstance(data, list):
             channel_name = path.parent.name
-            for msg in data:
+            for msg in data[:100_000]:
+                if len(messages)>=100_000:
+                    config.warn("Slack message inventory limited to 100,000 records")
+                    break
                 if not isinstance(msg, dict) or not (msg.get("text") or msg.get("subtype")):
                     continue
-                text, secret = redact(str(msg.get("text", "")))
+                text, secret = redact(str(msg.get("text", ""))[:16_384])
                 utc, local = slack_time(str(msg.get("ts", "")), timezone)
+                reactions=msg.get("reactions",[]);attachments=msg.get("files",[]) or msg.get("attachments",[])
                 messages.append({"author": msg.get("user") or msg.get("username"), "channel": channel_name,
                                  "thread": msg.get("thread_ts"), "text": text, "timestamp_utc": utc,
-                                 "timestamp_local": local, "reactions": msg.get("reactions", []),
-                                 "attachments": msg.get("files", []) or msg.get("attachments", []),
+                                 "timestamp_local": local, "reactions": reactions[:32] if isinstance(reactions,list) else [],
+                                 "attachments": attachments[:32] if isinstance(attachments,list) else [],
                                  "edited": msg.get("edited"), "source": str(path), "credentials_redacted": secret,
                                  "confidence": 1.0})
     return {"users": list(users.values()), "channels": list(channels.values()), "messages": messages, "findings": findings, "warnings": warnings}

@@ -8,7 +8,8 @@ import lzma
 import re
 import urllib.parse
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from functools import lru_cache
 from typing import Iterable
 
@@ -33,6 +34,26 @@ class ScanConfig:
     prefixes: tuple[str, ...] = DEFAULT_PREFIXES
     regex: str | None = None
     case_sensitive: bool = False
+    max_input_bytes: int = 256 * 1024 * 1024
+    bytes_read: int = 0
+    diagnostics: list[str] = field(default_factory=list)
+
+    def warn(self, message: str) -> None:
+        if message in self.diagnostics:return
+        if len(self.diagnostics)<100:self.diagnostics.append(message)
+        elif not any("ulteriori warning" in item for item in self.diagnostics):self.diagnostics.append("Ulteriori warning di coverage omessi")
+
+    def read_prefix(self, path: Path, maximum: int = 64 * 1024 * 1024) -> bytes:
+        """Read from the shared scan budget and record any incomplete view."""
+        size = path.stat().st_size
+        remaining = max(0, self.max_input_bytes - self.bytes_read)
+        limit = min(max(0, maximum), remaining)
+        with path.open("rb") as source:
+            data = source.read(limit)
+        self.bytes_read += len(data)
+        if len(data) < size:
+            self.warn(f"{path.name}: scan parziale ({len(data)} di {size} byte visibili)")
+        return data
 
 
 def _patterns(config: ScanConfig) -> list[re.Pattern[str]]:
@@ -94,10 +115,10 @@ def variants(data: bytes, prefixes: tuple[str, ...] = DEFAULT_PREFIXES) -> Itera
     except Exception:
         pass
     decompressors = (
-        ("gzip", gzip.decompress, data.startswith(b"\x1f\x8b")),
-        ("zlib", zlib.decompress, len(data) > 2 and data[0] == 0x78 and data[1] in {0x01, 0x5E, 0x9C, 0xDA}),
-        ("bzip2", bz2.decompress, data.startswith(b"BZh")),
-        ("xz", lzma.decompress, data.startswith(b"\xfd7zXZ\x00")),
+        ("gzip", _bounded_gzip, data.startswith(b"\x1f\x8b")),
+        ("zlib", _bounded_zlib, len(data) > 2 and data[0] == 0x78 and data[1] in {0x01, 0x5E, 0x9C, 0xDA}),
+        ("bzip2", _bounded_bzip2, data.startswith(b"BZh")),
+        ("xz", _bounded_xz, data.startswith(b"\xfd7zXZ\x00")),
     )
     for method, decoder, has_magic in decompressors:
         if not has_magic or len(data) >= 4 * 1024 * 1024:
@@ -120,6 +141,24 @@ def variants(data: bytes, prefixes: tuple[str, ...] = DEFAULT_PREFIXES) -> Itera
         possible_keys.update(match.group(0)[0] ^ first for first in marker_first)
     for key in possible_keys - {0}:
         yield f"xor:0x{key:02x}", bytes(byte ^ key for byte in sample), 0.55
+
+
+def _bounded_gzip(data: bytes) -> bytes:
+    import io
+    with gzip.GzipFile(fileobj=io.BytesIO(data)) as source:
+        return source.read(MAX_DECODED + 1)
+
+
+def _bounded_zlib(data: bytes) -> bytes:
+    return zlib.decompressobj().decompress(data, MAX_DECODED + 1)
+
+
+def _bounded_bzip2(data: bytes) -> bytes:
+    return bz2.BZ2Decompressor().decompress(data, max_length=MAX_DECODED + 1)
+
+
+def _bounded_xz(data: bytes) -> bytes:
+    return lzma.LZMADecompressor().decompress(data, max_length=MAX_DECODED + 1)
 
 
 def scan_bytes(data: bytes, *, source: str, path: str, module: str, config: ScanConfig, base_offset: int = 0, method: str = "content") -> list[Finding]:

@@ -123,7 +123,7 @@ class Plugin(BasePlugin):
 
             root = Path(asset["path"])
             output = Path(context["output_dir"])
-            config = ScanConfig(prefixes=tuple(context.get("prefixes", [])))
+            config = ScanConfig(prefixes=tuple(context.get("prefixes", [])), max_input_bytes=min(context["byte_budget"],256*1024*1024))
             results = {}
             findings = []
             warnings = []
@@ -144,6 +144,7 @@ class Plugin(BasePlugin):
                     timeline.extend(_serial(value.get("events", [])))
                 except Exception as exc:
                     warnings.append(f"{name}: {exc}")
+            warnings.extend(config.diagnostics)
             artifacts, omitted, artifact_bytes = _bounded_directory_artifacts(
                 output, context["output_bytes"], asset.get("id")
             )
@@ -188,7 +189,7 @@ class Plugin(BasePlugin):
                 asset["name"], asset["name"], LimitedStream(stream, context["byte_budget"]),
                 max_bytes=context["byte_budget"],
             )
-        case["configuration"] = {"prefixes": ",".join(context.get("prefixes", []))}
+        case["configuration"] = {"prefixes": ",".join(context.get("prefixes", [])),"byte_budget":context["byte_budget"]}
         store.save(case["id"], case)
         Pipeline(store).run(case["id"])
         result = store.load(case["id"])
