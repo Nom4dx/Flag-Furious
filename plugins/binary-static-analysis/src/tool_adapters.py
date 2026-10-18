@@ -29,13 +29,20 @@ class ToolRunner:
         self.audit.append(result);return result
 
     def inventory(self)->list[dict]:
-        """Return installed state and bounded version text for optional tools."""
+        """Return availability for optional tools and versions for tools actually used."""
+        used = {
+            Path(record["command"][0]).name
+            for record in self.audit
+            if record.get("command") and isinstance(record["command"][0], str)
+        }
         rows=[]
         for name in sorted(self.ALLOWED):
             present=self.available(name);version=""
-            if present:
+            if present and name in used:
                 flag="-version" if name=="file" else "--version"
                 version=self.run([name,flag],timeout=3,max_output=2048).get("stdout","").splitlines()[:1]
                 version=version[0] if version else "disponibile"
+            elif present:
+                version="disponibile; non invocato in questa analisi"
             rows.append({"tool":name,"available":present,"version":version})
         return rows

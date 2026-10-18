@@ -51,6 +51,8 @@ hexdump, entropia, compressione, indicatori di cifratura, embedded, overlay,
 firmware, filesystem, disassembly, funzioni, YARA, finding e artefatti. Produce
 `File Structure Graph` e `Code Analysis Graph` nel JSON dichiarativo dell'engine
 2D. Il report completo viene salvato come artefatto JSON.
+L'inventario mostra la disponibilità dei tool opzionali e interroga la versione
+soltanto per quelli effettivamente invocati nell'analisi.
 
 Esempio finding:
 
