@@ -28,6 +28,9 @@ payload Base64/hex/Brainfuck.
 Il decoder dei payload esamina al massimo 2.000 candidati, conserva fino a 1.000
 risultati e 16 MiB cumulativi di dati decodificati (4 MiB per elemento); se
 raggiunge un limite, il modulo segnala coverage parziale.
+I controlli di testo invisibile e whitespace leggono al massimo 8 MiB; il modulo
+segnala `partial` oltre quel limite e riporta i byte esaminati. La ricerca di
+firme incorporate continua sull'intero buffer concesso.
 
 Il supporto HEIC/AVIF/WebP/GIF consiste nell'inventario statico del contenitore e
 nelle firme/metadata accessibili; non comprende un decoder completo di tutti i
