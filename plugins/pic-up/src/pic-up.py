@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import re
 import shutil
 import statistics
@@ -34,6 +35,7 @@ from picup.network import (
     udp_stream_inventory,
     write_timeline,
 )
+from picup.bounded_process import run_bounded
 
 
 VERSION = "3.0.0"
@@ -43,6 +45,8 @@ DEFAULT_TOP = 15
 MAX_CARVED_FILES = 500
 MAX_ARCHIVE_MEMBERS = 1000
 MAX_EXPANDED_BYTES = 256 * 1024 * 1024
+MAX_COMMAND_OUTPUT = 32 * 1024 * 1024
+MAX_TSHARK_ROWS = 100_000
 EXPORT_PROTOCOLS = ("http", "ftp-data", "smb", "tftp", "imf")
 TLS_SECRET_LABELS = {
     "CLIENT_RANDOM",
@@ -287,6 +291,8 @@ class Tshark:
         self.display_filter = display_filter
         self.timeout = timeout
         self._field_catalog: set[str] | None = None
+        self.diagnostics: list[str] = []
+        self.incomplete_exports: set[str] = set()
         self.preferences: list[str] = []
         if keylog:
             self.preferences.extend(("-o", f"tls.keylog_file:{keylog.resolve()}"))
@@ -306,20 +312,25 @@ class Tshark:
             command.extend(("-Y", self.display_filter))
         command.extend(arguments)
         try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                errors="replace",
-                timeout=self.timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as error:
-            raise RuntimeError(f"TShark timeout after {self.timeout}s") from error
+            result = run_bounded(command, timeout=self.timeout, max_stdout=MAX_COMMAND_OUTPUT)
+        except OSError as error:
+            raise RuntimeError(f"Unable to start TShark: {error}") from error
+        if result.output_truncated:
+            self._warn("TShark output cap reached; parsed records are partial")
+        if result.stderr_truncated:
+            self._warn("TShark stderr capped")
+        if result.timed_out:
+            self._warn(f"TShark timed out after {self.timeout}s; parsed records are partial")
+        if result.output_truncated or result.timed_out:
+            result.returncode = 0
         if check and result.returncode:
             message = result.stderr.strip() or result.stdout.strip() or "unknown TShark error"
             raise RuntimeError(message)
         return result
+
+    def _warn(self, message: str) -> None:
+        if message not in self.diagnostics and len(self.diagnostics) < 100:
+            self.diagnostics.append(message)
 
     def available_fields(self) -> set[str]:
         """Return fields supported by this TShark release.
@@ -331,13 +342,13 @@ class Tshark:
         if self._field_catalog is not None:
             return self._field_catalog
         try:
-            result = subprocess.run(
-                ["tshark", "-G", "fields"], capture_output=True, text=True,
-                errors="replace", timeout=self.timeout, check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
+            result = run_bounded(["tshark", "-G", "fields"], timeout=self.timeout,
+                                 max_stdout=8 * 1024 * 1024)
+        except OSError:
             self._field_catalog = set()
             return self._field_catalog
+        if result.output_truncated or result.stderr_truncated or result.timed_out:
+            self._warn("TShark field catalog incomplete or capped; using requested fields")
         catalog: set[str] = set()
         if result.returncode == 0:
             for line in result.stdout.splitlines():
@@ -369,6 +380,9 @@ class Tshark:
         result = self.run(arguments, include_filter=False)
         rows: list[list[str]] = []
         for line in result.stdout.splitlines():
+            if len(rows) >= MAX_TSHARK_ROWS:
+                self._warn(f"TShark row inventory capped at {MAX_TSHARK_ROWS:,}")
+                break
             values = line.split("\t")
             values.extend([""] * (len(active) - len(values)))
             by_name = dict(zip(active, values))
@@ -446,7 +460,10 @@ def command_version(executable: str) -> str:
     path = shutil.which(executable)
     if not path:
         return "unavailable"
-    result = subprocess.run([path, "--version"], capture_output=True, text=True, errors="replace", check=False)
+    try:
+        result = run_bounded([path, "--version"], timeout=10, max_stdout=64 * 1024, max_stderr=64 * 1024)
+    except OSError:
+        return "unavailable"
     return result.stdout.splitlines()[0].strip() if result.stdout else "unknown"
 
 
@@ -460,15 +477,21 @@ def capture_info(path: Path) -> dict[str, Any]:
     if shutil.which("capinfos") is None:
         info["capinfos"] = "unavailable"
         return info
-    result = subprocess.run(
-        ["capinfos", "-M", str(path)],
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
+    try:
+        result = run_bounded(["capinfos", "-M", str(path)], timeout=30,
+                             max_stdout=1024 * 1024, max_stderr=256 * 1024)
+    except OSError:
+        info["capinfos"] = "unavailable"
+        return info
+    if result.timed_out:
+        info["capinfos"] = "timeout"
+        return info
     if result.returncode:
-        raise RuntimeError(result.stderr.strip() or "capinfos rejected the capture")
+        info["capinfos"] = "error"
+        info["capinfos_error"] = safe_text(result.stderr or "capinfos rejected the capture", 512)
+        return info
+    if result.output_truncated or result.stderr_truncated:
+        info["capinfos_output_truncated"] = True
     wanted = {
         "File type": "format",
         "File encapsulation": "encapsulation",
@@ -493,10 +516,12 @@ def capture_info(path: Path) -> dict[str, Any]:
 def capture_comments(runner: Tshark, path: Path) -> tuple[list[dict[str, Any]], list[tuple[str, bytes]]]:
     comments: list[dict[str, Any]] = []
     blobs: list[tuple[str, bytes]] = []
-    result = subprocess.run(
-        ["capinfos", "-M", "-k", str(path)], capture_output=True, text=True,
-        errors="replace", check=False,
-    ) if shutil.which("capinfos") else subprocess.CompletedProcess([], 0, "", "")
+    result = run_bounded(["capinfos", "-M", "-k", str(path)], timeout=30,
+                         max_stdout=2 * 1024 * 1024, max_stderr=256 * 1024) if shutil.which("capinfos") else subprocess.CompletedProcess([], 0, "", "")
+    if getattr(result, "output_truncated", False) or getattr(result, "timed_out", False):
+        runner._warn("capinfos capture comments incomplete")
+    if result.returncode:
+        runner._warn("capinfos failed; capture comments omitted")
     active = False
     capture_lines: list[str] = []
     for line in result.stdout.splitlines():
@@ -1326,10 +1351,10 @@ def describe_file(path: Path) -> tuple[str, str]:
     file_tool = shutil.which("file")
     if not file_tool:
         return mime, description
-    result = subprocess.run([file_tool, "-b", "--mime-type", str(path)], capture_output=True, text=True, errors="replace", check=False)
+    result = run_bounded([file_tool, "-b", "--mime-type", str(path)], timeout=10, max_stdout=64 * 1024, max_stderr=64 * 1024)
     if result.stdout.strip():
         mime = result.stdout.strip()
-    result = subprocess.run([file_tool, "-b", str(path)], capture_output=True, text=True, errors="replace", check=False)
+    result = run_bounded([file_tool, "-b", str(path)], timeout=10, max_stdout=64 * 1024, max_stderr=64 * 1024)
     if result.stdout.strip():
         description = result.stdout.strip()
     return mime, description
@@ -1834,7 +1859,7 @@ def extract_images(
                 path.write_bytes(image)
                 mime = f"image/{'jpeg' if extension == 'jpg' else extension}"
                 if shutil.which("file"):
-                    result = subprocess.run(["file", "-b", "--mime-type", str(path)], capture_output=True, text=True, errors="replace", check=False)
+                    result = run_bounded(["file", "-b", "--mime-type", str(path)], timeout=10, max_stdout=64 * 1024, max_stderr=64 * 1024)
                     detected = result.stdout.strip()
                     if detected:
                         mime = detected
@@ -1855,18 +1880,17 @@ def extract_images(
                 if tesseract and ocr_count < 100:
                     ocr_count += 1
                     try:
-                        result = subprocess.run(
-                            [tesseract, str(path), "stdout", "--psm", "6"],
-                            capture_output=True,
-                            text=True,
-                            errors="replace",
-                            timeout=min(timeout, 30),
-                            check=False,
-                        )
+                        result = run_bounded([tesseract, str(path), "stdout", "--psm", "6"],
+                                             timeout=min(timeout, 30), max_stdout=1024 * 1024,
+                                             max_stderr=128 * 1024)
                         recognized = result.stdout.strip()
-                    except subprocess.TimeoutExpired:
+                        if result.output_truncated or result.timed_out:
+                            diagnostics.append(f"OCR output incomplete: {path.name}")
+                        elif result.returncode:
+                            diagnostics.append(f"OCR failed; image text coverage incomplete: {path.name}")
+                    except OSError:
                         recognized = ""
-                        diagnostics.append(f"OCR timeout: {path.name}")
+                        diagnostics.append(f"OCR command unavailable: {path.name}")
                     if recognized:
                         artifact["ocr"] = safe_text(recognized, 4000)
                         ocr_blobs.append((f"OCR from {path.name}", recognized.encode()))
@@ -1880,18 +1904,46 @@ def extract_images(
     return artifacts, ocr_blobs, diagnostics
 
 
-def export_objects(runner: Tshark, output: Path, force: bool) -> list[dict[str, Any]]:
+def export_objects(runner: Tshark, output: Path, force: bool,
+                   diagnostics: list[str] | None = None) -> list[dict[str, Any]]:
     if output.exists() and any(output.iterdir()) and not force:
         raise ValueError(f"export directory is not empty: {output} (use --force)")
     output.mkdir(parents=True, exist_ok=True)
     for protocol in EXPORT_PROTOCOLS:
         destination = output / protocol.replace("-", "_")
         destination.mkdir(parents=True, exist_ok=True)
-        runner.run(("--export-objects", f"{protocol},{destination}"), check=False)
+        result = runner.run(("--export-objects", f"{protocol},{destination}"), check=False)
+        if result.timed_out or result.output_truncated or result.returncode:
+            runner.incomplete_exports.add(protocol.replace("-", "_"))
+            runner._warn(f"{protocol} object export incomplete (exit {result.returncode})")
     artifacts = []
-    for path in sorted(item for item in output.rglob("*") if item.is_file()):
-        mime, description = describe_file(path)
-        artifacts.append({"path": str(path.resolve()), "size": path.stat().st_size, "sha256": sha256_file(path), "type": description, "mime": mime})
+    total_bytes = 0
+    file_count = 0
+    limited = False
+    max_index_bytes = min(64 * 1024 * 1024, MAX_EXPANDED_BYTES)
+    for base, dirs, files in os.walk(output, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
+        for name in sorted(files):
+            path = Path(base) / name
+            if path.is_symlink() or not path.is_file():
+                continue
+            file_count += 1
+            if file_count > 10_000:
+                limited = True
+                break
+            size = path.stat().st_size
+            if total_bytes + size > max_index_bytes:
+                limited = True
+                continue
+            total_bytes += size
+            mime, description = describe_file(path)
+            protocol = path.relative_to(output).parts[0]
+            complete = protocol not in runner.incomplete_exports
+            artifacts.append({"path": str(path.resolve()), "size": size, "sha256": sha256_file(path), "type": description, "mime": mime, "complete": complete})
+        if limited and file_count > 10_000:
+            break
+    if limited and diagnostics is not None:
+        diagnostics.append(f"Export inventory capped at 10,000 files/{max_index_bytes} bytes; remaining exports not indexed")
     return artifacts
 
 
@@ -1901,7 +1953,10 @@ def write_filtered_capture(runner: Tshark, output: Path, force: bool) -> None:
     if output.resolve() == runner.capture.resolve():
         raise ValueError("filtered output cannot replace the source capture")
     arguments = ("-Y", runner.display_filter or "", "-w", str(output))
-    runner.run(arguments, include_filter=False)
+    result = runner.run(arguments, include_filter=False, check=False)
+    if result.returncode or result.timed_out:
+        output.unlink(missing_ok=True)
+        runner._warn("Filtered capture creation failed or timed out; partial file removed")
 
 
 def embed_tls_secrets(source: Path, keylog: Path, output: Path, force: bool) -> None:
@@ -1911,8 +1966,10 @@ def embed_tls_secrets(source: Path, keylog: Path, output: Path, force: bool) -> 
         raise ValueError(f"secret-bearing capture already exists: {output} (use --force)")
     if output.resolve() == source.resolve():
         raise ValueError("--embed-secrets cannot replace the source capture")
-    result = subprocess.run(["editcap", "--inject-secrets", f"tls,{keylog}", str(source), str(output)], capture_output=True, text=True, errors="replace", check=False)
-    if result.returncode:
+    result = run_bounded(["editcap", "--inject-secrets", f"tls,{keylog}", str(source), str(output)],
+                         timeout=120, max_stdout=128 * 1024, max_stderr=1024 * 1024)
+    if result.returncode or result.timed_out or result.output_truncated:
+        output.unlink(missing_ok=True)
         raise RuntimeError(result.stderr.strip() or "editcap failed")
 
 
@@ -2046,6 +2103,10 @@ def analyze(args: argparse.Namespace) -> Report:
     diagnostics = []
     if info.get("capinfos") == "unavailable":
         diagnostics.append("capinfos is unavailable; basic metadata and SHA-256 were collected without it")
+    elif info.get("capinfos") in {"timeout", "error"}:
+        diagnostics.append(f"capinfos {info['capinfos']}; basic metadata retained with incomplete metadata coverage")
+    if info.get("capinfos_output_truncated"):
+        diagnostics.append("capinfos output was capped; some metadata fields may be missing")
     if args.tls_keylog:
         decrypted_http = runner.count("http || http2")
         diagnostics.append(f"TLS key log active; {decrypted_http} HTTP/HTTP2 packet(s) visible")
@@ -2066,12 +2127,23 @@ def analyze(args: argparse.Namespace) -> Report:
     if args.pcap.stat().st_size > MAX_RAW_SCAN_BYTES:
         diagnostics.append(f"Raw capture scanning limited to the first {MAX_RAW_SCAN_BYTES:,} bytes; decoded payloads were still inspected")
 
-    exports = export_objects(runner, args.export_dir, args.force) if args.export_dir else []
+    exports = export_objects(runner, args.export_dir, args.force, diagnostics) if args.export_dir else []
     export_blobs: list[tuple[str, bytes]] = []
+    export_scan_bytes = 0
+    max_export_scan_bytes = min(64 * 1024 * 1024, MAX_EXPANDED_BYTES)
     for artifact in exports:
         path = Path(artifact["path"])
-        if path.stat().st_size <= MAX_BLOB_BYTES:
-            export_blobs.append((f"exported object {path.name}", path.read_bytes()))
+        size = path.stat().st_size
+        if not artifact.get("complete", True):
+            diagnostics.append(f"Partial export excluded from content scan: {path.name}")
+            continue
+        if size <= MAX_BLOB_BYTES and export_scan_bytes + size <= max_export_scan_bytes:
+            with path.open("rb") as source:
+                data = source.read(MAX_BLOB_BYTES)
+            export_blobs.append((f"exported object {path.name}", data))
+            export_scan_bytes += len(data)
+        elif size <= MAX_BLOB_BYTES:
+            diagnostics.append(f"Export content scan incomplete at byte budget; skipped {path.name}")
     if export_blobs:
         extend_unique_matches(matches, scan_matches(export_blobs, flag_prefix=args.flag_prefix, patterns=args.pattern, rc4_key=rc4_key, rc4_drop=args.rc4_drop))
 
@@ -2096,6 +2168,8 @@ def analyze(args: argparse.Namespace) -> Report:
         embed_tls_secrets(args.pcap, args.tls_keylog, args.embed_secrets, args.force)
         info["secret_bearing_copy"] = str(args.embed_secrets.resolve())
         info["secret_bearing_sha256"] = sha256_file(args.embed_secrets)
+
+    diagnostics.extend(item for item in runner.diagnostics if item not in diagnostics)
 
     return Report(
         file=info,

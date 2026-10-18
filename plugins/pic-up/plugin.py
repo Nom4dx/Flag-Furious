@@ -13,8 +13,9 @@ sys.modules[spec.name] = tool
 spec.loader.exec_module(tool)
 
 
-def _bounded_artifacts(root, budget, source_asset_id):
+def _bounded_artifacts(root, budget, source_asset_id, excluded_paths=()):
     root = root.resolve()
+    excluded_paths = {Path(path).resolve() for path in excluded_paths}
     candidates, scanned, limited = [], 0, False
     for base, dirs, files in os.walk(root, followlinks=False):
         dirs[:] = sorted(name for name in dirs if not (Path(base) / name).is_symlink())
@@ -25,6 +26,8 @@ def _bounded_artifacts(root, budget, source_asset_id):
                 break
             path = Path(base) / name
             if path.is_symlink() or not path.is_file():
+                continue
+            if path.resolve() in excluded_paths:
                 continue
             try:
                 candidates.append((path.stat().st_size, path))
@@ -131,13 +134,14 @@ class Plugin(BasePlugin):
             if item.get("kind") == "flag" and item.get("value")
         ]
         warnings = list(report.get("diagnostics", []))
-        incomplete_markers = ("unavailable", "limited to", "capped at", "truncated", "could not", "not found")
+        incomplete_markers = ("unavailable", "limited to", "capped", "truncated", "could not", "not found", "partial", "timeout", "incomplete")
         partial = bool(asset.get("partial_input")) or any(
             any(marker in str(message).casefold() for marker in incomplete_markers)
             for message in warnings
         )
         artifacts, omitted, exported_bytes = _bounded_artifacts(
-            output, context["output_bytes"], asset.get("id")
+            output, context["output_bytes"], asset.get("id"),
+            excluded_paths=[item["path"] for item in report.get("exports", []) if not item.get("complete", True)],
         )
         if omitted:
             warnings.append(f"{omitted} artefatti non esportati: limite 64 file o budget output.")
