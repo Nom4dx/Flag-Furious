@@ -27,4 +27,7 @@ esplicita quando il contenuto supera tale limite.
 Il riepilogo del caso conserva al massimo 50.000 finding e 100 warning distinti;
 le coperture mostrano quanti elementi sono stati omessi. Un caso con warning,
 errori di fase o coverage troncata termina con stato `partial`, che chiude anche
-lo stream SSE. I report dei moduli mantengono i dettagli specifici del modulo.
+lo stream SSE. Nella scansione directory, warning, errori, stati parziali e contatori
+di coverage annidati dei moduli vengono riportati anche al livello del plugin, così
+il risultato non resta `completed` quando un analyzer ha avuto copertura incompleta.
+I report dei moduli mantengono i dettagli specifici del modulo.

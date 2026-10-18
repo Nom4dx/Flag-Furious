@@ -27,6 +27,45 @@ def _hub_flags(findings):
     return flags
 
 
+def _module_diagnostics(value, module):
+    """Surface diagnostics hidden inside a module's nested result on directory scans."""
+    diagnostics = []
+    seen = set()
+
+    def add(message):
+        message = f"{module}: {message}"
+        if message not in seen:
+            seen.add(message)
+            diagnostics.append(message)
+
+    def visit(item):
+        if isinstance(item, dict):
+            for key in ("warnings", "errors"):
+                messages = item.get(key, [])
+                if isinstance(messages, (list, tuple)):
+                    for message in messages:
+                        add(message)
+                elif messages:
+                    add(messages)
+            status = item.get("status")
+            if status in {"partial", "error", "failed", "cancelled"}:
+                add(f"stato del risultato: {status}")
+            for key in ("warning_coverage", "finding_coverage", "command_coverage"):
+                coverage = item.get(key)
+                if isinstance(coverage, dict) and coverage.get("omitted", 0):
+                    add(f"{key}: {coverage['omitted']} elementi omessi")
+            if item.get("error"):
+                add(item["error"])
+            for child in item.values():
+                visit(child)
+        elif isinstance(item, list):
+            for child in item:
+                visit(child)
+
+    visit(value)
+    return diagnostics
+
+
 def _bounded_artifacts(result, directory, output_bytes):
     """Select useful regular artifacts without losing the structured result.
 
@@ -142,6 +181,7 @@ class Plugin(BasePlugin):
                     results[name] = _serial(value)
                     findings.extend(_serial(value.get("findings", [])))
                     timeline.extend(_serial(value.get("events", [])))
+                    warnings.extend(_module_diagnostics(value, name))
                 except Exception as exc:
                     warnings.append(f"{name}: {exc}")
             warnings.extend(config.diagnostics)
