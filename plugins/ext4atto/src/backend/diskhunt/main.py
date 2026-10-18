@@ -197,7 +197,11 @@ def carved(job_id: str, limit: int = Query(500, le=5000), offset: int = 0): retu
 
 
 @app.get("/api/jobs/{job_id}/logs")
-def logs(job_id: str): require_job(job_id); return {"items": db.logs(job_id)}
+def logs(job_id: str, limit: int = Query(1000, ge=1, le=5000), offset: int = Query(0, ge=0)):
+    require_job(job_id)
+    with db.connect() as connection:
+        total = connection.execute("SELECT COUNT(*) FROM logs WHERE job_id=?", (job_id,)).fetchone()[0]
+    return {"items": db.logs(job_id, limit=limit, offset=offset), "total": total, "limit": limit, "offset": offset}
 
 
 @app.get("/api/jobs/{job_id}/artifacts")

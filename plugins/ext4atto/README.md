@@ -19,8 +19,13 @@ privilegiati i file recuperati rispetto ai dump di slack/spazio non allocato:
 le flag e il catalogo restano disponibili e il risultato diventa `partial`.
 
 Le flag native sono trasferite al campo `flags` dell'hub, con confidenza 0–1,
-provenienza e offset. Sono mantenuti anche i risultati `recovered`, il catalogo
-completo e i log originali. I prefissi predefiniti includono quelli del tool
+provenienza e offset. Gli artefatti riportano anche l'asset genitore, il percorso
+filesystem e l'offset assoluto quando il parser li conosce. Sono mantenuti anche i
+risultati `recovered` e il catalogo entro i limiti dichiarati; le omissioni sono
+segnalate. I log del risultato hub conservano gli ultimi 1.000 record e limitano
+messaggio, comando e output grezzo a 512, 1.024 e 4.096 caratteri. Conteggio e
+troncamento sono dichiarati nelle metriche e nelle righe; l'endpoint locale dei log
+supporta `limit` e `offset`. I prefissi predefiniti includono quelli del tool
 originale, compresi `FLAG{` e `SRDNLEN{`; un elenco personalizzato li sostituisce.
 Sono riconosciuti anche input gzip/xz/zstd e superblock ext senza estensione nota.
 La scansione di flag sugli artefatti catalogati legge blocchi da 1 MiB, fino a

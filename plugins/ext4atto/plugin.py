@@ -25,6 +25,8 @@ RESULT_LIMITS = {
     "deleted": 5_000, "recovered": 5_000, "flag": 10_000,
     "carved": 5_000, "artifact": 5_000,
 }
+MAX_LOG_ROWS = 1_000
+MAX_LOG_FIELD_CHARS = {"message": 512, "command": 1_024, "raw_output": 4_096}
 
 
 def all_results(db, kind):
@@ -137,6 +139,28 @@ class Plugin(BasePlugin):
         ]
         if missing:
             warnings.append("Funzionalità filesystem incomplete: comandi mancanti " + ", ".join(missing))
+        with db.connect() as connection:
+            log_total = connection.execute(
+                "SELECT COUNT(*) FROM logs WHERE job_id=?", ("analysis",)
+            ).fetchone()[0]
+        logs_omitted = max(0, log_total - MAX_LOG_ROWS)
+        logs = db.logs("analysis", limit=MAX_LOG_ROWS, latest=True)
+        log_fields_truncated = False
+        for entry in logs:
+            truncated_fields = []
+            for field, limit in MAX_LOG_FIELD_CHARS.items():
+                value = entry.get(field)
+                if isinstance(value, str) and len(value) > limit:
+                    entry[field] = value[:limit] + " …[truncated]"
+                    truncated_fields.append(field)
+                    log_fields_truncated = True
+            if truncated_fields:
+                entry["truncated_fields"] = truncated_fields
+        if logs_omitted or log_fields_truncated:
+            warnings.append(
+                f"Log parziali: {logs_omitted} righe omesse; "
+                f"campi verbosi troncati={str(log_fields_truncated).lower()}."
+            )
         artifacts, total, omitted = [], 0, 0
         root = (work / "artifacts").resolve()
         # Prefer actual recovered files over potentially huge slack/unallocated dumps.
@@ -165,6 +189,9 @@ class Plugin(BasePlugin):
                     "path": str(path),
                     "name": record.get("name_original", path.name),
                     "offset": record.get("absolute_offset"),
+                    "source_offset": record.get("absolute_offset"),
+                    "source_location": record.get("original_path") or record.get("file_source"),
+                    "source_asset_id": asset.get("id"),
                     "confidence": record.get("confidence", 0) / 100,
                 }
             )
@@ -188,7 +215,7 @@ class Plugin(BasePlugin):
             "sections": [
                 {"id": "inventory", "data": partitions},
                 {"id": "analysis", "data": groups},
-                {"id": "logs", "data": db.logs("analysis")},
+                {"id": "logs", "data": logs},
             ],
             "artifacts": artifacts,
             "findings": groups["flag"],
@@ -201,6 +228,10 @@ class Plugin(BasePlugin):
                 "native_byte_budget": options.budgets.total,
                 "external_reads_metered": False,
                 "omitted_artifacts": omitted,
+                "logs_total": log_total,
+                "logs_exported": len(logs),
+                "logs_omitted": logs_omitted,
+                "log_fields_truncated": log_fields_truncated,
             },
             "visualizations": [
                 {

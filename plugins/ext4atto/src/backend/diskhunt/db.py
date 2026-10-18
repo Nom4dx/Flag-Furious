@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS logs (
  id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT NULL, created_at TEXT NOT NULL,
  level TEXT NOT NULL, message TEXT NOT NULL, command TEXT, raw_output TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_logs_job_id ON logs(job_id, id);
 """
 
 
@@ -113,7 +114,13 @@ class Database:
             con.execute("INSERT INTO logs(job_id,created_at,level,message,command,raw_output) VALUES(?,?,?,?,?,?)",
                         (job_id, now, level, message, command, raw_output))
 
-    def logs(self, job_id: str) -> list[dict[str, Any]]:
+    def logs(self, job_id: str, limit: int | None = None, offset: int = 0, latest: bool = False) -> list[dict[str, Any]]:
         with self.connect() as con:
-            rows = con.execute("SELECT created_at,level,message,command,raw_output FROM logs WHERE job_id=? ORDER BY id", (job_id,)).fetchall()
+            if limit is None:
+                rows = con.execute("SELECT created_at,level,message,command,raw_output FROM logs WHERE job_id=? ORDER BY id", (job_id,)).fetchall()
+            else:
+                order = "DESC" if latest else "ASC"
+                rows = con.execute(f"SELECT created_at,level,message,command,raw_output FROM logs WHERE job_id=? ORDER BY id {order} LIMIT ? OFFSET ?", (job_id, max(0, limit), max(0, offset))).fetchall()
+                if latest:
+                    rows.reverse()
         return [dict(row) for row in rows]
