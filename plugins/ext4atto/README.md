@@ -22,7 +22,10 @@ Le flag native sono trasferite al campo `flags` dell'hub, con confidenza 0–1,
 provenienza e offset. Gli artefatti riportano anche l'asset genitore, il percorso
 filesystem e l'offset assoluto quando il parser li conosce. Sono mantenuti anche i
 risultati `recovered` e il catalogo entro i limiti dichiarati; le omissioni sono
-segnalate. I log del risultato hub conservano gli ultimi 1.000 record e limitano
+segnalate. Le flag trovate dentro un artefatto usano `artifact_offset` relativo al
+contenuto recuperato e `offset_scope="artifact"`; non sono convertite in offset
+assoluti del disco senza una mappatura verificabile. I log del risultato hub
+conservano gli ultimi 1.000 record e limitano
 messaggio, comando e output grezzo a 512, 1.024 e 4.096 caratteri. Conteggio e
 troncamento sono dichiarati nelle metriche e nelle righe; l'endpoint locale dei log
 supporta `limit` e `offset`. I prefissi predefiniti includono quelli del tool

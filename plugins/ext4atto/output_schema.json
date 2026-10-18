@@ -222,8 +222,18 @@
           },
           {
             "field": "absolute_offset",
-            "label": "Offset",
+            "label": "Offset assoluto disco",
             "format": "hex"
+          },
+          {
+            "field": "artifact_offset",
+            "label": "Offset nell'artefatto",
+            "format": "number"
+          },
+          {
+            "field": "source_offset_scope",
+            "label": "Ambito offset",
+            "format": "auto"
           },
           {
             "field": "confidence",

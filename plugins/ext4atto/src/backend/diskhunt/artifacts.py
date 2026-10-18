@@ -103,7 +103,9 @@ class ArtifactCatalog:
         }
         self.db.add_result(self.job_id, "artifact", record)
         for flag in flags:
-            flag.update({"absolute_offset": -1, "partition_offset": -1, "file_source": relative,
+            artifact_offset = flag.get("absolute_offset")
+            flag.update({"absolute_offset": None, "artifact_offset": artifact_offset,
+                         "source_offset_scope": "artifact", "partition_offset": -1, "file_source": relative,
                          "inode": record.get("inode"), "partition": record.get("partition"),
                          "filesystem": record.get("filesystem", "unknown")})
             self.db.add_result(self.job_id, "flag", flag)

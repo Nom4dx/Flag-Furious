@@ -52,7 +52,16 @@ def hub_flags(rows):
             **row,
             "value": row["candidate"],
             "confidence": row.get("confidence", 0) / 100,
-            "offset": row.get("absolute_offset") if row.get("absolute_offset", -1) >= 0 else None,
+            "offset": (
+                row["absolute_offset"]
+                if isinstance(row.get("absolute_offset"), int) and row["absolute_offset"] >= 0
+                else None
+            ),
+            "offset_scope": row.get("source_offset_scope") or (
+                "disk_image"
+                if isinstance(row.get("absolute_offset"), int) and row["absolute_offset"] >= 0
+                else None
+            ),
         }
         for row in rows
     ]
