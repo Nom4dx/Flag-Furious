@@ -314,6 +314,12 @@ const confidencePercent = (value) => {
   if (!Number.isFinite(numeric)) return null;
   return Math.round(Math.max(0, Math.min(100, numeric <= 1 ? numeric * 100 : numeric)));
 };
+const findingSeverityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+function compareFindings(a, b) {
+  return (findingSeverityOrder[String(b.severity || "").toLowerCase()] || 0) -
+      (findingSeverityOrder[String(a.severity || "").toLowerCase()] || 0) ||
+    (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1);
+}
 
 function pluginStatus(results) {
   const rank = { failed: 7, partial: 6, running: 5, queued: 4, cancelled: 3, completed: 2, skipped: 1 };
@@ -386,18 +392,24 @@ function compactFinding(item, pluginId) {
   const severity = String(item.severity || "").toLowerCase();
   if (severity) row.dataset.severity = severity;
   const confidence = confidencePercent(item.confidence);
+  const sourceId = item.source_asset_id || item.asset_id || item.artifact_id || item.parent_asset_id;
+  const source = sourceId ? assetName(sourceId) : item.source || item.artifact || item.path;
+  const offset = item.offset ?? item.byte_offset ?? item.source_offset ?? item.absolute_offset;
+  const location = offset !== undefined && offset !== null ? ` · offset ${offset}` :
+    item.line !== undefined && item.line !== null ? ` · riga ${item.line}` : "";
   if (severity) row.append(text("span", severity, `finding-severity severity-${severity}`));
   row.append(
     text("strong", item.title || item.type || "Riscontro"),
     text("p", item.description || item.value || item.summary || ""),
-    text("small", `${pluginId}${confidence != null ? ` · affidabilità ${confidence}%` : ""}`),
+    text("small", `${pluginId}${confidence != null ? ` · affidabilità ${confidence}%` : ""}${source ? ` · origine ${source}` : ""}${location}`),
   );
   return row;
 }
 
 function renderPluginOverview(host, pluginId, results) {
-  const findings = results.flatMap((result) => result.findings || []);
-  const flags = results.flatMap((result) => result.flags || []);
+  const findings = results.flatMap((result) => result.findings || []).sort(compareFindings);
+  const flags = results.flatMap((result) => result.flags || []).sort((a, b) =>
+    (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1));
   const artifacts = results.flatMap((result) => result.artifacts || []);
   const section = text("section", undefined, "dashboard-block");
   section.append(text("h3", "Riscontri principali"));
@@ -610,12 +622,14 @@ function artifactRow(a) {
   const row = document.createElement("div");
   row.className = "artifact-row";
   const label = text("div", a.name);
-  label.append(
-    text(
-      "small",
-      `${a.size ?? 0} byte · ${a.plugin_id || ""} · ${a.method || ""}`,
-    ),
-  );
+  const sourceId = a.source_asset_id || a.parent_asset_id || a.asset_id;
+  const source = sourceId ? assetName(sourceId) : a.source || a.original_path;
+  const offset = a.source_offset ?? a.offset ?? a.byte_offset;
+  const facts = [`${a.size ?? 0} byte`, a.status, a.plugin_id, a.method];
+  if (source) facts.push(`origine ${source}`);
+  if (offset !== undefined && offset !== null) facts.push(`offset ${offset}`);
+  if (a.sha256) facts.push(`SHA-256 ${String(a.sha256).slice(0, 16)}…`);
+  label.append(text("small", facts.filter(Boolean).join(" · ")));
   row.append(label);
   if (a.id) {
     row.append(
@@ -683,18 +697,13 @@ function renderIssues(job, results) {
 function renderSummary(job, results, graph) {
   const host = $("analysis-summary");
   host.replaceChildren();
-  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
   const flags = [...(job.flags || [])].sort((a, b) =>
     (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1),
   );
   const issues = issueItems(job, results);
   const findings = results.flatMap((result) =>
     (result.findings || []).map((finding) => ({ ...finding, plugin_id: result.plugin_id })),
-  ).sort((a, b) =>
-    (severityOrder[String(b.severity || "").toLowerCase()] || 0) -
-      (severityOrder[String(a.severity || "").toLowerCase()] || 0) ||
-    (confidencePercent(b.confidence) ?? -1) - (confidencePercent(a.confidence) ?? -1),
-  );
+  ).sort(compareFindings);
   const pluginIds = [...new Set(results.map((result) => result.plugin_id))].filter((id) => id !== "magic-wrapper");
   const assets = new Set(graph.nodes.filter((node) => node.type === "asset").map((node) => node.asset_id || node.id));
   const status = job.status || "queued";

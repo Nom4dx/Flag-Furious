@@ -6,6 +6,11 @@ strutture annidate come dettagli espandibili. Il tema conserva il fondo nero e
 usa accenti provenienti da palette validate centralmente. Il JSON originale resta disponibile in una vista tecnica chiusa.
 Non serve scrivere JavaScript o HTML per un plugin.
 
+Il riepilogo globale e le dashboard dei singoli plugin ordinano i finding per
+severità e affidabilità. Le righe compatte espongono l'origine e l'offset/riga
+quando il record li dichiara; le sezioni dettagliate conservano tutti i campi e
+la provenienza completa.
+
 ## Mapping esplicito
 
 Aggiungere `presentation` a `output_schema.json`, mantenendo le definizioni
