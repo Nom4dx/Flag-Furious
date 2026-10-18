@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import time
+import importlib.util
 
 from app.core.flag_detector import search as global_flag_search
 from app.core.plugin import BasePlugin
@@ -137,9 +138,10 @@ class Plugin(BasePlugin):
 
         reporter.phase("Disassemblaggio statico");phase=time.monotonic();instructions=[];functions={"functions":[],"blocks":[],"calls":[]};disassembly_warnings=[]
         if parsed and parsed.get("executable_regions"):
-            instructions,disassembly_warnings=disassemble(path,parsed["executable_regions"],parsed.get("architecture",""),parsed.get("bits",0),parsed.get("endian","little"),min(20000,max(1,int(options.get("max_instructions",20000)))))
+            instructions,disassembly_warnings=disassemble(path,parsed["executable_regions"],parsed.get("architecture",""),parsed.get("bits",0),parsed.get("endian","little"),min(20000,max(1,int(options.get("max_instructions",20000)))),budget)
             functions=analyze_functions(instructions,parsed.get("entry_points",[]),parsed.get("symbols",[]))
-        events.append(self._event("Disassemblaggio statico",phase,"completed" if instructions or not parsed else "skipped"))
+        warnings.extend(disassembly_warnings)
+        events.append(self._event("Disassemblaggio statico",phase,"partial" if disassembly_warnings else "completed" if instructions or not parsed or not parsed.get("executable_regions") else "skipped"))
 
         reporter.phase("Indicatori, YARA e flag");phase=time.monotonic();imports,import_findings=enrich_imports((parsed or {}).get("imports",[]));findings.extend(import_findings)
         yara_matches,yara_warnings=scan_yara(path,options.get("yara_rules",[]),int(options.get("yara_timeout",20)),budget);warnings.extend(yara_warnings)
@@ -159,9 +161,10 @@ class Plugin(BasePlugin):
         code_visual={"type":"graph","title":"Code Analysis Graph","data":code,"palette":"code","options":{"interactive":True,"zoom":True,"pan":True}}
         offset_visual={"type":"offset_map","title":"Mappa degli offset validati","data":[{"x":item["start_offset"],"y":item["length"],"start":item["start_offset"],"end":item["end_offset"],"label":item["format"],"status":"validated"} for item in validated],"palette":"code","options":{"interactive":True,"zoom":True,"tooltip":True}}
         byte_visual={"type":"byte_grid","title":"Byte grid iniziale","data":[{"offset":index,"value":value} for index,value in enumerate(prefix[:4096])],"palette":"code","options":{"interactive":True,"tooltip":True}}
-        tool_inventory=runner.inventory();tool_rows=tool_inventory+[{"tool":"capstone","available":bool(instructions),"note":"nessuna regione eseguibile o modulo assente" if not instructions else f"{len(instructions)} istruzioni"},{"tool":"yara-python","available":not any("non disponibile" in value for value in yara_warnings),"matches":len(yara_matches)}]
-        warnings.extend(disassembly_warnings if options.get("require_disassembly") else [])
-
+        tool_inventory=runner.inventory()
+        try:capstone_available=importlib.util.find_spec("capstone") is not None
+        except (ImportError,ValueError):capstone_available=False
+        tool_rows=tool_inventory+[{"tool":"capstone","available":capstone_available,"instructions":len(instructions),"note":"nessuna regione eseguibile oppure architettura non decodificabile" if capstone_available and not instructions else "modulo non installato" if not capstone_available else ""},{"tool":"yara-python","available":not any("non disponibile" in value for value in yara_warnings),"matches":len(yara_matches)}]
         detection=[{**item,"status":"validated"} for item in validated]+[{**item,"status":"rejected"} for item in rejected[:1000]]
         sections=[
             section("file_identity","File Identity",10,[identity]),section("format_detection","Format Detection",20,detection,"partial" if rejected else "completed"),section("binary_header","Binary Header",30,[parsed["header"]] if parsed else [{"format":primary_format,"status":"raw_or_container","parser_error":parser_error}]),section("sections","Sections",40,(parsed or {}).get("sections",[])),section("segments","Segments",50,(parsed or {}).get("segments",[])),section("entry_points","Entry Points",60,(parsed or {}).get("entry_points",[])),section("symbols","Symbols",70,(parsed or {}).get("symbols",[])),section("imports","Imports",80,imports),section("exports","Exports",90,(parsed or {}).get("exports",[])),section("relocations","Relocations",100,(parsed or {}).get("relocations",[])),section("strings","Strings",110,strings),section("hex_view","Hex View",115,hex_rows(prefix)),section("entropy","Entropy",120,[entropy],kind="visualization",visualization=entropy_visual),section("compression","Compression",130,compression),section("encryption","Encryption Indicators",140,encryption),section("embedded_files","Embedded Files",150,[{k:v for k,v in item.items() if k not in {"context_hex"}} for item in validated if item["start_offset"]>0]+archive_rows),section("overlay","Overlay",160,overlays),section("firmware","Firmware",170,[item for item in validated if item.get("firmware") or item["validator"] in {"uefi","uboot","fdt","android_boot","android_vendor"}]),section("file_system","File System",180,[item for item in validated if item.get("filesystem")]),section("disassembly","Static Disassembly",190,instructions),section("functions","Functions",200,functions["functions"]+functions["blocks"]),section("code_graph","Code Analysis Graph",210,[code_visual],kind="visualization",visualization=code_visual),section("structure_graph","File Structure Graph",220,[structure_visual],kind="visualization",visualization=structure_visual),section("yara","YARA Matches",230,yara_matches),section("indicators","Suspicious Indicators",240,findings),section("flags","Flag Candidates",250,flags),section("artifacts","Extracted Artifacts",260,[{k:v for k,v in item.items() if k!="path"} for item in artifacts],kind="artifact_list"),section("tools","Tools and Diagnostics",900,tool_rows+runner.audit),

@@ -14,6 +14,9 @@ producono header, tabelle e regioni eseguibili; i parser firmware e filesystem
 validano header bounded; `carving.py` salva solo intervalli validati;
 `disassembler.py`, YARA e i tool locali sono arricchimenti opzionali. Tutti i
 subprocess sono array allow-listed con `shell=False`, timeout e output limitato.
+Il disassemblatore limita la lettura cumulativa a 4 MiB, usa solo intervalli
+eseguibili entro il byte budget del job e si arresta dopo 10 secondi o 20.000
+istruzioni; ogni limite o Capstone assente produce coverage `partial`.
 
 L'input è aperto soltanto in lettura. Gli output passano da `ArtifactManager`,
 sono deduplicati SHA-256 e restano nella directory isolata del job. Un archivio

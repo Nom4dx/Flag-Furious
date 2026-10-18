@@ -6,21 +6,28 @@ are decoded. Missing Capstone returns an explicit warning and empty code graph.
 
 from pathlib import Path
 import re
+import time
 
 
-def disassemble(path:Path,regions:list[dict],architecture:str,bits:int,endian:str,max_instructions:int=20000)->tuple[list[dict],list[str]]:
+def disassemble(path:Path,regions:list[dict],architecture:str,bits:int,endian:str,max_instructions:int=20000,byte_budget:int|None=None)->tuple[list[dict],list[str]]:
     """Decode validated executable sections and return normalized instructions."""
     try:
         import capstone
     except ImportError:return [],["Capstone non disponibile: disassemblaggio statico saltato"]
     mapping=_mapping(capstone,architecture,bits,endian)
     if not mapping:return [],[f"Architettura Capstone non supportata: {architecture}"]
-    engine=capstone.Cs(*mapping);engine.detail=False;rows=[]
+    engine=capstone.Cs(*mapping);engine.detail=False;rows=[];warnings=[]
+    remaining=4*1024*1024;deadline=time.monotonic()+10
+    if len(regions)>128:warnings.append("Regioni eseguibili oltre le prime 128 omesse")
     with path.open("rb") as source:
         for region in regions[:128]:
-            length=min(int(region.get("size",region.get("file_size",0))),4*1024*1024)
+            offset=int(region.get("offset",0))
+            available=max(0,(byte_budget-offset) if byte_budget is not None else int(region.get("size",region.get("file_size",0))))
+            declared=int(region.get("size",region.get("file_size",0)))
+            length=min(declared,available,remaining)
+            if length<declared:warnings.append("Disassemblaggio limitato al byte budget cumulativo di 4 MiB")
             if length<=0:continue
-            source.seek(int(region["offset"]));data=source.read(length);base=int(region.get("virtual_address",region["offset"]))
+            source.seek(offset);data=source.read(length);remaining-=len(data);base=int(region.get("virtual_address",offset))
             for ins in engine.disasm(data,base):
                 group="call" if ins.mnemonic.startswith(("call","bl","jal")) else "jump" if ins.mnemonic.startswith(("j","b")) else "return" if ins.mnemonic.startswith(("ret","bx lr")) else None
                 target=None
@@ -30,8 +37,12 @@ def disassemble(path:Path,regions:list[dict],architecture:str,bits:int,endian:st
                         try:target=int(match.group(1),16)
                         except ValueError:pass
                 rows.append({"offset":region["offset"]+(ins.address-base),"address":ins.address,"opcode":bytes(ins.bytes).hex(),"mnemonic":ins.mnemonic,"operands":ins.op_str,"section":region.get("name"),"group":group,"target":target})
-                if len(rows)>=max_instructions:return rows,["Disassemblaggio limitato al numero massimo di istruzioni"]
-    return rows,[]
+                if len(rows)>=max_instructions:return rows,warnings+["Disassemblaggio limitato al numero massimo di istruzioni"]
+                if len(rows)%1024==0 and time.monotonic()>=deadline:return rows,warnings+["Disassemblaggio interrotto al limite di 10 secondi"]
+            if remaining<=0:
+                if len(regions)>1:warnings.append("Ulteriori regioni eseguibili omesse dal budget di disassemblaggio")
+                break
+    return rows,warnings
 
 
 def _mapping(capstone,architecture,bits,endian):
