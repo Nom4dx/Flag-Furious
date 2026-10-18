@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import sys
+import threading
 from dataclasses import asdict
 from pathlib import Path
 from app.core.plugin import BasePlugin
@@ -11,6 +12,27 @@ spec = importlib.util.spec_from_file_location(
 tool = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = tool
 spec.loader.exec_module(tool)
+_DEFAULT_RAW_SCAN_BYTES = tool.MAX_RAW_SCAN_BYTES
+_DEFAULT_EXPANDED_BYTES = tool.MAX_EXPANDED_BYTES
+_BUDGET_LOCK = threading.RLock()
+
+
+def _analyze_with_budgets(args, context):
+    """Apply per-asset limits without leaking them to later plugin jobs."""
+    with _BUDGET_LOCK:
+        previous_raw = tool.MAX_RAW_SCAN_BYTES
+        previous_expanded = tool.MAX_EXPANDED_BYTES
+        try:
+            tool.MAX_RAW_SCAN_BYTES = min(_DEFAULT_RAW_SCAN_BYTES, max(1, context["byte_budget"]))
+            tool.MAX_EXPANDED_BYTES = min(
+                _DEFAULT_EXPANDED_BYTES,
+                max(1, context["byte_budget"]),
+                max(1, context["output_bytes"]),
+            )
+            return asdict(tool.analyze(args))
+        finally:
+            tool.MAX_RAW_SCAN_BYTES = previous_raw
+            tool.MAX_EXPANDED_BYTES = previous_expanded
 
 
 def _bounded_artifacts(root, budget, source_asset_id, excluded_paths=(), provenance=None):
@@ -91,12 +113,6 @@ class Plugin(BasePlugin):
         }
 
     def analyze(self, asset, context, reporter):
-        tool.MAX_RAW_SCAN_BYTES = min(tool.MAX_RAW_SCAN_BYTES, max(1, context["byte_budget"]))
-        tool.MAX_EXPANDED_BYTES = min(
-            tool.MAX_EXPANDED_BYTES,
-            max(1, context["byte_budget"]),
-            max(1, context["output_bytes"]),
-        )
         output = Path(context["output_dir"]) / "picup"
         args = tool.build_parser().parse_args(
             [
@@ -115,7 +131,7 @@ class Plugin(BasePlugin):
         tool.validate_inputs(args, tool.build_parser())
         tool.configure_automatic_actions(args)
         reporter.phase("Triage file, stream e carving")
-        report = asdict(tool.analyze(args))
+        report = _analyze_with_budgets(args, context)
         file_info = report.get("file", {})
         analyzed_sha256 = file_info.get("sha256")
         analyzed_size = file_info.get("size")
