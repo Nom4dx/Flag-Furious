@@ -23,11 +23,8 @@
   "requires_network": false,
   "requires_root": false,
   "python_dependencies": [],
-  "binaries": [
-    "tshark",
-    "capinfos"
-  ],
-  "optional_binaries": [],
+  "binaries": ["tshark"],
+  "optional_binaries": ["capinfos"],
   "timeout": 120,
   "cpu_seconds": 90,
   "memory_mb": 768,

@@ -312,7 +312,9 @@ def extract_hid_reports(runner: Tshark) -> tuple[list[HIDReport], list[str]]:
             removed = len(payload) - data_length
             payload = payload[-data_length:]
             trimmed_headers[removed] += 1
-        key = (parse_int(row[0]), row[4], payload)
+        # Frame numbers are capture-global, but endpoints are reused by separate
+        # USB devices. Keep the full channel/transfer identity in the key.
+        key = (parse_int(row[0]), row[2], row[3], row[4], row[5], payload)
         if key in seen:
             continue
         seen.add(key)
@@ -853,7 +855,7 @@ def analyze(args: argparse.Namespace) -> dict[str, Any]:
         events_path = output / "keyboard-events.csv"
         mouse_path = output / "mouse-events.csv"
         svg_path = output / "mouse-path.svg"
-        report_path = output / "report.json"
+        report_path = output / "report.json" if not getattr(args, "no_report_file", False) else None
         decoded_sections = []
         for item in keyboard_decodings:
             for candidate in item["layout_candidates"]:
@@ -1067,6 +1069,7 @@ File behavior:
     parser.add_argument("--skip-hash", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--force", action="store_true", help="allow use of a non-empty --output-dir")
     parser.add_argument("--json", action="store_true", help="emit the report as JSON on standard output; does not create files")
+    parser.add_argument("--no-report-file", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--color", choices=("auto", "always", "never"), default="auto", help="color mode (default: auto)")
     parser.add_argument("--no-color", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")

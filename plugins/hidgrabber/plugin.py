@@ -16,7 +16,7 @@ class Plugin(BasePlugin):
         output = Path(context["output_dir"]) / "hid"
         output.mkdir(parents=True, exist_ok=True)
         args = tool.build_parser().parse_args(
-            [asset["path"], "--json", "--output-dir", str(output), "--timeout", "30", "--color", "never", "--skip-hash"]
+            [asset["path"], "--json", "--output-dir", str(output), "--timeout", "30", "--color", "never", "--skip-hash", "--no-report-file"]
         )
         args.flag_prefix = context.get("prefixes") or None
         reporter.phase("Decodifica report USB HID")
@@ -49,22 +49,49 @@ class Plugin(BasePlugin):
                     "classification": "candidate",
                 }
             )
-        artifacts = [
-            {"path": str(p), "name": p.name, "method": "HIDGrabber"}
-            for p in output.rglob("*")
-            if p.is_file() and not p.is_symlink()
-        ]
+        artifacts, artifact_warnings = [], []
+        artifact_budget = max(0, int(context.get("output_bytes", 0)))
+        exported_bytes = 0
+        output_root = output.resolve()
+        for item in result.get("artifacts", []):
+            try:
+                path = Path(item["path"])
+                if path.is_symlink() or not path.resolve().is_relative_to(output_root) or not path.is_file():
+                    artifact_warnings.append("Artefatto HID non regolare o fuori dalla directory di output escluso")
+                    continue
+                size = path.stat().st_size
+            except (KeyError, OSError, TypeError):
+                artifact_warnings.append("Artefatto HID non accessibile escluso")
+                continue
+            if exported_bytes + size > artifact_budget or len(artifacts) >= 64:
+                artifact_warnings.append("Budget o limite artefatti HID raggiunto; alcuni file non sono stati esportati")
+                continue
+            exported_bytes += size
+            artifacts.append({
+                **item,
+                "path": str(path),
+                "name": path.name,
+                "source_asset_id": asset.get("id"),
+                "source": "Report HID derivati dalla cattura PCAP/PCAPNG",
+                "method": "HIDGrabber decoded report",
+                "status": "active",
+            })
         return {
             "summary": "Decodifica HID completata" + (" su vista parziale" if asset.get("partial_input") else ""),
-            "status": "partial" if asset.get("partial_input") or result.get("diagnostics") else "completed",
+            "status": "partial" if asset.get("partial_input") or result.get("diagnostics") or artifact_warnings else "completed",
             "confidence": 0.9,
             "sections": [{"id": "analysis", "data": result}],
             "artifacts": artifacts,
             "flags": flags,
             "findings": flags,
-            "warnings": result.get("diagnostics", []) + (
+            "warnings": result.get("diagnostics", []) + artifact_warnings + (
                 ["PCAP troncato dal byte budget: i risultati coprono solo i byte visibili."]
                 if asset.get("partial_input") else []
             ),
-            "metrics": result.get("inventory", {}),
+            "metrics": {
+                **result.get("inventory", {}),
+                "artifacts_exported": len(artifacts),
+                "artifact_bytes_exported": exported_bytes,
+                "artifact_export_limited": bool(artifact_warnings),
+            },
         }
