@@ -27,3 +27,5 @@ l'indice centrale a 4 MiB;
 gli archivi ZIP64 sono supportati solo quando rientrano in questo limite. Consultare
 il [programma di rifacimento](../../docs/PLUGIN_REFACTOR_PROGRAM.md) per i gate
 ancora aperti.
+I nomi visualizzati sono limitati a 512 byte UTF-8; il booleano di troncamento e
+lo SHA-256 del nome Unicode interpretato distinguono i prefissi abbreviati.

@@ -56,6 +56,16 @@
             "format": "auto"
           },
           {
+            "field": "name_truncated",
+            "label": "Nome abbreviato",
+            "format": "boolean"
+          },
+          {
+            "field": "name_sha256",
+            "label": "SHA-256 del nome interpretato",
+            "format": "code"
+          },
+          {
             "field": "status",
             "label": "Stato",
             "format": "text"

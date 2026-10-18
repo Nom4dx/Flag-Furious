@@ -53,6 +53,17 @@ def _bounded_text(value, limit=512):
     )
 
 
+def _name_metadata(value, limit=512):
+    """Preserve identity when a displayed member name must be abbreviated."""
+    normalized=value.replace("\x00","�")
+    encoded=normalized.encode("utf-8",errors="replace")
+    return {
+        "name":encoded[:limit].decode("utf-8",errors="ignore"),
+        "name_truncated":len(encoded)>limit,
+        "name_sha256":hashlib.sha256(encoded).hexdigest(),
+    }
+
+
 class Plugin(BasePlugin):
     def can_handle(self, asset, context):
         # Matchers receive only a 64 KiB bounded view. ``is_zipfile`` checks the
@@ -140,7 +151,7 @@ class Plugin(BasePlugin):
                     break
                 row = {
                     "source_asset_id": asset.get("id"),
-                    "name": _bounded_text(member.filename),
+                    **_name_metadata(member.filename),
                     "size": member.file_size,
                     "compressed_size": member.compress_size,
                     "crc": f"{member.CRC:08x}",
@@ -201,6 +212,7 @@ class Plugin(BasePlugin):
                     warn("Limite 64 membri estratti; inventario continuato fino al limite dichiarato.")
                     continue
                 leaf = _bounded_text(name.name, 180) or "member"
+                member_name = _name_metadata(member.filename)
                 target = output / f"{index}-{leaf}"
                 member_budget = remaining
                 try:
@@ -220,7 +232,9 @@ class Plugin(BasePlugin):
                             "name": _bounded_text(name.name, 180) or "member",
                             "method": "ZIP extraction with CRC verification",
                             "source_asset_id": asset.get("id"),
-                            "source_member": _bounded_text(member.filename),
+                            "source_member": member_name["name"],
+                            "source_member_truncated": member_name["name_truncated"],
+                            "source_member_sha256": member_name["name_sha256"],
                             "source_offset": member.header_offset,
                             "source_size": member.file_size,
                             "compressed_size": member.compress_size,
