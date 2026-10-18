@@ -9,8 +9,11 @@ Un local header all'offset zero è evidenza forte; SFX e ZIP vuoti richiedono un
 EOCD bounded, con limiti plausibili e firma central-directory coerente. L'indice
 ZIP completo e i CRC vengono comunque validati
 durante l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere
-visibile e il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
-di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
+visibile e il risultato è `partial`. I membri cifrati sono inventariati e producono
+una richiesta di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
+Il matcher custom resta attivo anche quando estensione, MIME e firma del prefisso
+non forniscono una ragione statica, così gli SFX possono essere riconosciuti dalla
+coda senza accettare firme ZIP casuali.
 WinZip AES genera una richiesta solo se metodo 99 ed extra field AES sono
 coerenti; header AES malformati o discordanti restano inventariati come
 cifratura non supportata, senza inviare una richiesta ZipCrypto errata.
