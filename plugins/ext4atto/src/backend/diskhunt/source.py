@@ -64,6 +64,10 @@ def prepare_image(upload: Path, workdir: Path, max_output_bytes: int = 512 * 102
             with output.open("xb") as dst:
                 index = 1
                 while (part := Path(f"{stem}.{index:03d}")).exists():
+                    if part.is_symlink() or not part.is_file():
+                        raise ValueError("unsafe_segmented_image_part")
+                    if index > 10_000:
+                        raise ValueError("segmented_image_part_limit")
                     with part.open("rb") as src:
                         written = _copy_bounded(src, dst, max_output_bytes, written)
                     index += 1
