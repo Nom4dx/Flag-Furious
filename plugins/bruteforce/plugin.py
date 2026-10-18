@@ -64,7 +64,14 @@ class Plugin(BasePlugin):
             else:response=attempt(adapter_list[0],artifact,candidates,attempt_context,progress,bool(options.get('stop_on_first_success',True)))
             status=response['status']
             if response.get('successes'):
-                password=response['successes'][0]['password'];unlocked=adapter_list[0].extract(artifact,password,{'limits':limits,'output_dir':context['output_dir'],'protection_type':protection});response['extracted_artifacts']=unlocked;response['password_verified']=True;response['password_display']='********';response['successes']=[{k:v for k,v in x.items() if k!='password'} for x in response['successes']]
+                password=response['successes'][0]['password']
+                try:
+                    unlocked=adapter_list[0].extract(artifact,password,{'limits':limits,'output_dir':context['output_dir'],'protection_type':protection})
+                    response['extracted_artifacts']=unlocked
+                except (OSError, ValueError) as error:
+                    response['extraction_warning']=str(error)
+                    status=response['status']='partial'
+                response['password_verified']=True;response['password_display']='********';response['successes']=[{k:v for k,v in x.items() if k!='password'} for x in response['successes']]
         persistent={k:v for k,v in response.items() if k not in {'successes'}};unlocked=derived(response.get('extracted_artifacts',[]),artifact['id'],options.get('source_plugin','manual'),persistent.get('secret_ref'),response.get('adapter',adapter_list[0].name if adapter_list else '')) if response.get('extracted_artifacts') else []
         graph=build(options.get('source_plugin','manual'),artifact,{**persistent,'extracted_artifacts':unlocked});vis={'type':'graph','title':'Catena di sblocco','data':graph,'palette':'archive','options':{'interactive':True,'zoom':True,'pan':True}}
         findings=[]
@@ -72,10 +79,11 @@ class Plugin(BasePlugin):
         sections=[section('summary','Password Recovery Summary',10,[{'status':status,'protection_type':protection,'adapter':response.get('adapter'),'attempts':response.get('attempts',0),'password_display':response.get('password_display','')}],status),section('protected','Protected Artifact',20,[{**artifact,'path':None}]),section('adapters','Available Adapters',30,[{'name':a.name,'formats':a.supported_formats,'protections':a.supported_protections} for a in adapter_list]),section('wordlists','Wordlists',40,wordlists),section('selected','Selected Wordlists',50,[str(x) for x in selected]),section('candidates','Candidate Generation',60,[{'transformations':bool(options.get('transformations',False)),'deduplication':'sha256','streaming':True}]),section('progress','Progress',70,[{'status':status,'attempts':response.get('attempts',0),'duration':response.get('duration',0)}]),section('attempts','Attempts',80,response.get('failures',[])),section('successful','Successful Password',90,[{'password_display':'********','secret_ref':persistent.get('secret_ref'),'verified':True}] if response.get('password_verified') else []),section('unlocked','Extracted Artifacts',100,unlocked),section('errors','Errors',110,[]),section('requests','Integration Requests',120,[{'parent_plugin':options.get('source_plugin','manual'),'parent_run_id':options.get('parent_run_id'),'status':status}]),section('audit','Audit degli altri plugin',130,self._audit())]
         warnings=[x['path']+' non disponibile' for x in root_items if not x['exists']]
         warnings.extend(runtime_warnings)
+        if response.get('extraction_warning'):warnings.append(response['extraction_warning'])
         if input_partial:warnings.append(f"Input già parziale: vista montata {input_size} byte su asset dichiarato {declared_size}")
         if inventory_meta['limited'] or inventory_meta['partial_files']:
             warnings.append(f"Inventario wordlist parziale: {inventory_meta['bytes_hashed']} byte hashati; {inventory_meta['partial_files']} file campionati.")
-        result_status='failed' if status=='failed' else 'partial' if input_partial or runtime_warnings or inventory_meta['limited'] or inventory_meta['partial_files'] or status in {'waiting_for_user','not_supported','not_found','timeout','limit_reached'} else 'completed'
+        result_status='failed' if status=='failed' else 'partial' if input_partial or runtime_warnings or response.get('extraction_warning') or inventory_meta['limited'] or inventory_meta['partial_files'] or status in {'partial','waiting_for_user','not_supported','not_found','timeout','limit_reached'} else 'completed'
         result={'plugin_id':'bruteforce','status':result_status,'summary':self._summary(status,response.get('attempts',0)),'confidence':1 if status=='success' else .8,'phase':'password recovery','findings':findings,'sections':sections,'artifacts':unlocked,'derived_assets':[],'visualizations':[vis],'flags':[],'timeline':[],'execution_events':audit,'logs':audit,'warnings':warnings,'errors':[],'metrics':{'duration':round(time.monotonic()-started,4),'attempts':response.get('attempts',0),'wordlists':len(selected),'wordlist_inventory_bytes_hashed':inventory_meta['bytes_hashed'],'input_bytes':input_size,'declared_input_bytes':declared_size,'partial_input':input_partial,'original_modified':False}}
         reporter.partial(result);return result
     def extract_artifacts(self,*a):return []
