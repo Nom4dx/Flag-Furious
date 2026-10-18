@@ -179,6 +179,18 @@ class Plugin(BasePlugin):
         flag_phase_partial = byte_budget < size
         with path.open("rb") as stream: raw = stream.read(raw_limit)
         decoded, decoder_metrics = decode_payloads(raw, return_meta=True)
+        payload_scope_partial = raw_limit < byte_budget
+        xor_input_limit = min(raw_limit, 65536)
+        if payload_scope_partial:
+            flag_phase_partial = True
+            warnings.append(
+                f"Decoder contenuti limitato a {raw_limit} di {byte_budget} byte della vista concessa."
+            )
+        if xor_input_limit < raw_limit:
+            flag_phase_partial = True
+            warnings.append(
+                f"Ricerca XOR limitata a {xor_input_limit} di {raw_limit} byte del prefisso decoder."
+            )
         if decoder_metrics["truncated"]:
             flag_phase_partial = True
             warnings.append(
@@ -245,7 +257,7 @@ class Plugin(BasePlugin):
             section("jpeg_analysis", "JPEG analysis", 120, structural["jpeg"]),
             section("script_analysis", "Script and SFX analysis", 130, structural["script"] + structural["sfx"]),
             section("decoys", "Decoys", 140, decoys),
-            section("payloads", "Payloads", 150, [{k: v for k, v in x.items() if k != "decoded"} for x in decoded]),
+            section("payloads", "Payloads", 150, [{k: v for k, v in x.items() if k != "decoded"} for x in decoded], "partial" if payload_scope_partial or xor_input_limit < raw_limit or decoder_metrics["truncated"] else "completed"),
             section("flag_candidates", "Flag candidates", 160, flags, "partial" if flag_limit_reached else "completed"),
             section("artifact_graph", "Artifact graph", 170, [graph_visualization], visualization=graph_visualization),
         ]
@@ -260,7 +272,7 @@ class Plugin(BasePlugin):
             "findings": findings, "sections": sections, "artifacts": artifacts, "derived_assets": [],
             "visualizations": visualizations, "flags": flags, "timeline": [], "execution_events": events,
             "logs": [], "warnings": warnings, "errors": errors,
-            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded), "payload_decoder": decoder_metrics, "flag_candidates_limit": 256, "flag_candidates_limit_reached": flag_limit_reached},
+            "metrics": {"duration": round(time.monotonic() - started, 4), "bytes_read": byte_budget, "declared_input_bytes": declared_size, "partial_input": input_partial, "signatures": len(candidates), "validated_formats": len(validated), "rejected_candidates": len(rejected), "artifacts": len(artifacts), "decoded_payloads": len(decoded), "payload_decoder": decoder_metrics, "payload_decode_input_bytes": raw_limit, "payload_decode_input_limit": 16 * 1024 * 1024, "xor_input_bytes": xor_input_limit, "xor_input_limit": 65536, "flag_candidates_limit": 256, "flag_candidates_limit_reached": flag_limit_reached},
         }
         report_data = json.dumps({k: v for k, v in result.items() if k not in {"artifacts"}}, ensure_ascii=False, indent=2).encode()
         try: result["artifacts"].append(store.save_bytes("report", "report.json", report_data, {"format": "json", "extraction_method": "plugin_report", "confidence": 1.0}))
