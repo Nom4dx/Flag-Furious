@@ -47,6 +47,7 @@ MAX_ARCHIVE_MEMBERS = 1000
 MAX_EXPANDED_BYTES = 256 * 1024 * 1024
 MAX_COMMAND_OUTPUT = 32 * 1024 * 1024
 MAX_TSHARK_ROWS = 100_000
+MAX_TSHARK_TOTAL_OUTPUT = 64 * 1024 * 1024
 EXPORT_PROTOCOLS = ("http", "ftp-data", "smb", "tftp", "imf")
 TLS_SECRET_LABELS = {
     "CLIENT_RANDOM",
@@ -292,6 +293,7 @@ class Tshark:
         self.timeout = timeout
         self._field_catalog: set[str] | None = None
         self.diagnostics: list[str] = []
+        self.output_bytes = 0
         self.incomplete_exports: set[str] = set()
         self.preferences: list[str] = []
         if keylog:
@@ -311,10 +313,20 @@ class Tshark:
         if include_filter and self.display_filter:
             command.extend(("-Y", self.display_filter))
         command.extend(arguments)
+        remaining = MAX_TSHARK_TOTAL_OUTPUT - self.output_bytes
+        if remaining <= 0:
+            self._warn("TShark cumulative output budget exhausted; analysis is partial")
+            result = subprocess.CompletedProcess(command, 0, "", "")
+            result.output_truncated = True
+            result.stderr_truncated = False
+            result.timed_out = False
+            return result
         try:
-            result = run_bounded(command, timeout=self.timeout, max_stdout=MAX_COMMAND_OUTPUT)
+            result = run_bounded(command, timeout=self.timeout,
+                                 max_stdout=min(MAX_COMMAND_OUTPUT, remaining))
         except OSError as error:
             raise RuntimeError(f"Unable to start TShark: {error}") from error
+        self.output_bytes += len(result.stdout.encode("utf-8", errors="replace"))
         if result.output_truncated:
             self._warn("TShark output cap reached; parsed records are partial")
         if result.stderr_truncated:
@@ -341,14 +353,20 @@ class Tshark:
         """
         if self._field_catalog is not None:
             return self._field_catalog
+        remaining = MAX_TSHARK_TOTAL_OUTPUT - self.output_bytes
+        if remaining <= 0:
+            self._warn("TShark cumulative output budget exhausted before field inventory")
+            self._field_catalog = set()
+            return self._field_catalog
         try:
             result = run_bounded(["tshark", "-G", "fields"], timeout=self.timeout,
-                                 max_stdout=8 * 1024 * 1024)
+                                 max_stdout=min(8 * 1024 * 1024, remaining))
         except OSError:
             self._field_catalog = set()
             return self._field_catalog
         if result.output_truncated or result.stderr_truncated or result.timed_out:
             self._warn("TShark field catalog incomplete or capped; using requested fields")
+        self.output_bytes += len(result.stdout.encode("utf-8", errors="replace"))
         catalog: set[str] = set()
         if result.returncode == 0:
             for line in result.stdout.splitlines():
@@ -2170,6 +2188,8 @@ def analyze(args: argparse.Namespace) -> Report:
         info["secret_bearing_sha256"] = sha256_file(args.embed_secrets)
 
     diagnostics.extend(item for item in runner.diagnostics if item not in diagnostics)
+    info["tshark_output_bytes"] = runner.output_bytes
+    info["tshark_output_limit_bytes"] = MAX_TSHARK_TOTAL_OUTPUT
 
     return Report(
         file=info,
