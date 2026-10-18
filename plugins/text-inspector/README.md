@@ -1,7 +1,5 @@
 # Text Inspector
 
-# Text Inspector
-
 Analisi passiva di testo, JSON, hex e file testuali: conteggio byte/righe, entropia
 dei byte e anteprima limitata. Non interpreta il contenuto come codice né visita URL.
 
@@ -16,6 +14,8 @@ vista riga è indicata come parziale anche quando una riga supera 1.024 caratter
 quando restano righe oltre le prime 200; lo stato compare nella UI. La scansione di
 caratteri invisibili/control copre la sola anteprima, al massimo 100 occorrenze; con
 sequenze invalide gli offset Unicode non vengono dichiarati.
+Gli input inline in byte vengono analizzati come dati raw; stringhe e oggetti
+mantengono la serializzazione UTF-8 progressiva e limitata.
 
 Per nuove famiglie di contenuto aggiungere un matcher positivo e una presentazione
 dichiarativa in `output_schema.json`; non allargare il matcher a tutti i file.

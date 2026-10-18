@@ -127,6 +127,9 @@ def _json_chunks(value):
 
 def _inline_chunks(content):
     """Preserve raw inline text; encode structured values as compact UTF-8 JSON."""
+    if isinstance(content, bytes):
+        yield content
+        return
     if isinstance(content, str):
         for offset in range(0, len(content), 4096):
             yield content[offset:offset + 4096].encode("utf-8")
