@@ -155,6 +155,8 @@ class RecursiveExtractor:
         if listing["timed_out"]:
             self.warnings.append(f"7z listing timeout: {source.name}")
             return []
+        if listing["returncode"] != 0:
+            self.warnings.append(f"7z listing returned {listing['returncode']}: {source.name}")
         if listing["truncated"]:
             self.warnings.append(f"7z listing troncato: {source.name}; inventario parziale")
         entries = []
@@ -182,6 +184,8 @@ class RecursiveExtractor:
                                    max_stdout=min(self.limits.max_file_bytes, self.limits.max_total_bytes-self.total),
                                    output_path=target)
                 actual = target.stat().st_size if target.exists() else 0
+                if proc["stderr_truncated"]:
+                    self.warnings.append(f"7z diagnostics truncated: {name}")
                 if proc["timed_out"] or proc["truncated"] or proc["returncode"] != 0 or actual != size:
                     target.unlink(missing_ok=True)
                     self.warnings.append(f"7z member extraction incomplete: {name}")
@@ -200,6 +204,8 @@ class RecursiveExtractor:
         proc = run_bounded([binary, "-q", "-nopgbrk", str(source), "-"], timeout=max(1, min(60, int(self._remaining_seconds()))),
                            max_stdout=min(self.limits.max_file_bytes, self.limits.max_total_bytes-self.total),
                            output_path=target)
+        if proc["stderr_truncated"]:
+            self.warnings.append(f"PDF text diagnostics truncated: {source.name}")
         if proc["returncode"] or proc["timed_out"] or proc["truncated"] or not target.exists():
             target.unlink(missing_ok=True)
             self.warnings.append(f"PDF text extraction incomplete: {source.name}")
