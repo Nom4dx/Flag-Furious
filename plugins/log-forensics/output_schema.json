@@ -529,7 +529,15 @@
         "type": "table",
         "group": "detections",
         "order": 160,
-        "hide_empty": true
+        "hide_empty": true,
+        "fields": [
+          {"field": "rule_title", "label": "Regola"},
+          {"field": "rule_level", "label": "Severità"},
+          {"field": "matched_event_count", "label": "Eventi", "format": "number"},
+          {"field": "matched_events_truncated", "label": "Elenco limitato", "format": "boolean"},
+          {"field": "rule_id", "label": "ID regola", "format": "code"},
+          {"field": "rule_source", "label": "Fonte regola", "format": "code"}
+        ]
       },
       {
         "id": "anomalies",
