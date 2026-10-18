@@ -12,7 +12,12 @@ MAX_RULE_BYTES = 256 * 1024
 MAX_RULE_DIRECTORIES = 10_000
 MAX_EVENTS = 10_000
 MAX_RULE_EVENT_EVALUATIONS = 2_000_000
+MAX_RULE_FIELD_COMPARISONS = 5_000_000
 MAX_RECORDED_MATCHES = 1_000
+
+
+class _SigmaBudgetExhausted(Exception):
+    pass
 
 
 def _collect_rules(root: Path, limit: int) -> tuple[list[Path], bool]:
@@ -58,6 +63,7 @@ def load_and_match(events:list[dict],roots:list[Path])->tuple[list[dict],list[st
     if len(events)>len(event_view):
         warnings.append(f"Valutazione Sigma limitata ai primi {MAX_EVENTS} eventi su {len(events)}")
     remaining_evaluations=MAX_RULE_EVENT_EVALUATIONS
+    comparison_budget=[MAX_RULE_FIELD_COMPARISONS]
     for root in roots:
         if not root.exists() or root.is_symlink():continue
         for path in (item for item in rule_paths if root in item.parents):
@@ -68,30 +74,46 @@ def load_and_match(events:list[dict],roots:list[Path])->tuple[list[dict],list[st
                 if not isinstance(rule,dict):raise ValueError('la regola deve essere un oggetto YAML')
                 detection=rule.get('detection',{});selections={k:v for k,v in detection.items() if k not in {'condition','timeframe'}}
                 if not rule.get('title') or not selections:raise ValueError('detection assente')
+                if len(selections)>128:raise ValueError('oltre 128 selection per regola')
                 matched=[];matched_count=0
                 for event in event_view:
                     if remaining_evaluations<=0:
                         break
                     remaining_evaluations-=1
-                    if any(_selection(event,value) for value in selections.values()):
+                    if any(_selection(event,value,comparison_budget) for value in selections.values()):
                         matched_count+=1
                         if len(matched)<MAX_RECORDED_MATCHES:matched.append(event['event_id'])
                 if matched_count:matches.append({"rule_id":str(rule.get('id') or path.stem),"rule_title":rule['title'],"rule_level":rule.get('level','medium'),"tags":rule.get('tags',[]),"matched_events":matched,"matched_event_count":matched_count,"matched_events_truncated":matched_count>len(matched),"fields":selections,"confidence":.9 if matched_count>1 else .76,"rule_source":str(path.relative_to(root.parent)),"false_positives":rule.get('falsepositives',[]),"references":rule.get('references',[])})
                 if remaining_evaluations<=0:
                     warnings.append(f"Budget Sigma di {MAX_RULE_EVENT_EVALUATIONS} valutazioni esaurito")
                     return matches,warnings
+            except _SigmaBudgetExhausted:
+                warnings.append(f"Budget Sigma di {MAX_RULE_FIELD_COMPARISONS} confronti esaurito")
+                return matches,warnings
             except Exception as exc:warnings.append(f'Sigma {path.name}: {exc}')
     return matches,warnings
-def _selection(event,value):
-    if isinstance(value,list):return any(_selection(event,x) for x in value)
+def _selection(event,value,budget=None):
+    if isinstance(value,list):return any(_selection(event,x,budget) for x in value)
     if not isinstance(value,dict):return False
     fields={**event,**event.get('raw_fields',{})}
     for field,expected in value.items():
-        base,*mods=field.split('|');actual=next((v for k,v in fields.items() if k.casefold()==base.casefold() or k.casefold().endswith('.'+base.casefold())),None)
+        if budget is not None:
+            budget[0]-=1
+            if budget[0]<0:raise _SigmaBudgetExhausted
+        base,*mods=field.split('|');actual=None
+        for key,value in fields.items():
+            if budget is not None:
+                budget[0]-=1
+                if budget[0]<0:raise _SigmaBudgetExhausted
+            if key.casefold()==base.casefold() or key.casefold().endswith('.'+base.casefold()):
+                actual=value;break
         values=expected if isinstance(expected,list) else [expected]
         if actual is None:return False
         candidate=str(actual).casefold();ok=False
         for item in values:
+            if budget is not None:
+                budget[0]-=1
+                if budget[0]<0:raise _SigmaBudgetExhausted
             term=str(item).casefold()
             if 'contains' in mods:ok|=term in candidate
             elif 'startswith' in mods:ok|=candidate.startswith(term)
