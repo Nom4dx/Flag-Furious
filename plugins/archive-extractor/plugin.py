@@ -64,6 +64,27 @@ def _name_metadata(value, limit=512):
     }
 
 
+def _has_central_directory_candidate(path):
+    """Check EOCD bounds and the central-directory marker with bounded seeks."""
+    try:
+        with Path(path).open("rb") as source:
+            end_record=zipfile._EndRecData(source)
+            if end_record is None:return False
+            size=int(end_record[zipfile._ECD_SIZE])
+            offset=int(end_record[zipfile._ECD_OFFSET])
+            location=int(end_record[zipfile._ECD_LOCATION])
+            entries=int(end_record[zipfile._ECD_ENTRIES_TOTAL])
+            concat=location-size-offset
+            start=offset+concat
+            if size<0 or offset<0 or location<0 or concat<0 or start<0 or start+size>location:return False
+            if size==0:return entries==0
+            if size<4:return False
+            source.seek(start)
+            return source.read(4)==b"PK\x01\x02"
+    except (OSError,EOFError,zipfile.BadZipFile,IndexError,TypeError,ValueError,struct.error,OverflowError):
+        return False
+
+
 class Plugin(BasePlugin):
     def can_handle(self, asset, context):
         # An arbitrary ZIP marker inside a binary is weak evidence. A normal
@@ -77,11 +98,7 @@ class Plugin(BasePlugin):
             valid=False;score=0;reason=""
             path=Path(asset.get("path",""))
             if path.is_file() and not path.is_symlink():
-                try:
-                    with path.open("rb") as source:end_record=zipfile._EndRecData(source)
-                    valid=end_record is not None
-                except (OSError,EOFError,zipfile.BadZipFile,IndexError,TypeError,ValueError,struct.error):
-                    valid=False
+                valid=_has_central_directory_candidate(path)
                 if valid:score=.74;reason="Candidato EOCD nella coda; possibile SFX o ZIP vuoto"
         return {
             "compatible": valid,

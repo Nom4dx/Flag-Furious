@@ -6,7 +6,8 @@ output. La lettura completa del membro permette alla libreria ZIP di verificare 
 CRC prima di registrare l'artefatto.
 
 Un local header all'offset zero è evidenza forte; SFX e ZIP vuoti richiedono un
-candidato EOCD bounded nella coda. L'indice ZIP e i CRC vengono comunque validati
+EOCD bounded, con limiti plausibili e firma central-directory coerente. L'indice
+ZIP completo e i CRC vengono comunque validati
 durante l'analisi. Con input troncato dal byte budget l'indice potrebbe non essere
 visibile e il risultato è `partial`. I membri cifrati sono inventariati e producono una richiesta
 di credenziale ZipCrypto o WinZip AES; non vengono dichiarati estratti.
